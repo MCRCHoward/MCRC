@@ -1,4 +1,4 @@
-import { Calendar, Clock, MapPin, Globe, CreditCard } from 'lucide-react'
+import { Calendar, MapPin, CreditCard } from 'lucide-react'
 
 export default function EventLoading() {
   return (

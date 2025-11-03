@@ -34,7 +34,7 @@ function normalizeToFirebaseDownloadURL(input?: unknown): string {
   if (!input) return FALLBACK_THUMB
 
   // Handle object with url property
-  if (typeof input === 'object' && input && 'url' in (input as any)) {
+  if (typeof input === 'object' && input && 'url' in input) {
     const u = (input as { url?: string }).url
     if (u) return normalizeToFirebaseDownloadURL(u)
   }

@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
@@ -7,36 +7,27 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import { JSX, useMemo, useState } from "react"
+import { JSX, useMemo, useState } from 'react'
 import {
   AutoEmbedOption,
   EmbedConfig,
   EmbedMatchResult,
   LexicalAutoEmbedPlugin,
   URL_MATCHER,
-} from "@lexical/react/LexicalAutoEmbedPlugin"
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
-import { PopoverPortal } from "@radix-ui/react-popover"
-import type { LexicalEditor } from "lexical"
-import { TwitterIcon, YoutubeIcon } from "lucide-react"
+} from '@lexical/react/LexicalAutoEmbedPlugin'
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { PopoverPortal } from '@radix-ui/react-popover'
+import type { LexicalEditor } from 'lexical'
+import { TwitterIcon, YoutubeIcon } from 'lucide-react'
 
-import { useEditorModal } from "@/components/editor/editor-hooks/use-modal"
-import { INSERT_TWEET_COMMAND } from "@/components/editor/plugins/embeds/twitter-plugin"
-import { INSERT_YOUTUBE_COMMAND } from "@/components/editor/plugins/embeds/youtube-plugin"
-import { Button } from "@/components/ui/button"
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import { DialogFooter } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { useEditorModal } from '@/components/editor/editor-hooks/use-modal'
+import { INSERT_TWEET_COMMAND } from '@/components/editor/plugins/embeds/twitter-plugin'
+import { INSERT_YOUTUBE_COMMAND } from '@/components/editor/plugins/embeds/youtube-plugin'
+import { Button } from '@/components/ui/button'
+import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
+import { DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 export interface CustomEmbedConfig extends EmbedConfig {
   // Human readable name of the embeded content e.g. Tweet or Google Map.
@@ -56,9 +47,9 @@ export interface CustomEmbedConfig extends EmbedConfig {
 }
 
 export const YoutubeEmbedConfig: CustomEmbedConfig = {
-  contentName: "Youtube Video",
+  contentName: 'Youtube Video',
 
-  exampleUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+  exampleUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
 
   // Icon for display.
   icon: <YoutubeIcon className="size-4" />,
@@ -67,12 +58,11 @@ export const YoutubeEmbedConfig: CustomEmbedConfig = {
     editor.dispatchCommand(INSERT_YOUTUBE_COMMAND, result.id)
   },
 
-  keywords: ["youtube", "video"],
+  keywords: ['youtube', 'video'],
 
   // Determine if a given URL is a match and return url data.
   parseUrl: async (url: string) => {
-    const match =
-      /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/.exec(url)
+    const match = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/.exec(url)
 
     const id = match ? (match?.[2].length === 11 ? match[2] : null) : null
 
@@ -86,14 +76,14 @@ export const YoutubeEmbedConfig: CustomEmbedConfig = {
     return null
   },
 
-  type: "youtube-video",
+  type: 'youtube-video',
 }
 
 export const TwitterEmbedConfig: CustomEmbedConfig = {
   // e.g. Tweet or Google Map.
-  contentName: "Tweet",
+  contentName: 'Tweet',
 
-  exampleUrl: "https://twitter.com/jack/status/20",
+  exampleUrl: 'https://twitter.com/jack/status/20',
 
   // Icon for display.
   icon: <TwitterIcon className="size-4" />,
@@ -104,12 +94,11 @@ export const TwitterEmbedConfig: CustomEmbedConfig = {
   },
 
   // For extra searching.
-  keywords: ["tweet", "twitter"],
+  keywords: ['tweet', 'twitter'],
 
   // Determine if a given URL is a match and return url data.
   parseUrl: (text: string) => {
-    const match =
-      /^https:\/\/(twitter|x)\.com\/(#!\/)?(\w+)\/status(es)*\/(\d+)/.exec(text)
+    const match = /^https:\/\/(twitter|x)\.com\/(#!\/)?(\w+)\/status(es)*\/(\d+)/.exec(text)
 
     if (match != null) {
       return {
@@ -121,7 +110,7 @@ export const TwitterEmbedConfig: CustomEmbedConfig = {
     return null
   },
 
-  type: "tweet",
+  type: 'tweet',
 }
 
 export const EmbedConfigs = [TwitterEmbedConfig, YoutubeEmbedConfig]
@@ -143,7 +132,7 @@ export function AutoEmbedDialog({
   embedConfig: CustomEmbedConfig
   onClose: () => void
 }): JSX.Element {
-  const [text, setText] = useState("")
+  const [text, setText] = useState('')
   const [editor] = useLexicalComposerContext()
   const [embedResult, setEmbedResult] = useState<EmbedMatchResult | null>(null)
 
@@ -152,16 +141,14 @@ export function AutoEmbedDialog({
       debounce((inputText: string) => {
         const urlMatch = URL_MATCHER.exec(inputText)
         if (embedConfig != null && inputText != null && urlMatch != null) {
-          Promise.resolve(embedConfig.parseUrl(inputText)).then(
-            (parseResult) => {
-              setEmbedResult(parseResult)
-            }
-          )
+          Promise.resolve(embedConfig.parseUrl(inputText)).then((parseResult) => {
+            setEmbedResult(parseResult)
+          })
         } else if (embedResult != null) {
           setEmbedResult(null)
         }
       }, 200),
-    [embedConfig, embedResult]
+    [embedConfig, embedResult],
   )
 
   const onClick = () => {
@@ -211,10 +198,10 @@ export function AutoEmbedPlugin(): JSX.Element {
   const getMenuOptions = (
     activeEmbedConfig: CustomEmbedConfig,
     embedFn: () => void,
-    dismissFn: () => void
+    dismissFn: () => void,
   ) => {
     return [
-      new AutoEmbedOption("Dismiss", {
+      new AutoEmbedOption('Dismiss', {
         onSelect: dismissFn,
       }),
       new AutoEmbedOption(`Embed ${activeEmbedConfig.contentName}`, {
@@ -233,26 +220,22 @@ export function AutoEmbedPlugin(): JSX.Element {
         menuRenderFn={(
           anchorElementRef,
           {
-            selectedIndex,
+            selectedIndex: _selectedIndex,
             options,
             selectOptionAndCleanUp,
-            setHighlightedIndex,
-          }
+            setHighlightedIndex: _setHighlightedIndex,
+          },
         ) => {
           return anchorElementRef.current ? (
             <Popover open={true}>
               <PopoverPortal container={anchorElementRef.current}>
                 <div className="-translate-y-full transform">
                   <PopoverTrigger />
-                  <PopoverContent
-                    className="w-[200px] p-0"
-                    align="start"
-                    side="right"
-                  >
+                  <PopoverContent className="w-[200px] p-0" align="start" side="right">
                     <Command>
                       <CommandList>
                         <CommandGroup>
-                          {options.map((option, i: number) => (
+                          {options.map((option, _i: number) => (
                             <CommandItem
                               key={option.key}
                               value={option.title}

@@ -755,7 +755,7 @@ interface ColorPickerRootProps
   required?: boolean
 }
 
-const ColorPickerRoot = React.memo((props: ColorPickerRootProps) => {
+const ColorPickerRoot = React.memo(function ColorPickerRoot(props: ColorPickerRootProps) {
   const {
     value: valueProp,
     defaultValue = '#000000',
@@ -820,6 +820,7 @@ const ColorPickerRoot = React.memo((props: ColorPickerRootProps) => {
     </ColorPickerStoreContext.Provider>
   )
 })
+ColorPickerRoot.displayName = 'ColorPickerRoot'
 
 interface ColorPickerRootImplProps
   extends Omit<

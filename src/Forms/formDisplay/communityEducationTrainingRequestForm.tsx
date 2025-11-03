@@ -73,9 +73,12 @@ export function CommunityEducationTrainingRequestForm() {
   const TOTAL_STEPS = STEP_TITLES.length
   const [currentStep, setCurrentStep] = React.useState(0)
 
-  const { isSubmitting, error, success, submitData } = useFirestoreFormSubmit(
-    'forms/communityEducationTrainingRequest/submissions',
-  )
+  const {
+    isSubmitting,
+    error,
+    success: _success,
+    submitData,
+  } = useFirestoreFormSubmit('forms/communityEducationTrainingRequest/submissions')
 
   const form = useForm<TrainingRequestValues>({
     resolver: zodResolver(trainingRequestSchema),
@@ -97,12 +100,17 @@ export function CommunityEducationTrainingRequestForm() {
 
   const goNext = async () => {
     const fields = STEP_FIELDS[currentStep]
-    const isStepValid = await form.trigger(fields as any, { shouldFocus: true })
+    const isStepValid = await form.trigger(fields as Array<keyof TrainingRequestValues>, {
+      shouldFocus: true,
+    })
     if (isStepValid) setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1))
   }
 
   async function onSubmit(data: TrainingRequestValues) {
-    const okay = await form.trigger(STEP_FIELDS[currentStep] as any, { shouldFocus: true })
+    const okay = await form.trigger(
+      STEP_FIELDS[currentStep] as Array<keyof TrainingRequestValues>,
+      { shouldFocus: true },
+    )
     if (!okay) return
 
     await submitData(data)
@@ -321,7 +329,7 @@ export function CommunityEducationTrainingRequestForm() {
                 name="additionalInfo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Anything else you'd like to share? (Optional)</FormLabel>
+                    <FormLabel>Anything else you&apos;d like to share? (Optional)</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Open text box" {...field} />
                     </FormControl>

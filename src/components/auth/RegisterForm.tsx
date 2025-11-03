@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -13,7 +14,7 @@ import {
   signInWithPopup,
   type User,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc } from 'firebase/firestore'
+import { doc, setDoc } from 'firebase/firestore'
 
 // Password strength checker
 function checkPasswordStrength(password: string): {
@@ -191,7 +192,9 @@ export function RegisterForm() {
       password: '',
       confirmPassword: '',
       phoneNumber: '',
-      preferredLocale: getBrowserLocale() as any,
+      preferredLocale: (languages.includes(getBrowserLocale() as (typeof languages)[number])
+        ? getBrowserLocale()
+        : 'en-US') as (typeof languages)[number],
       primaryContactMethod: 'email',
       languagesSpoken: [getBrowserLocale().split('-')[0] || 'en'],
       consentsTos: false,
@@ -249,7 +252,7 @@ export function RegisterForm() {
 
   const goNext = async () => {
     const stepFields = STEPS[currentStep].fields as (keyof FormValues)[]
-    const isValid = await form.trigger(stepFields as any)
+    const isValid = await form.trigger(stepFields as Array<keyof FormValues>)
     if (isValid) {
       if (currentStep < STEPS.length - 1) {
         setCurrentStep((s) => s + 1)
@@ -277,16 +280,17 @@ export function RegisterForm() {
             values.password,
           )
           user = cred.user
-        } catch (authError: any) {
+        } catch (authError: unknown) {
           // Handle Firebase Auth errors
-          if (authError.code === 'auth/email-already-in-use') {
+          const error = authError as { code?: string; message?: string }
+          if (error.code === 'auth/email-already-in-use') {
             throw new Error('This email address is already registered. Please sign in instead.')
-          } else if (authError.code === 'auth/weak-password') {
+          } else if (error.code === 'auth/weak-password') {
             throw new Error('Password is too weak. Please choose a stronger password.')
-          } else if (authError.code === 'auth/invalid-email') {
+          } else if (error.code === 'auth/invalid-email') {
             throw new Error('Please enter a valid email address.')
           } else {
-            throw new Error(authError.message || 'Failed to create account. Please try again.')
+            throw new Error(error.message || 'Failed to create account. Please try again.')
           }
         }
       }
@@ -696,9 +700,9 @@ export function RegisterForm() {
               </div>
               <label htmlFor="consents-tos" className="text-sm text-gray-900 dark:text-gray-100">
                 I accept the{' '}
-                <a href="/terms" className="text-indigo-600 hover:underline">
+                <Link href="/terms" className="text-indigo-600 hover:underline">
                   Terms of Service
-                </a>{' '}
+                </Link>{' '}
                 (required)
               </label>
             </div>
@@ -738,9 +742,9 @@ export function RegisterForm() {
                 className="text-sm text-gray-900 dark:text-gray-100"
               >
                 I accept the{' '}
-                <a href="/privacy" className="text-indigo-600 hover:underline">
+                <Link href="/privacy" className="text-indigo-600 hover:underline">
                   Privacy Policy
-                </a>{' '}
+                </Link>{' '}
                 (required)
               </label>
             </div>
@@ -855,7 +859,7 @@ export function RegisterForm() {
       {currentStep === 4 && (
         <div className="space-y-6">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Select all that apply. This helps us understand how you'd like to engage with MCRC.
+            Select all that apply. This helps us understand how you&apos;d like to engage with MCRC.
           </p>
           <div className="space-y-4">
             {[
@@ -877,7 +881,7 @@ export function RegisterForm() {
                         type="checkbox"
                         checked={checked}
                         onChange={(e) =>
-                          form.setValue(key as keyof FormValues, e.target.checked as any)
+                          form.setValue(key as keyof FormValues, e.target.checked as boolean)
                         }
                         className="col-start-1 row-start-1 appearance-none rounded border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-white/10 dark:bg-white/5 dark:checked:border-indigo-500 dark:focus-visible:outline-indigo-500"
                       />

@@ -58,7 +58,7 @@ const RestorativeJusticeRequest = () => {
             </p>
             <div className="mt-6 border-t border-gray-100 dark:border-white/10">
               <dl className="divide-y divide-gray-100 dark:divide-white/10">
-                {programData.map((program, index) => (
+                {programData.map((program, _index) => (
                   <div
                     className={cn('px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0')}
                     key={program.title}

@@ -24,14 +24,13 @@ export default async function Page({ params: paramsPromise }: Args) {
   // Check if we're in draft mode (for CMS preview)
   const { isEnabled: draft } = await draftMode()
   // Get the slug from the URL, defaulting to 'home' if not provided
-  const { slug = 'home' } = await paramsPromise
-  const url = '/' + slug
+  const { slug: _slug = 'home' } = await paramsPromise
 
   // TODO: Fetch page data from Firebase instead of Payload
   let page = null
 
   // Temporary fallback for home page if CMS data isn't available
-  if (!page && slug === 'home') {
+  if (!page && _slug === 'home') {
     page = homeStatic
   }
 
@@ -40,7 +39,7 @@ export default async function Page({ params: paramsPromise }: Args) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <h1 className="text-4xl font-bold">Page Not Found</h1>
-        <p className="text-gray-600 mt-4">The page you're looking for doesn't exist.</p>
+        <p className="text-gray-600 mt-4">The page you&apos;re looking for doesn&apos;t exist.</p>
       </div>
     )
   }
@@ -70,7 +69,7 @@ export default async function Page({ params: paramsPromise }: Args) {
  * This is used by Next.js for SEO and social sharing
  */
 export async function generateMetadata({ params: paramsPromise }: Args): Promise<Metadata> {
-  const { slug = 'home' } = await paramsPromise
+  const { slug: _slug = 'home' } = await paramsPromise
   // TODO: Fetch page data from Firebase
   const page = null
 

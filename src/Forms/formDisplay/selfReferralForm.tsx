@@ -155,13 +155,17 @@ export function MediationSelfReferralForm() {
 
   const goNext = async () => {
     const fields = STEP_FIELDS[currentStep]
-    const isStepValid = await form.trigger(fields as any, { shouldFocus: true })
+    const isStepValid = await form.trigger(fields as Array<keyof MediationFormValues>, {
+      shouldFocus: true,
+    })
     if (isStepValid) setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1))
   }
 
   async function onSubmit(data: MediationFormValues) {
     // Optional: final guard to ensure last step is valid
-    const okay = await form.trigger(STEP_FIELDS[currentStep] as any, { shouldFocus: true })
+    const okay = await form.trigger(STEP_FIELDS[currentStep] as Array<keyof MediationFormValues>, {
+      shouldFocus: true,
+    })
     if (!okay) return
 
     await submitData(data)
@@ -660,7 +664,7 @@ export function MediationSelfReferralForm() {
             <CardHeader>
               <CardTitle>Section 4: Scheduling & Final Details</CardTitle>
               <CardDescription>
-                After you submit, you'll get a link to schedule a follow-up call.
+                After you submit, you&apos;ll get a link to schedule a follow-up call.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -696,7 +700,9 @@ export function MediationSelfReferralForm() {
                         />
                       </PopoverContent>
                     </Popover>
-                    <FormDescription>If not applicable, please pick today's date.</FormDescription>
+                    <FormDescription>
+                      If not applicable, please pick today&apos;s date.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -718,7 +724,8 @@ export function MediationSelfReferralForm() {
                       />
                     </FormControl>
                     <FormDescription>
-                      We'll do our best to accommodate you. (Enter 'None' if not applicable)
+                      We&apos;ll do our best to accommodate you. (Enter &apos;None&apos; if not
+                      applicable)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -730,7 +737,7 @@ export function MediationSelfReferralForm() {
                 name="additionalInfo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Is there anything else you'd like us to know? *</FormLabel>
+                    <FormLabel>Is there anything else you&apos;d like us to know? *</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Any additional context or notes for our team."
@@ -738,7 +745,7 @@ export function MediationSelfReferralForm() {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>(Enter 'None' if not applicable)</FormDescription>
+                    <FormDescription>(Enter &apos;None&apos; if not applicable)</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

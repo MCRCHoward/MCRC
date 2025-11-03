@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
@@ -7,22 +7,18 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import { JSX, useEffect } from "react"
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
-import type { LexicalEditor } from "lexical"
-import { TextNode } from "lexical"
-import { createPortal } from "react-dom"
+import { JSX, useEffect } from 'react'
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import type { LexicalEditor } from 'lexical'
+import { TextNode } from 'lexical'
 
-import {
-  $createEmojiNode,
-  EmojiNode,
-} from "@/components/editor/nodes/emoji-node"
+import { $createEmojiNode, EmojiNode } from '@/components/editor/nodes/emoji-node'
 
 const emojis: Map<string, [string, string]> = new Map([
-  [":)", ["emoji happysmile", "🙂"]],
-  [":D", ["emoji veryhappysmile", "😀"]],
-  [":(", ["emoji unhappysmile", "🙁"]],
-  ["<3", ["emoji heart", "❤"]],
+  [':)', ['emoji happysmile', '🙂']],
+  [':D', ['emoji veryhappysmile', '😀']],
+  [':(', ['emoji unhappysmile', '🙁']],
+  ['<3', ['emoji heart', '❤']],
 ])
 
 function $findAndTransformEmoji(node: TextNode): null | TextNode {
@@ -65,7 +61,7 @@ function $textNodeTransform(node: TextNode): void {
 function useEmojis(editor: LexicalEditor): void {
   useEffect(() => {
     if (!editor.hasNodes([EmojiNode])) {
-      throw new Error("EmojisPlugin: EmojiNode not registered on editor")
+      throw new Error('EmojisPlugin: EmojiNode not registered on editor')
     }
 
     return editor.registerNodeTransform(TextNode, $textNodeTransform)

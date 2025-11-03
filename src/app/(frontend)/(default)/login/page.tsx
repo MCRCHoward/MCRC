@@ -1,5 +1,6 @@
 import { LoginForm } from '@/components/auth/LoginForm'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function LoginPage() {
   return (
@@ -8,15 +9,21 @@ export default function LoginPage() {
         <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
           <div className="mx-auto w-full max-w-sm lg:w-96">
             <div>
-              <img
+              <Image
                 alt="Logo"
                 src="/images/logo/mcrc-logo.png"
+                width={120}
+                height={40}
                 className="h-10 w-auto dark:hidden"
+                priority
               />
-              <img
+              <Image
                 alt="Logo"
                 src="/images/logo/mcrc-logo.png"
+                width={120}
+                height={40}
                 className="hidden h-10 w-auto dark:block"
+                priority
               />
               <h2 className="mt-8 text-2xl/9 font-bold tracking-tight text-gray-900 dark:text-white">
                 Sign in to your account
@@ -40,10 +47,12 @@ export default function LoginPage() {
           </div>
         </div>
         <div className="relative hidden w-0 flex-1 lg:block">
-          <img
+          <Image
             alt=""
             src="https://images.unsplash.com/photo-1496917756835-20cb06e75b4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1908&q=80"
-            className="absolute inset-0 size-full object-cover"
+            fill
+            className="object-cover"
+            priority
           />
         </div>
       </div>
