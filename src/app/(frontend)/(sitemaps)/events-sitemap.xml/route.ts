@@ -1,8 +1,8 @@
 import { getServerSideSitemap } from 'next-sitemap'
 import { unstable_cache } from 'next/cache'
-import { fetchPosts } from '@/lib/firebase-api-blog'
+import { fetchPublishedEvents } from '@/lib/firebase-api-events'
 
-const getPostsSitemap = unstable_cache(
+const getEventsSitemap = unstable_cache(
   async () => {
     const SITE_URL =
       process.env.NEXT_PUBLIC_SERVER_URL ||
@@ -10,33 +10,33 @@ const getPostsSitemap = unstable_cache(
       process.env.NEXT_PUBLIC_SITE_URL ||
       'https://example.com'
 
-    // Fetch all published posts from Firebase
-    const posts = await fetchPosts()
+    // Fetch all published events from Firebase
+    const events = await fetchPublishedEvents()
 
     const dateFallback = new Date().toISOString()
 
-    // Map posts to sitemap entries
-    const sitemap = posts
-      .filter((post) => Boolean(post?.slug) && post._status === 'published')
-      .map((post) => {
-        const lastmod = post.updatedAt || post.publishedAt || post.createdAt || dateFallback
+    // Map events to sitemap entries
+    const sitemap = events
+      .filter((event) => Boolean(event?.slug) && event.meta?.status === 'published')
+      .map((event) => {
+        const lastmod = event.updatedAt || event.createdAt || dateFallback
 
         return {
-          loc: `${SITE_URL}/blog/${post.slug}`,
+          loc: `${SITE_URL}/events/${event.slug}`,
           lastmod: typeof lastmod === 'string' ? lastmod : dateFallback,
         }
       })
 
     return sitemap
   },
-  ['posts-sitemap'],
+  ['events-sitemap'],
   {
-    tags: ['posts-sitemap'],
+    tags: ['events-sitemap'],
     revalidate: 3600, // Revalidate every hour
   },
 )
 
 export async function GET() {
-  const sitemap = await getPostsSitemap()
+  const sitemap = await getEventsSitemap()
   return getServerSideSitemap(sitemap)
 }
