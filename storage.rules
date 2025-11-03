@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ---------- Helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    
+    function isCoordinator() {
+      return isSignedIn() && request.auth.token.coordinator == true;
+    }
+    
+    function isStaff() {
+      return isAdmin() || isCoordinator();
+    }
+    
+    // ---------- BLOG MEDIA (public read, authenticated write) ----------
+    // FIX: Use {allPaths=**} to make the rule recursive
+    match /blog/media/{allPaths=**} {
+      allow read: if true; // Public read - blog images are public
+      allow write: if isSignedIn(); // Authenticated users can upload
+      allow delete: if isStaff(); // Only staff can delete
+    }
+    
+    // ---------- EVENTS MEDIA (public read, authenticated write) ----------
+    // FIX: Use {allPaths=**} to make the rule recursive
+    match /events/media/{allPaths=**} {
+      allow read: if true; // Public read - event images are public
+      allow write: if isSignedIn(); // Authenticated users can upload
+      allow delete: if isStaff(); // Only staff can delete
+    }
+    
+    // ---------- TRAININGS MEDIA (public read, authenticated write) ----------
+    // FIX: Use {allPaths=**} to make the rule recursive
+    match /trainings/media/{allPaths=**} {
+      allow read: if true; // Public read - training images are public
+      allow write: if isSignedIn(); // Authenticated users can upload
+      allow delete: if isStaff(); // Only staff can delete
+    }
+    
+    // ---------- Catch-all deny (everything else) ----------
+    // This is correct, it denies access to any path not matched above
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

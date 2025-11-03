@@ -1,25 +1,62 @@
 import { cookies } from 'next/headers'
-import { auth } from './firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { adminAuth, adminDb } from '@/lib/firebase-admin'
 import type { User } from '@/types'
 
+/**
+ * Gets the current authenticated user from the session cookie.
+ * Verifies the token with Firebase Admin and fetches user data from Firestore.
+ */
 export async function getCurrentUser(): Promise<User | null> {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get('firebase-token')?.value
-    
-    if (!token) return null
+    const idToken = cookieStore.get('firebase-token')?.value
 
-    // Verify the token with Firebase Admin
-    // This would need to be implemented with Firebase Admin SDK
-    // For now, return null if no token
-    return null
+    if (!idToken) {
+      return null
+    }
+
+    // Verify the ID token with Firebase Admin
+    const decodedToken = await adminAuth.verifyIdToken(idToken)
+    const uid = decodedToken.uid
+
+    // Fetch user profile from Firestore using Admin SDK
+    const userDocRef = adminDb.doc(`users/${uid}`)
+    const userDoc = await userDocRef.get()
+
+    if (!userDoc.exists) {
+      // User document doesn't exist yet, create a minimal user object
+      return {
+        id: uid,
+        email: decodedToken.email ?? '',
+        name: decodedToken.name ?? '',
+        role: 'participant', // Default role
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    }
+
+    const userData = userDoc.data()
+
+    // Build User object from Firestore data
+    const user: User = {
+      id: uid,
+      email: userData?.email ?? decodedToken.email ?? null,
+      name: userData?.name ?? decodedToken.name ?? null,
+      role: (userData?.role as User['role']) ?? 'participant',
+      createdAt: userData?.createdAt ?? new Date().toISOString(),
+      updatedAt: userData?.updatedAt ?? new Date().toISOString(),
+    }
+
+    return user
   } catch (error) {
-    console.error('Error getting current user:', error)
+    console.error('[getCurrentUser] Error:', error)
     return null
   }
 }
 
+/**
+ * Requires authentication. Throws if no user is authenticated.
+ */
 export async function requireAuth(): Promise<User> {
   const user = await getCurrentUser()
   if (!user) {
@@ -28,6 +65,9 @@ export async function requireAuth(): Promise<User> {
   return user
 }
 
+/**
+ * Requires a specific role. Admins can access any role-protected route.
+ */
 export async function requireRole(requiredRole: 'admin' | 'coordinator'): Promise<User> {
   const user = await requireAuth()
   if (user.role !== requiredRole && user.role !== 'admin') {

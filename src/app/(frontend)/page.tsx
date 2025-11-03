@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     'Welcome to our organization. We are dedicated to making a difference in our community.',
 }
 
-// Temporary mock data - will be replaced with Payload data
+// Temporary mock data - will be replaced with Firebase data
 const mockData = {
   cta: {
     imgSrc: '/images/mediation/happy-conversation.jpg',

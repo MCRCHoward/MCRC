@@ -1,73 +1,46 @@
-// src/app/(frontend)/(default)/blog/[slug]/page.tsx
-import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { Linkedin, Twitter } from 'lucide-react'
 
-import { fetchPostBySlug } from '@/lib/payload-api-blog'
-import type { Category as CategoryType } from '@/types'
-import { type DefaultTypedEditorState } from '@payloadcms/richtext-lexical'
-
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-
-// Type definitions for extended post data
-interface Author {
-  name: string
-  id?: string
-}
-
-interface SectionImage {
-  url: string
-  alt?: string
-}
-
-interface Section {
-  title?: string | null
-  anchor?: string | null
-  contentHtml?: string | null
-  image?: SectionImage | null
-}
-
-interface PopulatedPost {
-  populatedAuthors?: Author[]
-  contentHtml?: string
-  sections?: Section[]
-  content?: unknown
-}
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import RichText from '@/components/RichText'
-import { getMediaUrl } from '@/utilities/getMediaUrl'
-import { formatDateTime } from '@/utilities/formatDateTime'
+import { fetchPostBySlug, fetchPosts, fetchCategories } from '@/lib/firebase-api-blog'
+import { BlogPostPageClient } from '@/components/clients/BlogPostPageClient'
 import { getServerSideURL } from '@/utilities/getURL'
-import { PostSectionsNav } from '@/components/Dashboard/posts/PostSectionsNav'
 
 type RouteParams = Promise<{ slug: string }>
+
+/**
+ * Helper to normalize image URLs to Firebase download URLs
+ */
+function normalizeImageUrl(url?: string): string | undefined {
+  if (!url) return undefined
+  if (url.startsWith('https://firebasestorage.googleapis.com/')) return url
+  if (url.startsWith('https://storage.googleapis.com/')) {
+    try {
+      const urlObj = new URL(url)
+      const parts = urlObj.pathname.split('/').filter(Boolean)
+      const bucket = parts[0]
+      const objectPath = parts.slice(1).join('/')
+      if (bucket && objectPath) {
+        const encodedPath = encodeURIComponent(objectPath)
+        return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodedPath}?alt=media`
+      }
+    } catch {
+      return url
+    }
+  }
+  return url
+}
 
 // --- SEO ---
 export async function generateMetadata({ params }: { params: RouteParams }): Promise<Metadata> {
   const { slug } = await params
-  const post = await fetchPostBySlug(slug)
-  if (!post) {
-    return { title: 'Post not found', robots: { index: false } }
-  }
 
-  const siteURL = getServerSideURL()
-  const canonical = `${siteURL}/blog/${encodeURIComponent(slug)}`
-  const title = post.title ?? 'Blog post'
-  const description = post.excerpt ?? 'Read the latest update from our blog.'
-  const hero =
-    typeof post.heroImage === 'object' && post.heroImage
-      ? getMediaUrl(post.heroImage.url ?? '')
-      : undefined
+  const post = await fetchPostBySlug(slug)
+  if (!post) return { title: 'Post Not Found', robots: { index: false } }
+
+  const title = post.title || 'Blog Post'
+  const description = post.excerpt || post.heroBriefSummary || 'Blog post'
+  const image = normalizeImageUrl(post.heroImage || post.metaImage)
+  const canonical = `${getServerSideURL()}/blog/${encodeURIComponent(slug)}`
 
   return {
     title,
@@ -78,292 +51,42 @@ export async function generateMetadata({ params }: { params: RouteParams }): Pro
       description,
       url: canonical,
       type: 'article',
-      images: hero ? [{ url: hero, width: 1200, height: 630 }] : undefined,
+      images: image ? [{ url: image, width: 1200, height: 630 }] : undefined,
+      publishedTime: post.publishedAt,
+      modifiedTime: post.updatedAt,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: image ? [image] : undefined,
     },
   }
 }
 
 export default async function BlogPostPage({ params }: { params: RouteParams }) {
   const { slug } = await params
-  const post = await fetchPostBySlug(slug)
+
+  // Fetch post and categories in parallel
+  const [post, categories] = await Promise.all([fetchPostBySlug(slug), fetchCategories()])
+
   if (!post) return notFound()
 
-  const published = post.publishedAt ? formatDateTime(post.publishedAt) : null
-  const readTime = post.readTimeMinutes ? `${post.readTimeMinutes} min read` : null
-  const hero =
-    typeof post.heroImage === 'object' && post.heroImage
-      ? getMediaUrl(post.heroImage.url ?? '')
-      : undefined
-
-  const siteURL = getServerSideURL()
-  const canonical = `${siteURL}/blog/${encodeURIComponent(slug)}`
-  const twitterShare = `https://twitter.com/intent/tweet?url=${encodeURIComponent(
-    canonical,
-  )}&text=${encodeURIComponent(post.title ?? '')}`
-  const linkedinShare = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
-    canonical,
-  )}`
-
-  const categories =
-    (Array.isArray(post.categories) ? (post.categories as CategoryType[]) : []) || []
-
-  // Authors
-  const populatedPost = post as PopulatedPost
-  const populated = Array.isArray(populatedPost.populatedAuthors)
-    ? populatedPost.populatedAuthors
-    : []
-  const authors =
-    populated.length > 0
-      ? populated.map((a: Author) => a.name).filter(Boolean)
-      : Array.isArray(post.authors)
-        ? (post.authors as unknown as Author[]).map((a) => a?.name).filter(Boolean)
-        : []
-
-  // --- New schema support ---
-  const contentHtml: string | undefined = populatedPost.contentHtml || undefined
-  const sections: Section[] = Array.isArray(populatedPost.sections) ? populatedPost.sections : []
-
-  // If section has an upload image, get its URL
-  const getSectionImageUrl = (s: Section) => {
-    if (s && typeof s.image === 'object' && s.image?.url) {
-      return getMediaUrl(s.image.url)
-    }
-    return undefined
-  }
-
-  return (
-    <section className="pb-32">
-      {/* Hero / Header */}
-      <div className="bg-muted bg-[url('https://deifkwefumgah.cloudfront.net/shadcnblocks/block/patterns/dot-pattern-2.svg')] bg-[length:3.125rem_3.125rem] bg-repeat py-20">
-        <div className="container flex flex-col items-start justify-start gap-10 py-10">
-          {/* Breadcrumb */}
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/">Home</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/blog">Blog</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{post.title}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-
-          {/* Title + Meta */}
-          <div className="flex w-full flex-col items-center gap-5 text-center">
-            <div className="flex flex-wrap items-center justify-center gap-2.5 text-sm text-muted-foreground">
-              {readTime ? <div>{readTime}</div> : null}
-              {readTime && published ? <div>|</div> : null}
-              {published ? <div>{published}</div> : null}
-            </div>
-
-            <h1 className="max-w-3xl text-balance text-[2.5rem] font-semibold leading-[1.2] md:text-5xl lg:text-6xl">
-              {post.title}
-            </h1>
-
-            {post.excerpt ? (
-              <p className="max-w-3xl text-foreground text-xl font-semibold leading-[1.4]">
-                {post.excerpt}
-              </p>
-            ) : null}
-
-            {/* Categories */}
-            {categories.length > 0 ? (
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                {categories.map((c) => (
-                  <Badge key={String(c.id)} variant="secondary" className="rounded-full">
-                    {c.title ?? c.slug ?? 'Category'}
-                  </Badge>
-                ))}
-              </div>
-            ) : null}
-
-            {/* Share buttons */}
-            <div className="mt-3 flex items-center justify-center gap-2.5">
-              <Button asChild size="icon" variant="outline" aria-label="Share on Twitter">
-                <a href={twitterShare} target="_blank" rel="noopener noreferrer">
-                  <Twitter />
-                </a>
-              </Button>
-              <Button asChild size="icon" variant="outline" aria-label="Share on LinkedIn">
-                <a href={linkedinShare} target="_blank" rel="noopener noreferrer">
-                  <Linkedin />
-                </a>
-              </Button>
-            </div>
-          </div>
-
-          {/* Hero Image */}
-          {hero ? (
-            <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-xl">
-              <Image
-                src={hero}
-                alt={post.title ?? ''}
-                width={1600}
-                height={900}
-                className="h-auto w-full object-cover"
-                priority
-              />
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="container pt-16">
-        <div className="mx-auto w-full max-w-5xl">
-          {/* Author strip */}
-          {authors.length > 0 ? (
-            <div className="mb-8 flex flex-wrap items-center gap-4">
-              {authors.map((name: string) => (
-                <Author
-                  key={name}
-                  author={{ name, job: '', image: undefined, description: '', socials: [] }}
-                />
-              ))}
-            </div>
-          ) : null}
-
-          {/* When we have sections, show a 2-col layout with sticky nav */}
-          {sections.length > 0 ? (
-            <div className="relative grid gap-10 lg:grid-cols-[220px_1fr]">
-              <aside className="top-24 hidden lg:sticky lg:block">
-                <PostSectionsNav
-                  sections={sections.map((s) => ({
-                    title: s.title ?? '',
-                    anchor: s.anchor ?? '',
-                  }))}
-                />
-              </aside>
-
-              <article className="prose max-w-none dark:prose-invert">
-                {sections.map((s, idx) => {
-                  const img = getSectionImageUrl(s)
-                  return (
-                    <section key={idx} id={s.anchor || undefined} className="mb-10">
-                      {s.title ? <h2>{s.title}</h2> : null}
-                      {img ? (
-                        <div className="my-4 overflow-hidden rounded-lg">
-                          <Image
-                            src={img}
-                            alt={s.title || ''}
-                            width={1200}
-                            height={675}
-                            className="h-auto w-full object-cover"
-                          />
-                        </div>
-                      ) : null}
-                      {s.contentHtml ? (
-                        <div dangerouslySetInnerHTML={{ __html: s.contentHtml }} />
-                      ) : null}
-                    </section>
-                  )
-                })}
-
-                {/* If there is a main contentHtml (the “conclusion”), render it at the end */}
-                {(contentHtml?.trim()?.length ?? 0) > 0 ? (
-                  <section className="mt-12">
-                    <div dangerouslySetInnerHTML={{ __html: contentHtml! }} />
-                  </section>
-                ) : null}
-              </article>
-            </div>
-          ) : (
-            // Legacy fallback: no sections — show main HTML if present,
-            // otherwise render old Lexical field with <RichText />
-            <article className="prose max-w-none dark:prose-invert">
-              {(contentHtml?.trim()?.length ?? 0) > 0 ? (
-                <div dangerouslySetInnerHTML={{ __html: contentHtml! }} />
-              ) : (
-                <RichText
-                  data={populatedPost.content as DefaultTypedEditorState | null}
-                  className="prose dark:prose-invert"
-                />
-              )}
-            </article>
-          )}
-
-          {/* Footer author card (optional) */}
-          {authors.length > 0 ? (
-            <div className="mt-10 rounded-lg bg-muted p-5">
-              <div className="flex flex-wrap items-center gap-4">
-                {authors.map((name: string) => (
-                  <Author
-                    key={`${name}-footer`}
-                    author={{ name, job: '', image: undefined, description: '', socials: [] }}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </section>
-  )
+  return <BlogPostPageClient post={post} categories={categories} />
 }
 
-function Author({
-  author,
-}: {
-  author: {
-    image?: string
-    name: string
-    job?: string
-    description?: string
-    socials?: { url: string }[]
-  }
-}) {
-  const initials =
-    author.name
-      ?.trim()
-      ?.split(/\s+/)
-      ?.map((s) => s[0]?.toUpperCase())
-      .slice(0, 2)
-      .join('') || 'A'
-  return (
-    <div className="flex items-center gap-2.5">
-      <Avatar className="size-12 border">
-        {author.image ? <AvatarImage src={author.image} alt={author.name} /> : null}
-        <AvatarFallback>{initials}</AvatarFallback>
-      </Avatar>
-      <div>
-        <div className="text-sm font-normal leading-normal">{author.name}</div>
-        {author.job ? (
-          <div className="text-muted-foreground text-sm font-normal leading-normal">
-            {author.job}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
-// keep ISR caching
 export const revalidate = 60
 
-export async function generateStaticParams() {
-  const base = getServerSideURL() // uses VERCEL_PROJECT_PRODUCTION_URL in prod
+// --- Static params generation ---
+export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
   try {
-    const res = await fetch(
-      `${base}/api/posts?where[_status][equals]=published&limit=1000&select=slug`,
-      { next: { revalidate: 60 } },
-    )
-    if (!res.ok) return []
-
-    const data = await res.json()
-    const slugs: string[] = Array.isArray(data?.docs)
-      ? data.docs
-          .map((p: { slug?: string }) => p?.slug)
-          .filter((s: string | undefined): s is string => typeof s === 'string' && s.length > 0)
-      : []
-
-    return slugs.map((slug) => ({ slug }))
-  } catch {
-    // On any build-time fetch failure, skip pre-rendering. Pages will be generated on-demand.
+    const posts = await fetchPosts()
+    return posts
+      .map((post) => post.slug)
+      .filter((slug): slug is string => typeof slug === 'string' && slug.length > 0)
+      .map((slug) => ({ slug }))
+  } catch (error) {
+    console.error('Error generating static params for blog posts:', error)
     return []
   }
 }

@@ -284,7 +284,16 @@ export function GroupFacilitationInquiryForm() {
                     <FormItem>
                       <FormLabel>Number of People in Your Group</FormLabel>
                       <FormControl>
-                        <Input inputMode="numeric" placeholder="e.g. 12" {...field} />
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="e.g. 12"
+                          value={field.value ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            field.onChange(v === '' ? undefined : Number(v))
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

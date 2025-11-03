@@ -7,32 +7,17 @@ import {
   type SidebarNavItem,
   type SidebarTeam,
 } from '@/components/Dashboard/app-sidebar'
-import { firebaseFetch } from '@/lib/auth'
-import type { User } from '@/types'
+import { getCurrentUser } from '@/lib/custom-auth'
 import DashboardBreadcrumbs from '@/components/Dashboard/dashboard-breadcrumbs'
 
 // Optional hints (match what you used in the page)
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Fetch the current user (authed request)
-async function getCurrentUser(): Promise<User | null> {
-  // TODO: Implement Firebase auth user fetching
-  // For now, return a mock user
-  return {
-    id: '1',
-    email: 'admin@mcrc.org',
-    name: 'Admin User',
-    role: 'admin',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-}
-
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // (cms)/layout.tsx already guards auth/role and redirects, so here we just read the user for UI.
   const user = await getCurrentUser()
-
+  console.log('DashboardLayout user', user)
   const sidebarUser = {
     name: user?.name ?? 'Staff User',
     email: user?.email ?? 'staff@example.com',
@@ -42,14 +27,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const navMain: SidebarNavItem[] = [
     {
       title: 'Blog Posts',
-      url: '/dashboard/posts',
+      url: '/dashboard/blog',
       iconKey: 'squareTerminal',
       isActive: true,
       items: [
-        { title: 'New Post', url: '/dashboard/posts/new' },
-        { title: 'All Posts', url: '/dashboard/posts' },
-        { title: 'Categories', url: '/dashboard/categories' },
-        { title: 'Trash', url: '/dashboard/posts/trash' },
+        { title: 'New Blog Post', url: '/dashboard/blog/new' },
+        { title: 'All Blog Posts', url: '/dashboard/blog' },
+        { title: 'Categories', url: '/dashboard/blog/categories' },
+        { title: 'Trash', url: '/dashboard/blog/trash' },
       ],
     },
     {

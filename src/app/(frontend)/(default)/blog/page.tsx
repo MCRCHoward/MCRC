@@ -1,12 +1,6 @@
-import { fetchFeaturedPost, fetchPosts, fetchCategories } from '@/lib/payload-api-blog'
-import type { Post as PayloadPost, Category as PayloadCategory, Media } from '@/types'
+import { fetchFeaturedPost, fetchPosts, fetchCategories } from '@/lib/firebase-api-blog'
+import type { Post, Category } from '@/types'
 import { default as BlogPageClient } from '@/components/clients/BlogPageClient'
-
-// Type definitions for extended data
-interface HeroImage extends Media {
-  url?: string
-  filename?: string
-}
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -27,42 +21,79 @@ type UIBreadcrumbItem = { label: string; link: string }
 
 const FALLBACK_THUMB = 'https://deifkwefumgah.cloudfront.net/shadcnblocks/block/placeholder-1.svg'
 
-// Turn a Payload Post into your card shape
-function toCardPost(p: PayloadPost): CardPost | null {
-  // Prefer the first related category's *title* for pretty display
-  const firstCat = (
-    Array.isArray(p.categories) && p.categories[0] && typeof p.categories[0] === 'object'
-      ? (p.categories[0] as PayloadCategory)
-      : null
-  ) as PayloadCategory | null
+// Get bucket name from environment variable
+const BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || ''
 
-  const categoryLabel = firstCat?.title || firstCat?.slug || 'Uncategorized'
+/**
+ * Convert various image URL formats to Firebase Storage download URL.
+ * Firebase download URLs honor Storage rules, unlike raw GCS URLs.
+ *
+ * Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media
+ */
+function normalizeToFirebaseDownloadURL(input?: unknown): string {
+  if (!input) return FALLBACK_THUMB
 
-  const slug = p.slug
-  if (!slug) return null
+  // Handle object with url property
+  if (typeof input === 'object' && input && 'url' in (input as any)) {
+    const u = (input as { url?: string }).url
+    if (u) return normalizeToFirebaseDownloadURL(u)
+  }
 
-  // Try to read a usable image URL from heroImage (Media relationship)
-  // If your Media has `url`, this will work. Otherwise we fall back.
-  const hero = p.heroImage as HeroImage | null
-  const thumbnail =
-    hero && typeof hero === 'object' && (hero.url || hero.filename)
-      ? hero.url || hero.filename || FALLBACK_THUMB
-      : FALLBACK_THUMB
+  if (typeof input !== 'string' || input.length < 4) return FALLBACK_THUMB
 
-  return {
-    category: categoryLabel, // IMPORTANT: we pass a *label*, and filter will lower-case it
-    title: p.title || 'Untitled',
-    summary: p.excerpt || '',
-    link: `/blog/${slug}`,
-    cta: 'Read article',
-    thumbnail,
+  // Already a Firebase download endpoint
+  if (input.startsWith('https://firebasestorage.googleapis.com/')) {
+    return input
+  }
+
+  try {
+    // Raw GCS URL → storage.googleapis.com/<bucket>/<objectPath>
+    if (input.startsWith('https://storage.googleapis.com/')) {
+      const url = new URL(input)
+      // pathname like "/<bucket>/<objectPath...>"
+      const parts = url.pathname.split('/').filter(Boolean)
+      const bucket = parts[0]
+      const objectPath = parts.slice(1).join('/')
+      if (bucket && objectPath) {
+        const encodedPath = encodeURIComponent(objectPath)
+        return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodedPath}?alt=media`
+      }
+    }
+
+    // If the string includes a known path prefix (e.g., ".../blog/media/..."),
+    // rebuild using our configured bucket.
+    const BLOG_PREFIX = '/blog/media/'
+    const EVENTS_PREFIX = '/events/media/'
+    const TRAININGS_PREFIX = '/trainings/media/'
+
+    let objectPath: string | null = null
+    if (input.includes(BLOG_PREFIX)) {
+      const idx = input.indexOf(BLOG_PREFIX)
+      objectPath = input.slice(idx + 1) // drop leading slash
+    } else if (input.includes(EVENTS_PREFIX)) {
+      const idx = input.indexOf(EVENTS_PREFIX)
+      objectPath = input.slice(idx + 1)
+    } else if (input.includes(TRAININGS_PREFIX)) {
+      const idx = input.indexOf(TRAININGS_PREFIX)
+      objectPath = input.slice(idx + 1)
+    }
+
+    if (objectPath && BUCKET) {
+      const encodedPath = encodeURIComponent(objectPath)
+      return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(BUCKET)}/o/${encodedPath}?alt=media`
+    }
+
+    // Otherwise, return the original URL (could be CloudFront, etc.)
+    return input
+  } catch {
+    return FALLBACK_THUMB
   }
 }
 
-function toUICategories(docs: PayloadCategory[]): UIHelperCategory[] {
+function toUICategories(docs: Category[]): UIHelperCategory[] {
   const cats = docs.map((c) => ({
-    label: c.title || c.slug || 'Uncategorized',
-    value: (c.title || c.slug || 'uncategorized').toLowerCase(), // client filter uses lower-cased values
+    label: c.name || c.slug || 'Uncategorized',
+    value: (c.name || c.slug || 'uncategorized').toLowerCase(), // client filter uses lower-cased values
   }))
   // Ensure "All" at the front
   return [{ label: 'All', value: 'all' }, ...cats]
@@ -71,8 +102,8 @@ function toUICategories(docs: PayloadCategory[]): UIHelperCategory[] {
 export default async function BlogPage() {
   // Fetch everything on the server
   let featured = null,
-    posts: PayloadPost[] = [],
-    categories: PayloadCategory[] = []
+    posts: Post[] = [],
+    categories: Category[] = []
   try {
     ;[featured, posts, categories] = await Promise.all([
       fetchFeaturedPost(),
@@ -83,9 +114,40 @@ export default async function BlogPage() {
     console.error('Error fetching blog data:', error)
   }
 
+  // Create a category map for efficient lookups
+  const categoryMap = new Map(categories.map((cat) => [cat.id, cat]))
+
+  // Update toCardPost to use category map
+  const toCardPostWithCategories = (p: Post): CardPost | null => {
+    const firstCategoryId =
+      Array.isArray(p.categories) && p.categories[0] ? String(p.categories[0]) : null
+
+    const categoryLabel =
+      firstCategoryId && categoryMap.has(firstCategoryId)
+        ? categoryMap.get(firstCategoryId)!.name ||
+          categoryMap.get(firstCategoryId)!.slug ||
+          'Uncategorized'
+        : 'Uncategorized'
+
+    const slug = p.slug
+    if (!slug) return null
+
+    // Normalize heroImage to Firebase download URL (honors Firebase Storage rules)
+    const thumbnail = normalizeToFirebaseDownloadURL(p.heroImage) || FALLBACK_THUMB
+
+    return {
+      category: categoryLabel,
+      title: p.title || 'Untitled',
+      summary: p.excerpt || '',
+      link: `/blog/${slug}`,
+      cta: 'Read article',
+      thumbnail,
+    }
+  }
+
   // Build the card lists
-  const featuredCard = featured ? toCardPost(featured) : null
-  const postCards = (posts || []).map(toCardPost).filter(Boolean) as CardPost[]
+  const featuredCard = featured ? toCardPostWithCategories(featured) : null
+  const postCards = (posts || []).map(toCardPostWithCategories).filter(Boolean) as CardPost[]
 
   // If there’s no explicit featured card, use the first post as a fallback for the hero
   const primaryCard = featuredCard ?? postCards[0] ?? null

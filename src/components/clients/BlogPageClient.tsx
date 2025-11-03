@@ -1,4 +1,3 @@
-// src/components/clients/BlogPageClient.tsx
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -230,6 +229,9 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
   const normalizedPage = Number(searchParams.get('page') || '1') || 1
 
   useEffect(() => {
+    console.log('[BlogPageClient] categories:', categories)
+    console.log('[BlogPageClient] posts (count):', posts.length)
+    console.log('[BlogPageClient] initialSelected:', initialSelected)
     setSelectedCategories(initialSelected)
   }, [initialSelected])
 
@@ -252,6 +254,7 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
   // change filters
   const handleCategoryChange = useCallback(
     (selected: string[]) => {
+      console.log('[BlogPageClient] handleCategoryChange → selected:', selected)
       setSelectedCategories(selected)
       setCurrentPage(1)
       replaceUrl(1, selected)
@@ -275,13 +278,58 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
     handleCategoryChange(['all'])
   }
 
+  // Create a mapping from category label to value for filtering
+  const categoryLabelToValue = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const c of categories) {
+      // Map both label and normalized label to value
+      const normalizedLabel = c.label.toLowerCase().trim()
+      m.set(c.label, c.value)
+      m.set(normalizedLabel, c.value)
+    }
+    console.log('[BlogPageClient] categoryLabelToValue:', Array.from(m.entries()))
+    return m
+  }, [categories])
+
   // Filter posts
   const filteredPosts = useMemo(() => {
     const wantsAll = selectedCategories.includes('all')
-    if (wantsAll) return posts
-    const selected = new Set(selectedCategories.map((s) => s.toLowerCase()))
-    return posts.filter((p) => selected.has(p.category.toLowerCase()))
-  }, [posts, selectedCategories])
+    if (wantsAll) {
+      console.log('[BlogPageClient] wantsAll=true → returning all posts:', posts.length)
+      return posts
+    }
+
+    const selectedValues = new Set(selectedCategories.map((s) => s.toLowerCase().trim()))
+
+    const result = posts.filter((p) => {
+      if (!p.category) return false
+
+      // Get the normalized category from the post
+      const postCategoryNormalized = p.category.toLowerCase().trim()
+
+      // Check if the post's category matches any selected category value
+      // First, try to get the value from the label mapping
+      const categoryValue =
+        categoryLabelToValue.get(p.category) || categoryLabelToValue.get(postCategoryNormalized)
+
+      if (categoryValue) {
+        return selectedValues.has(categoryValue.toLowerCase().trim())
+      }
+
+      // Fallback: direct comparison (for backward compatibility)
+      return selectedValues.has(postCategoryNormalized)
+    })
+
+    console.log('[BlogPageClient] filter debug:', {
+      selectedCategories,
+      selectedValues: Array.from(selectedValues),
+      postsCount: posts.length,
+      filteredCount: result.length,
+      samplePostCategories: posts.slice(0, 5).map((p) => p.category),
+    })
+
+    return result
+  }, [posts, selectedCategories, categoryLabelToValue])
 
   // Pagination
   const perPage = 6

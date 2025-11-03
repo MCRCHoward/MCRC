@@ -1,122 +1,52 @@
-'use client'
-
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { Button } from '@/components/ui/button'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { toast } from 'sonner'
-
-const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(1, { message: 'Please enter your password.' }),
-})
+import { LoginForm } from '@/components/auth/LoginForm'
+import Link from 'next/link'
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { email: '', password: '' },
-  })
-
-const onSubmit = async (values: z.infer<typeof formSchema>) => {
-  setError(null)
-
-  try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(values),
-    })
-
-    if (!response.ok) {
-      // read error payload once
-      const errorData: unknown = await response.json()
-      const message =
-        typeof errorData === 'object' &&
-        errorData !== null &&
-        'message' in errorData &&
-        typeof (errorData as any).message === 'string'
-          ? (errorData as any).message
-          : 'Invalid email or password.'
-      throw new Error(message)
-    }
-
-    type UserRole = 'admin' | 'coordinator' | 'mediator' | 'volunteer' | 'participant'
-    type LoginSuccess = { user?: { role?: UserRole } }
-
-    const { user }: LoginSuccess = await response.json()
-
-    if (user && (user.role === 'admin' || user.role === 'coordinator')) {
-      toast.success('Login Successful')
-      router.push('/dashboard')
-      router.refresh()
-    } else {
-      throw new Error('You do not have permission to access this area.')
-    }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'An unexpected error occurred.'
-    toast.error(message)
-    setError(message)
-  }
-}
-
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40">
-      <div className="w-full max-w-md space-y-6 rounded-lg border bg-card p-8 shadow-sm">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">Staff Login</h1>
-          <p className="text-muted-foreground">Enter your credentials to access the CMS.</p>
+    <>
+      <div className="flex min-h-screen">
+        <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+          <div className="mx-auto w-full max-w-sm lg:w-96">
+            <div>
+              <img
+                alt="Logo"
+                src="/images/logo/mcrc-logo.png"
+                className="h-10 w-auto dark:hidden"
+              />
+              <img
+                alt="Logo"
+                src="/images/logo/mcrc-logo.png"
+                className="hidden h-10 w-auto dark:block"
+              />
+              <h2 className="mt-8 text-2xl/9 font-bold tracking-tight text-gray-900 dark:text-white">
+                Sign in to your account
+              </h2>
+              <p className="mt-2 text-sm/6 text-gray-500 dark:text-gray-400">
+                Not a member?{' '}
+                <Link
+                  href="/register"
+                  className="font-semibold text-purple hover:text-purple/80 dark:text-purple/80 dark:hover:text-purple/60"
+                >
+                  Register Today
+                </Link>
+              </p>
+            </div>
+
+            <div className="mt-10">
+              <div>
+                <LoginForm />
+              </div>
+            </div>
+          </div>
         </div>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="you@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {error && <div className="text-sm font-medium text-destructive">{error}</div>}
-            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Logging in...' : 'Log In'}
-            </Button>
-          </form>
-        </Form>
+        <div className="relative hidden w-0 flex-1 lg:block">
+          <img
+            alt=""
+            src="https://images.unsplash.com/photo-1496917756835-20cb06e75b4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1908&q=80"
+            className="absolute inset-0 size-full object-cover"
+          />
+        </div>
       </div>
-    </div>
+    </>
   )
 }

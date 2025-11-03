@@ -8,14 +8,36 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Set a custom claim { admin: true } on admin users via Admin SDK
+    // Admins get a custom claim: { admin: true }
     function isAdmin() {
       return isSignedIn() && request.auth.token.admin == true;
     }
 
-    // Check ownership based on a submittedBy field
-    function isOwner() {
-      return isSignedIn() && resource.data.submittedBy == request.auth.uid;
+    // You already check for coordinators on the client,
+    // so let’s make them "staff" in the rules too.
+    function isCoordinator() {
+      return isSignedIn() && request.auth.token.coordinator == true;
+    }
+
+    function isStaff() {
+      return isAdmin() || isCoordinator();
+    }
+
+    // ---------- USERS (profile/role docs) ----------
+    // This MUST be inside /databases/{database}/documents
+    match /users/{userId} {
+
+      // create their own doc (what your ensureUserProfile does)
+      allow create: if isSignedIn() && request.auth.uid == userId;
+
+      // read/update their own doc, or staff can manage
+      // Users can update their own blogPosts array when creating posts
+      allow read, update: if
+        (isSignedIn() && request.auth.uid == userId) ||
+        isStaff();
+
+      // delete only admins
+      allow delete: if isAdmin();
     }
 
     // ---------- BLOG (public read, admin write) ----------
@@ -23,11 +45,23 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAdmin();
 
-      // (Optional) light shape checks on write
+      // optional shape checks
       allow create: if isAdmin() &&
-        request.resource.data.keys().hasAny(['title', 'slug', 'content', 'published', 'publishedAt']);
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+        request.resource.data.keys().hasAny(
+          ['title', 'slug', 'content', 'published', 'publishedAt']
+        );
+    }
+
+    // ---------- POSTS (blog posts - public read, staff write) ----------
+    match /posts/{postId} {
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+
+    // ---------- CATEGORIES (public read, authenticated write) ----------
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isSignedIn();
     }
 
     // ---------- EVENTS (public read, admin write) ----------
@@ -35,52 +69,41 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAdmin();
 
-      // Event registrations (choose one of the two create policies below)
       match /registrations/{regId} {
-        // Option A (recommended): require sign-in (anonymous is fine)
+        // you said "require sign-in (anonymous is fine)"
+        // so this is good:
         allow create: if isSignedIn();
 
-        // Option B (truly public submit): uncomment next line and comment out Option A
-        // allow create: if true;
-
-        // Keep PII private
+        // people can see their own registrations, admins see all
         allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
         allow update, delete: if isAdmin();
       }
     }
 
     // ---------- FORMS ----------
-    // Store form definitions (optional). Public can read to render a form, admins manage them.
     match /forms/{formId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
 
-      // Submissions: inbound PII. Keep private by default.
       match /submissions/{submissionId} {
-        // Option A (recommended): require sign-in (anonymous allowed)
+        // require sign-in to submit
         allow create: if isSignedIn();
 
-        // Option B (public submit): uncomment if you want to accept without any auth
-        // allow create: if true;
-
-        // Read back only by admins or the owner (if you want submitters to see their own)
+        // read own, or admin
         allow read: if isAdmin() || (isSignedIn() && resource.data.submittedBy == request.auth.uid);
 
-        // No edits or deletes by end users; admins only
+        // only admin can change/delete
         allow update, delete: if isAdmin();
       }
     }
 
-    // ---------- CONTACTS (public "contact us" inbox) ----------
+    // ---------- CONTACTS (public inbox) ----------
     match /contacts/{messageId} {
-      // Usually you want this open to submit
-      allow create: if true; // or require isSignedIn() if you prefer
-
-      // Keep inbox private
+      allow create: if true;
       allow read, update, delete: if isAdmin();
     }
 
-    // ---------- Catch-all deny (explicit) ----------
+    // ---------- Catch-all deny ----------
     match /{document=**} {
       allow read, write: if false;
     }

@@ -18,6 +18,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { toast } from 'sonner'
+import { auth } from '@/firebase/client'
+import { signOut } from 'firebase/auth'
 
 function getInitials(name?: string) {
   if (!name) return 'U'
@@ -44,10 +47,19 @@ export function NavUser({
 
   const onLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-    } catch {}
-    router.push('/login')
-    router.refresh()
+      // Sign out from Firebase Auth on the client
+      await signOut(auth)
+
+      // Clear server session cookie
+      await fetch('/api/session', { method: 'DELETE' })
+
+      toast.success('Logged out successfully')
+      router.push('/login')
+      router.refresh()
+    } catch (error) {
+      console.error('Logout error:', error)
+      toast.error('Failed to log out. Please try again.')
+    }
   }
 
   const initials = getInitials(user.name)

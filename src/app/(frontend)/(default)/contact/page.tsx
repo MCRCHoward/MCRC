@@ -18,12 +18,34 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 // Form validation schema
+const serviceOptions = [
+  'Mediation',
+  'Facilitation',
+  'Training',
+  'Restorative Justice',
+  'Volunteer',
+  'Partnership',
+  'Other',
+]
+
 const formSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters.'),
+  firstName: z.string().min(2, 'First name must be at least 2 characters.'),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters.'),
   email: z.string().email('Please enter a valid email address.'),
   phone: z.string().optional(),
+  service: z
+    .string({ required_error: 'Please select a service.' })
+    .min(1, 'Please select a service.')
+    .refine((v) => serviceOptions.includes(v), { message: 'Invalid service selected.' }),
   subject: z.string().min(5, 'Subject must be at least 5 characters.'),
   message: z.string().min(10, 'Message must be at least 10 characters.'),
 })
@@ -37,9 +59,11 @@ export default function Contact() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
+      firstName: '',
+      lastName: '',
       email: '',
       phone: '',
+      service: '',
       subject: '',
       message: '',
     },
@@ -84,19 +108,34 @@ export default function Contact() {
           <div className="rounded-lg border bg-card p-8 max-w-full md:w-1/2">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="John" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
@@ -120,6 +159,31 @@ export default function Contact() {
                       <FormLabel>Phone (optional)</FormLabel>
                       <FormControl>
                         <Input placeholder="+1 (234) 567-890" type="tel" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="service"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Which service are you inquiring about?</FormLabel>
+                      <FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a service" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serviceOptions.map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -1,11 +1,23 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 
-import { fetchEventBySlug } from '@/lib/payload-api-events'
+import { fetchEventBySlug, fetchPublishedEvents } from '@/lib/firebase-api-events'
 import { EventPageClient } from '@/components/clients/EventPageClient'
 import { getServerSideURL } from '@/utilities/getURL'
 
 type RouteParams = Promise<{ slug: string }>
+
+/**
+ * Helper to extract image URL from featuredImage
+ */
+function getImageUrl(
+  featuredImage?: string | { url: string; alt?: string } | null,
+): string | undefined {
+  if (!featuredImage) return undefined
+  if (typeof featuredImage === 'string') return featuredImage
+  if ('url' in featuredImage) return featuredImage.url
+  return undefined
+}
 
 // --- SEO ---
 export async function generateMetadata({ params }: { params: RouteParams }): Promise<Metadata> {
@@ -16,10 +28,7 @@ export async function generateMetadata({ params }: { params: RouteParams }): Pro
 
   const title = event.name || 'Event'
   const description = event.summary || 'Event details'
-  const image =
-    typeof event.featuredImage === 'object' && event.featuredImage?.url
-      ? event.featuredImage.url
-      : undefined
+  const image = getImageUrl(event.featuredImage)
   const canonical = `${getServerSideURL()}/events/${encodeURIComponent(slug)}`
 
   return {
@@ -53,26 +62,16 @@ export default async function EventPage({ params }: { params: RouteParams }) {
 
 export const revalidate = 60
 
-// --- Static params generation stays typed explicitly ---
-type SlugDoc = { meta?: { slug?: string | null } }
-
+// --- Static params generation ---
 export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
-  const base = getServerSideURL()
   try {
-    const res = await fetch(`${base}/api/events?limit=1000&select=meta.slug`, {
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) return []
-
-    const data = await res.json()
-    const slugs: string[] = Array.isArray(data?.docs)
-      ? data.docs
-          .map((d: SlugDoc) => d?.meta?.slug)
-          .filter((s: string | undefined): s is string => typeof s === 'string' && s.length > 0)
-      : []
-
-    return slugs.map((slug) => ({ slug }))
-  } catch {
+    const events = await fetchPublishedEvents()
+    return events
+      .map((event) => event.slug)
+      .filter((slug): slug is string => typeof slug === 'string' && slug.length > 0)
+      .map((slug) => ({ slug }))
+  } catch (error) {
+    console.error('Error generating static params for events:', error)
     return []
   }
 }

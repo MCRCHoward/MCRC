@@ -6,6 +6,7 @@ const Input: React.FC<
     ref?: React.Ref<HTMLInputElement>
   } & React.InputHTMLAttributes<HTMLInputElement>
 > = ({ type, className, ref, ...props }) => {
+  const { value, defaultValue, ...rest } = props
   return (
     <input
       className={cn(
@@ -14,7 +15,8 @@ const Input: React.FC<
       )}
       ref={ref}
       type={type}
-      {...props}
+      {...rest}
+      {...(value !== undefined ? { value } : defaultValue !== undefined ? { defaultValue } : {})}
     />
   )
 }

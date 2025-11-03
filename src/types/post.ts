@@ -1,6 +1,5 @@
 export interface Post {
   id: string
-  title: string
   slug: string
   excerpt?: string
   contentHtml: string
@@ -13,17 +12,25 @@ export interface Post {
   publishedAt?: string
   createdAt: string
   updatedAt: string
+  title?: string
+  heroSubHeader?: string
+  heroBriefSummary?: string
+  // Blog post outline metadata
+  readingTime?: string
+  publishedDateDisplay?: string // Month Year format
+  featured?: boolean // Whether this post should be featured on the blog listing page
 }
 
 export interface PostSection {
   title: string
+  heroSubHeader?: string
+  heroBriefSummary?: string
   contentHtml: string
   image?: string
   anchor: string
 }
 
 export interface PostInput {
-  title: string
   slug?: string
   excerpt?: string
   contentHtml?: string
@@ -34,4 +41,11 @@ export interface PostInput {
   categories: string[]
   _status: 'draft' | 'published'
   publishedAt?: string
+  title?: string
+  heroSubHeader?: string
+  heroBriefSummary?: string
+  // Blog post outline metadata
+  readingTime?: string
+  publishedDateDisplay?: string // Month Year format
+  featured?: boolean // Whether this post should be featured on the blog listing page
 }

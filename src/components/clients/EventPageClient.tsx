@@ -1,249 +1,321 @@
 'use client'
 
-import { Lightbulb } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { FaMapMarkerAlt } from 'react-icons/fa'
-
+import { Calendar, Clock, MapPin, Globe, CreditCard, Users } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Event } from '@/types'
+import { Separator } from '@/components/ui/separator'
+import type { Event } from '@/types'
 
 interface EventPageClientProps {
-  event: Event
+  event: Event & { descriptionHtml?: string }
+}
+
+/**
+ * Helper to get image URL and alt from featuredImage
+ */
+function getImageData(featuredImage?: string | { url: string; alt?: string } | null) {
+  if (!featuredImage) return { url: null, alt: null }
+  if (typeof featuredImage === 'string') return { url: featuredImage, alt: null }
+  if ('url' in featuredImage) return { url: featuredImage.url, alt: featuredImage.alt || null }
+  return { url: null, alt: null }
+}
+
+/**
+ * Format date and time for display
+ */
+function formatDateTime(dateString: string): string {
+  if (!dateString) return ''
+  try {
+    return new Date(dateString).toLocaleString('en-US', {
+      dateStyle: 'long',
+      timeStyle: 'short',
+    })
+  } catch {
+    return dateString
+  }
+}
+
+/**
+ * Format date only for display
+ */
+function formatDate(dateString: string): string {
+  if (!dateString) return ''
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      dateStyle: 'long',
+    })
+  } catch {
+    return dateString
+  }
+}
+
+/**
+ * Format time only for display
+ */
+function formatTime(dateString: string): string {
+  if (!dateString) return ''
+  try {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      timeStyle: 'short',
+    })
+  } catch {
+    return ''
+  }
 }
 
 const EventPageClient = ({ event }: EventPageClientProps) => {
   const {
     name,
     summary,
+    descriptionHtml,
     featuredImage,
     modality,
     location,
+    onlineMeeting,
     eventStartTime,
     eventEndTime,
+    isFree,
+    cost,
+    isRegistrationRequired,
     externalRegistrationLink,
   } = event
-  console.log('event', event)
-  const [, setActiveSection] = useState<string | null>(null)
-  const sectionRefs = useRef<Record<string, HTMLElement>>({})
 
-  useEffect(() => {
-    const sections = Object.keys(sectionRefs.current)
-
-    const observerCallback = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveSection(entry.target.id)
-        }
-      })
-    }
-
-    let observer: IntersectionObserver | null = new IntersectionObserver(observerCallback, {
-      root: null,
-      rootMargin: '0px',
-      threshold: 1,
-    })
-
-    sections.forEach((sectionId) => {
-      const element = sectionRefs.current[sectionId]
-      if (element) {
-        observer?.observe(element)
-      }
-    })
-
-    return () => {
-      observer?.disconnect()
-      observer = null
-    }
-  }, [])
-
-  const addSectionRef = (id: string, ref: HTMLElement | null) => {
-    if (ref) {
-      sectionRefs.current[id] = ref
-    }
-  }
+  const imageData = getImageData(featuredImage)
+  const isSameDay =
+    eventStartTime && eventEndTime
+      ? new Date(eventStartTime).toDateString() === new Date(eventEndTime).toDateString()
+      : false
   return (
-    <section className="py-32">
-      <div className="container">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-5">
-          <Badge variant="secondary">{modality}</Badge>
-          <h1 className="text-pretty text-center text-3xl font-medium lg:text-5xl">{name}</h1>
-          <p className="text-muted-foreground text-center lg:text-lg">{summary}</p>
-          <div className="mt-6 flex items-center gap-4">
-            <FaMapMarkerAlt className="size-12 text-primary" />
-
-            <div>
-              <p className="text-sm font-medium">
-                {new Date(eventStartTime || '').toLocaleString('en-US', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}{' '}
-                -{' '}
-                {new Date(eventEndTime || '').toLocaleString('en-US', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}
-              </p>
-              <p className="text-muted-foreground text-sm">
-                {location?.venueName} - {location?.address}
-              </p>
-            </div>
+    <article className="py-16 md:py-24">
+      <div className="container max-w-7xl">
+        {/* Hero Section */}
+        <header className="mb-12 space-y-6 text-center">
+          <div className="flex justify-center">
+            <Badge variant={modality === 'online' ? 'secondary' : 'default'} className="capitalize">
+              {modality?.replace('_', ' ')}
+            </Badge>
           </div>
-        </div>
-        <div className="mx-auto mt-12 max-w-6xl rounded-lg border p-2">
-          {featuredImage && typeof featuredImage === 'object' && 'url' in featuredImage && (
-            <Image
-              src={featuredImage?.url || ''}
-              alt={featuredImage?.alt || ''}
-              className="aspect-video rounded-lg object-cover"
-              width={1152}
-              height={648}
-            />
-          )}
-        </div>
-        <div className="relative mx-auto mt-12 grid max-w-6xl gap-8 lg:grid-cols-4">
-          <div className="lg:col-span-3">
-            <div className="lg:col-span-2">
-              <div>
-                <h1 className="text-3xl font-extrabold">The Great Joke Tax</h1>
-                <p className="text-muted-foreground mt-2 text-lg">
-                  In a kingdom far away, where laughter once flowed freely, a peculiar tale unfolded
-                  about a king who decided to tax the very essence of joy itself - jokes and jest.
-                </p>
-                <Image
-                  src="https://deifkwefumgah.cloudfront.net/shadcnblocks/block/placeholder-1.svg"
-                  alt="placeholder"
-                  className="my-8 aspect-video w-full rounded-md object-cover"
-                  width={800}
-                  height={450}
-                />
+          <h1 className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">{name}</h1>
+          {summary && <p className="mx-auto max-w-3xl text-lg text-muted-foreground">{summary}</p>}
+
+          {/* Event Details Bar */}
+          <div className="mx-auto mt-8 flex max-w-2xl flex-wrap items-center justify-center gap-6 text-sm">
+            {eventStartTime && (
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <time dateTime={eventStartTime}>
+                  {isSameDay
+                    ? `${formatDate(eventStartTime)} • ${formatTime(eventStartTime)} - ${formatTime(eventEndTime || '')}`
+                    : `${formatDateTime(eventStartTime)} - ${formatDateTime(eventEndTime || '')}`}
+                </time>
               </div>
-              <section
-                id="section1"
-                ref={(ref) => addSectionRef('section1', ref)}
-                className="prose dark:prose-invert mb-8"
-              >
-                <h2>How the Tax System Works</h2>
-                <p>
-                  The king, seeing how much happier his subjects were, realized the error of his
-                  ways and repealed the joke tax. Jokester was declared a hero, and the kingdom
-                  lived happily ever after.
-                </p>
-                <Alert>
-                  <Lightbulb className="h-4 w-4" />
-                  <AlertTitle>Royal Decree!</AlertTitle>
-                  <AlertDescription>
-                    Remember, all jokes must be registered at the Royal Jest Office before telling
-                    them
-                  </AlertDescription>
-                </Alert>
-              </section>
+            )}
 
-              <section
-                id="section2"
-                ref={(ref) => addSectionRef('section2', ref)}
-                className="prose dark:prose-invert mb-8"
-              >
-                <h2>The People&apos;s Rebellion</h2>
-                <p>
-                  The people of the kingdom, feeling uplifted by the laughter, started to tell jokes
-                  and puns again, and soon the entire kingdom was in on the joke.
-                </p>
-                <div>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>King&apos;s Treasury</th>
-                        <th>People&apos;s happiness</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Empty</td>
-                        <td>Overflowing</td>
-                      </tr>
-                      <tr className="even:bg-muted m-0 border-t p-0">
-                        <td>Modest</td>
-                        <td>Satisfied</td>
-                      </tr>
-                      <tr className="even:bg-muted m-0 border-t p-0">
-                        <td>Full</td>
-                        <td>Ecstatic</td>
-                      </tr>
-                    </tbody>
-                  </table>
+            {location && (
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  {location.venueName && <strong>{location.venueName}</strong>}
+                  {location.venueName && location.address && ' • '}
+                  {location.address}
+                </span>
+              </div>
+            )}
+
+            {modality === 'online' && onlineMeeting?.url && (
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                <span>Online Event</span>
+              </div>
+            )}
+
+            {cost && (
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  {cost.currency} {cost.amount.toFixed(2)}
+                  {cost.description && ` • ${cost.description}`}
+                </span>
+              </div>
+            )}
+
+            {isFree && (
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium text-green-600 dark:text-green-400">Free</span>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Featured Image */}
+        {imageData.url && (
+          <div className="mb-12 overflow-hidden rounded-lg border">
+            <Image
+              src={imageData.url}
+              alt={imageData.alt || name}
+              width={1200}
+              height={675}
+              className="aspect-video w-full object-cover"
+              priority
+            />
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="grid gap-12 lg:grid-cols-4">
+          {/* Content Column */}
+          <div className="lg:col-span-3">
+            {descriptionHtml ? (
+              <div
+                className="prose prose-lg dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+              />
+            ) : (
+              <div className="prose prose-lg dark:prose-invert max-w-none">
+                <p className="text-muted-foreground">Event details coming soon.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <aside className="lg:col-span-1">
+            <div className="sticky top-24 space-y-6 rounded-lg border bg-card p-6">
+              <h2 className="text-xl font-semibold">Event Details</h2>
+              <Separator />
+
+              {/* Date & Time */}
+              {eventStartTime && (
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="space-y-1 text-sm">
+                      <p className="font-medium">Date & Time</p>
+                      <time dateTime={eventStartTime} className="block text-muted-foreground">
+                        {isSameDay ? (
+                          <>
+                            {formatDate(eventStartTime)}
+                            <br />
+                            {formatTime(eventStartTime)} - {formatTime(eventEndTime || '')}
+                          </>
+                        ) : (
+                          <>
+                            {formatDateTime(eventStartTime)}
+                            {eventEndTime && (
+                              <>
+                                <br />
+                                to {formatDateTime(eventEndTime)}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </time>
+                    </div>
+                  </div>
                 </div>
-                <p>
-                  The king, seeing how much happier his subjects were, realized the error of his
-                  ways and repealed the joke tax. Jokester was declared a hero, and the kingdom
-                  lived happily ever after.
-                </p>
-              </section>
-
-              <section
-                id="section3"
-                ref={(ref) => addSectionRef('section3', ref)}
-                className="prose dark:prose-invert mb-8"
-              >
-                <h2>The King&apos;s Plan</h2>
-                <p>
-                  The king thought long and hard, and finally came up with{' '}
-                  <a href="#">a brilliant plan</a>: he would tax the jokes in the kingdom.
-                </p>
-                <blockquote>
-                  &ldquo;After all,&rdquo; he said, &ldquo;everyone enjoys a good joke, so it&apos;s
-                  only fair that they should pay for the privilege.&rdquo;
-                </blockquote>
-                <p>
-                  The king&apos;s subjects were not amused. They grumbled and complained, but the
-                  king was firm:
-                </p>
-                <ul>
-                  <li>1st level of puns: 5 gold coins</li>
-                  <li>2nd level of jokes: 10 gold coins</li>
-                  <li>3rd level of one-liners : 20 gold coins</li>
-                </ul>
-                <p>
-                  As a result, people stopped telling jokes, and the kingdom fell into a gloom. But
-                  there was one person who refused to let the king&apos;s foolishness get him down:
-                  a court jester named Jokester.
-                </p>
-              </section>
-            </div>
-          </div>
-          <div className="prose dark:prose-invert sticky top-28 hidden h-fit rounded-lg border p-6 lg:block">
-            <h5 className="text-xl font-semibold">Event Details</h5>
-            <p className="my-6 flex text-sm [&>li]:pl-0">
-              <FaMapMarkerAlt className="size-4" />
-              {location?.venueName}
-              <br />
-              {location?.address}
-            </p>
-            <p className="my-6 text-sm [&>li]:pl-0">
-              Date:{' '}
-              {new Date(eventStartTime || '').toLocaleString('en-US', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button>Register</Button>
-              {externalRegistrationLink && (
-                <Button variant="secondary" asChild>
-                  <Link href={externalRegistrationLink} target="_blank" rel="noopener noreferrer">
-                    Sign up on Eventbrite
-                  </Link>
-                </Button>
               )}
+
+              {/* Location */}
+              {location && (
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="space-y-1 text-sm">
+                      <p className="font-medium">Location</p>
+                      <address className="not-italic text-muted-foreground">
+                        {location.venueName && (
+                          <span className="block font-medium text-foreground">
+                            {location.venueName}
+                          </span>
+                        )}
+                        {location.address}
+                      </address>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Online Meeting */}
+              {modality === 'online' && onlineMeeting?.url && (
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3">
+                    <Globe className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="space-y-1 text-sm">
+                      <p className="font-medium">Online Meeting</p>
+                      <a
+                        href={onlineMeeting.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-primary hover:underline"
+                      >
+                        Join online
+                      </a>
+                      {onlineMeeting.details && (
+                        <p className="text-muted-foreground">{onlineMeeting.details}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Pricing */}
+              <div className="space-y-2">
+                <div className="flex items-start gap-3">
+                  <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium">Price</p>
+                    <p className="text-muted-foreground">
+                      {isFree ? (
+                        <span className="font-medium text-green-600 dark:text-green-400">Free</span>
+                      ) : cost ? (
+                        <>
+                          {cost.currency} {cost.amount.toFixed(2)}
+                          {cost.description && <span className="block">{cost.description}</span>}
+                        </>
+                      ) : (
+                        'TBD'
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Registration CTA */}
+              <div className="space-y-3">
+                {externalRegistrationLink ? (
+                  <Button asChild className="w-full" size="lg">
+                    <Link href={externalRegistrationLink} target="_blank" rel="noopener noreferrer">
+                      Register Now
+                    </Link>
+                  </Button>
+                ) : isRegistrationRequired ? (
+                  <Button className="w-full" size="lg" disabled>
+                    Registration Required
+                  </Button>
+                ) : (
+                  <Button className="w-full" size="lg" variant="outline" disabled>
+                    Registration Not Available
+                  </Button>
+                )}
+
+                {modality === 'online' && onlineMeeting?.url && (
+                  <Button asChild variant="secondary" className="w-full">
+                    <Link href={onlineMeeting.url} target="_blank" rel="noopener noreferrer">
+                      Join Online Meeting
+                    </Link>
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
-    </section>
+    </article>
   )
 }
 

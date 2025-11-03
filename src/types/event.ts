@@ -1,3 +1,5 @@
+import type { Media } from './media'
+
 export interface Event {
   id: string
   name: string
@@ -13,7 +15,7 @@ export interface Event {
   cost?: EventCost
   isRegistrationRequired: boolean
   externalRegistrationLink?: string
-  featuredImage?: string
+  featuredImage?: string | Media | { url: string; alt?: string }
   meta: EventMeta
   createdAt: string
   updatedAt: string

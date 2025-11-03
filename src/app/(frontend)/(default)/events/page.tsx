@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import { fetchPublishedEvents, fetchEventTypeBadges } from '@/lib/payload-api-events'
+import { fetchPublishedEvents, fetchEventTypeBadges } from '@/lib/firebase-api-events'
 import { EventsPageClient } from '@/components/clients/EventsPageClient'
 
 export const dynamic = 'force-dynamic'

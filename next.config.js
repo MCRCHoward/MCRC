@@ -24,6 +24,16 @@ const nextConfig = {
         hostname: 'mcrchoward.org',
         protocol: 'https',
       },
+      // Firebase Storage download endpoint (honors Firebase Storage rules)
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+      },
+      // Keep storage.googleapis.com for backward compatibility (if needed)
+      {
+        hostname: 'storage.googleapis.com',
+        protocol: 'https',
+      },
     ],
   },
   reactStrictMode: true,

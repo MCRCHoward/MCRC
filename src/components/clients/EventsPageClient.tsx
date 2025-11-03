@@ -163,9 +163,26 @@ export function EventsPageClient({ events, badges }: EventsPageClientProps) {
               <EmptyState />
             ) : (
               filteredEvents.map((event) => {
-                const featuredImage = event.featuredImage as Media | null
+                // Handle featuredImage which can be string, Media, or { url, alt } object
+                const getImageUrl = () => {
+                  if (!event.featuredImage) return null
+                  if (typeof event.featuredImage === 'string') return event.featuredImage
+                  if ('url' in event.featuredImage) return event.featuredImage.url
+                  return null
+                }
+
+                const getImageAlt = () => {
+                  if (!event.featuredImage) return event.name
+                  if (typeof event.featuredImage === 'string') return event.name
+                  if ('alt' in event.featuredImage) return event.featuredImage.alt || event.name
+                  return event.name
+                }
+
+                const imageUrl = getImageUrl()
+                const imageAlt = getImageAlt()
                 const slug = getSlug(event)
                 const href = `/events/${encodeURIComponent(slug)}`
+
                 return (
                   <Link
                     href={href}
@@ -199,10 +216,10 @@ export function EventsPageClient({ events, badges }: EventsPageClientProps) {
                       </div>
                     </div>
 
-                    {featuredImage?.url && (
+                    {imageUrl && (
                       <Image
-                        src={featuredImage.url}
-                        alt={featuredImage.alt || event.name}
+                        src={imageUrl}
+                        alt={imageAlt}
                         fill
                         sizes="(min-width: 1024px) 50vw, 100vw"
                         className="absolute inset-0 -z-10 size-full rounded-lg object-cover brightness-50 transition-all duration-500 ease-custom-bezier [clip-path:inset(0_0_100%_0)] group-hover:[clip-path:inset(0_0_0%_0)]"
