@@ -1,19 +1,6 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  serverTimestamp 
-} from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
 import { db } from './firebase'
-import type { Post, Event, Page, Category, User } from '@/types'
+import type { Post, Event, Page, Category } from '@/types'
 
 // Posts API
 export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
@@ -21,35 +8,40 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
     let postsQuery = query(
       collection(db, 'posts'),
       where('_status', '==', 'published'),
-      orderBy('publishedAt', 'desc')
+      orderBy('publishedAt', 'desc'),
     )
 
     if (categorySlug) {
       // First get the category by slug
-      const categoriesQuery = query(
-        collection(db, 'categories'),
-        where('slug', '==', categorySlug)
-      )
+      const categoriesQuery = query(collection(db, 'categories'), where('slug', '==', categorySlug))
       const categorySnapshot = await getDocs(categoriesQuery)
-      
+
       if (categorySnapshot.empty) {
         return []
       }
-      
-      const categoryId = categorySnapshot.docs[0].id
+
+      const firstDoc = categorySnapshot.docs[0]
+      if (!firstDoc) {
+        return []
+      }
+
+      const categoryId = firstDoc.id
       postsQuery = query(
         collection(db, 'posts'),
         where('_status', '==', 'published'),
         where('categories', 'array-contains', categoryId),
-        orderBy('publishedAt', 'desc')
+        orderBy('publishedAt', 'desc'),
       )
     }
 
     const snapshot = await getDocs(postsQuery)
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Post))
+    return snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Post,
+    )
   } catch (error) {
     console.error('Error fetching posts:', error)
     return []
@@ -62,15 +54,18 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
       collection(db, 'posts'),
       where('_status', '==', 'published'),
       orderBy('publishedAt', 'desc'),
-      limit(1)
+      limit(1),
     )
-    
+
     const snapshot = await getDocs(postsQuery)
     if (snapshot.empty) return null
-    
+
+    const firstDoc = snapshot.docs[0]
+    if (!firstDoc) return null
+
     return {
-      id: snapshot.docs[0].id,
-      ...snapshot.docs[0].data()
+      id: firstDoc.id,
+      ...firstDoc.data(),
     } as Post
   } catch (error) {
     console.error('Error fetching featured post:', error)
@@ -83,15 +78,18 @@ export async function fetchPostBySlug(slug: string): Promise<Post | null> {
     const postsQuery = query(
       collection(db, 'posts'),
       where('slug', '==', slug),
-      where('_status', '==', 'published')
+      where('_status', '==', 'published'),
     )
-    
+
     const snapshot = await getDocs(postsQuery)
     if (snapshot.empty) return null
-    
+
+    const firstDoc = snapshot.docs[0]
+    if (!firstDoc) return null
+
     return {
-      id: snapshot.docs[0].id,
-      ...snapshot.docs[0].data()
+      id: firstDoc.id,
+      ...firstDoc.data(),
     } as Post
   } catch (error) {
     console.error('Error fetching post by slug:', error)
@@ -101,7 +99,7 @@ export async function fetchPostBySlug(slug: string): Promise<Post | null> {
 
 export async function fetchRelatedPosts(
   currentPostId: string,
-  categoryIds: string[]
+  categoryIds: string[],
 ): Promise<Post[]> {
   if (!categoryIds || categoryIds.length === 0) return []
 
@@ -111,14 +109,17 @@ export async function fetchRelatedPosts(
       where('_status', '==', 'published'),
       where('categories', 'array-contains-any', categoryIds),
       where('__name__', '!=', currentPostId),
-      limit(3)
+      limit(3),
     )
-    
+
     const snapshot = await getDocs(postsQuery)
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Post))
+    return snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Post,
+    )
   } catch (error) {
     console.error('Error fetching related posts:', error)
     return []
@@ -131,14 +132,17 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
     const eventsQuery = query(
       collection(db, 'events'),
       where('meta.status', 'in', ['published', 'completed']),
-      orderBy('eventStartTime', 'desc')
+      orderBy('eventStartTime', 'desc'),
     )
-    
+
     const snapshot = await getDocs(eventsQuery)
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Event))
+    return snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Event,
+    )
   } catch (error) {
     console.error('Error fetching events:', error)
     return []
@@ -150,15 +154,18 @@ export async function fetchEventBySlug(slug: string): Promise<Event | null> {
     const eventsQuery = query(
       collection(db, 'events'),
       where('slug', '==', slug),
-      where('meta.status', 'in', ['published', 'completed'])
+      where('meta.status', 'in', ['published', 'completed']),
     )
-    
+
     const snapshot = await getDocs(eventsQuery)
     if (snapshot.empty) return null
-    
+
+    const firstDoc = snapshot.docs[0]
+    if (!firstDoc) return null
+
     return {
-      id: snapshot.docs[0].id,
-      ...snapshot.docs[0].data()
+      id: firstDoc.id,
+      ...firstDoc.data(),
     } as Event
   } catch (error) {
     console.error('Error fetching event by slug:', error)
@@ -169,16 +176,16 @@ export async function fetchEventBySlug(slug: string): Promise<Event | null> {
 // Categories API
 export async function fetchCategories(): Promise<Category[]> {
   try {
-    const categoriesQuery = query(
-      collection(db, 'categories'),
-      orderBy('name', 'asc')
-    )
-    
+    const categoriesQuery = query(collection(db, 'categories'), orderBy('name', 'asc'))
+
     const snapshot = await getDocs(categoriesQuery)
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Category))
+    return snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Category,
+    )
   } catch (error) {
     console.error('Error fetching categories:', error)
     return []
@@ -188,17 +195,17 @@ export async function fetchCategories(): Promise<Category[]> {
 // Pages API
 export async function fetchPageBySlug(slug: string): Promise<Page | null> {
   try {
-    const pagesQuery = query(
-      collection(db, 'pages'),
-      where('slug', '==', slug)
-    )
-    
+    const pagesQuery = query(collection(db, 'pages'), where('slug', '==', slug))
+
     const snapshot = await getDocs(pagesQuery)
     if (snapshot.empty) return null
-    
+
+    const firstDoc = snapshot.docs[0]
+    if (!firstDoc) return null
+
     return {
-      id: snapshot.docs[0].id,
-      ...snapshot.docs[0].data()
+      id: firstDoc.id,
+      ...firstDoc.data(),
     } as Page
   } catch (error) {
     console.error('Error fetching page by slug:', error)
@@ -208,16 +215,16 @@ export async function fetchPageBySlug(slug: string): Promise<Page | null> {
 
 export async function fetchAllPages(): Promise<Page[]> {
   try {
-    const pagesQuery = query(
-      collection(db, 'pages'),
-      orderBy('title', 'asc')
-    )
-    
+    const pagesQuery = query(collection(db, 'pages'), orderBy('title', 'asc'))
+
     const snapshot = await getDocs(pagesQuery)
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Page))
+    return snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Page,
+    )
   } catch (error) {
     console.error('Error fetching pages:', error)
     return []

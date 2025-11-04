@@ -1,5 +1,5 @@
 import { Book, Trees, Sunset } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { ComponentType } from 'react'
 
 /**
  * Shared menu data constants for Header components
@@ -10,7 +10,7 @@ export interface MenuItem {
   title: string
   url: string
   description?: string
-  icon?: ReactNode
+  icon?: ComponentType<{ className?: string }>
   items?: MenuItem[]
 }
 
@@ -27,13 +27,6 @@ export interface LogoConfig {
 }
 
 /**
- * Icon factory functions to create JSX elements
- */
-const createIcon = (Icon: React.ComponentType<{ className?: string }>) => (
-  <Icon className="size-5 shrink-0" />
-)
-
-/**
  * Default navigation menu items
  */
 export const defaultMenuItems: MenuItem[] = [
@@ -46,25 +39,25 @@ export const defaultMenuItems: MenuItem[] = [
       {
         title: 'Mediation',
         description: 'Resolve disputes amicably with guided, neutral support.',
-        icon: createIcon(Book),
+        icon: Book,
         url: '/services/mediation',
       },
       {
         title: 'Facilitation',
         description: 'Navigate complex conversations and group decisions effectively.',
-        icon: createIcon(Trees),
+        icon: Trees,
         url: '/services/facilitation',
       },
       {
         title: 'Restorative Justice',
         description: 'Repair harm and rebuild community trust through dialogue.',
-        icon: createIcon(Sunset),
+        icon: Sunset,
         url: '/services/restorative-justice',
       },
       {
         title: 'Training',
         description: 'Develop your skills in mediation and facilitation.',
-        icon: createIcon(Book),
+        icon: Book,
         url: '/services/training',
       },
     ],

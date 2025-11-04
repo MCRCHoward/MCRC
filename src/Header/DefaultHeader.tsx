@@ -41,17 +41,9 @@ import {
 } from '@/components/ui/navigation-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/utilities/ui'
-import { defaultMenuItems, defaultLogo, defaultAuth } from './menu-data'
+import { defaultMenuItems, defaultLogo, defaultAuth, type MenuItem } from './menu-data'
 
 // --- Types and Data ---
-interface MenuItem {
-  title: string
-  url: string
-  description?: string
-  icon?: React.ReactNode
-  items?: MenuItem[]
-}
-
 interface NavbarProps {
   logo?: { url: string; src: string; alt: string; title: string }
   menu?: MenuItem[]
@@ -69,37 +61,37 @@ const resources: MenuItem[] = [
     title: 'Events & Webinars',
     description: 'Learn from industry experts.',
     url: '#',
-    icon: <Calendar className="size-5 shrink-0" />,
+    icon: Calendar,
   },
   {
     title: 'Past Recordings',
     description: 'Listen to past webinars and events.',
     url: '#',
-    icon: <Mic className="size-5 shrink-0" />,
+    icon: Mic,
   },
   {
     title: 'Blog',
     description: 'Latest updates and best practices.',
     url: '/blog',
-    icon: <Newspaper className="size-5 shrink-0" />,
+    icon: Newspaper,
   },
   {
     title: 'Video Tutorials',
     description: 'Get started with guided videos.',
     url: '#',
-    icon: <PlayCircle className="size-5 shrink-0" />,
+    icon: PlayCircle,
   },
   {
     title: 'Knowledge Base',
     description: 'Detailed guides and documentation.',
     url: '#',
-    icon: <Book className="size-5 shrink-0" />,
+    icon: Book,
   },
   {
     title: 'Success Stories',
     description: 'How our services have helped others.',
     url: '#',
-    icon: <Lightbulb className="size-5 shrink-0" />,
+    icon: Lightbulb,
   },
 ]
 
@@ -167,7 +159,11 @@ const ResourcesMenu = () => (
                 href={resource.url}
                 className="group flex flex-row items-center space-x-4 rounded-md border-border bg-accent px-6 py-5 text-left md:space-x-5 lg:border lg:bg-background lg:p-5"
               >
-                <div className="text-primary">{resource.icon}</div>
+                {resource.icon && (
+                  <div className="text-primary">
+                    <resource.icon className="size-5 shrink-0" />
+                  </div>
+                )}
                 <div className="ml-4 flex-1">
                   <div className="font-medium text-foreground/85 group-hover:text-foreground">
                     {resource.title}
@@ -233,21 +229,28 @@ export function DefaultHeader({
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const SubMenuLink = ({ item }: { item: MenuItem }) => (
-    <Link
-      href={item.url}
-      onClick={() => setIsMobileMenuOpen(false)}
-      className="flex flex-row items-start gap-4 rounded-md p-3 text-left leading-none no-underline transition-colors outline-none hover:bg-muted"
-    >
-      {item.icon && <div className="mt-0.5 text-primary">{item.icon}</div>}
-      <div>
-        <div className="font-semibold">{item.title}</div>
-        {item.description && (
-          <p className="text-sm leading-snug text-muted-foreground">{item.description}</p>
+  const SubMenuLink = ({ item }: { item: MenuItem }) => {
+    const Icon = item.icon
+    return (
+      <Link
+        href={item.url}
+        onClick={() => setIsMobileMenuOpen(false)}
+        className="flex flex-row items-start gap-4 rounded-md p-3 text-left leading-none no-underline transition-colors outline-none hover:bg-muted"
+      >
+        {Icon && (
+          <div className="mt-0.5 text-primary">
+            <Icon className="size-5 shrink-0" />
+          </div>
         )}
-      </div>
-    </Link>
-  )
+        <div>
+          <div className="font-semibold">{item.title}</div>
+          {item.description && (
+            <p className="text-sm leading-snug text-muted-foreground">{item.description}</p>
+          )}
+        </div>
+      </Link>
+    )
+  }
 
   return (
     <header
