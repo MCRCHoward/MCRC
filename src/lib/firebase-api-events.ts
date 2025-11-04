@@ -83,7 +83,7 @@ function mapFirebaseEventToEvent(
       ? ({
           url: data.imageUrl,
           alt: data.title || 'Event image',
-        } as any)
+        } as { url: string; alt: string })
       : undefined,
     meta: {
       slug: data.slug || doc.id,
@@ -146,7 +146,7 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
           const snapshot = await getDocs(eventsQuery)
           const events = snapshot.docs.map((doc) => mapFirebaseEventToEvent(doc))
           return sortByDateDesc(events)
-        } catch (fallbackError) {
+        } catch (_fallbackError) {
           // Final fallback: fetch all and filter manually
           if (process.env.NODE_ENV !== 'production') {
             console.warn(

@@ -21,7 +21,7 @@ export interface PageHero {
 
 export interface PageBlock {
   blockType: 'callToAction' | 'content' | 'mediaBlock' | 'archive' | 'form'
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface PageMeta {

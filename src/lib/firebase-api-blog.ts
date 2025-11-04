@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore'
 import { FirebaseError } from 'firebase/app'
 import { db } from './firebase'
-import type { Post, Category, Event } from '@/types'
+import type { Post, Category } from '@/types'
 
 // ====================================================================
 //                          BLOG API CALLS
@@ -40,7 +40,7 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
     })
   }
 
-  function sortByDateDesc<T extends { createdAt?: any; publishedAt?: any }>(rows: T[]) {
+  function sortByDateDesc<T extends { createdAt?: unknown; publishedAt?: unknown }>(rows: T[]) {
     return [...rows].sort((a, b) => {
       const aTs = (a.publishedAt ?? a.createdAt)?.toMillis?.() ?? 0
       const bTs = (b.publishedAt ?? b.createdAt)?.toMillis?.() ?? 0
@@ -247,7 +247,7 @@ export async function fetchCategories(): Promise<Category[]> {
     try {
       const snapshot = await getDocs(q)
       return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Category)
-    } catch (e) {
+    } catch (_e) {
       if (process.env.NODE_ENV !== 'production') {
         console.warn('[fetchCategories] Failed orderBy(name). Retrying without orderBy…')
       }

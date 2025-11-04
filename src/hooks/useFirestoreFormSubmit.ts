@@ -19,8 +19,7 @@ import { signInAnonymously } from 'firebase/auth'
  */
 
 // Define the shape of the data being submitted.
-// Using Record<string, any> for flexibility with form data.
-type FormData = Record<string, any>
+// Using Record<string, unknown> for flexibility with form data.
 
 // Define the possible states of form submission
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error'
@@ -30,7 +29,7 @@ interface UseFirestoreFormSubmitReturn {
   isSubmitting: boolean // True when form is being submitted
   error: string | null // Error message if submission fails
   success: boolean // True when submission succeeds
-  submitData: (data: Record<string, any>) => Promise<void> // Function to submit data
+  submitData: (data: Record<string, unknown>) => Promise<void> // Function to submit data
 }
 
 export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreFormSubmitReturn {
@@ -66,7 +65,7 @@ export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreForm
    *
    * @param data - The form data to submit (flexible object structure)
    */
-  const submitData = async (data: Record<string, any>) => {
+  const submitData = async (data: Record<string, unknown>) => {
     // Set loading state and clear any previous errors
     setStatus('submitting')
     setError(null)
@@ -99,10 +98,11 @@ export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreForm
 
       // Mark submission as successful
       setStatus('success')
-    } catch (e: any) {
+    } catch (error) {
       // Handle any errors during submission
-      console.error('Error adding document: ', e)
-      setError(e?.message ?? 'Unknown error')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('Error adding document: ', error)
+      setError(errorMessage)
       setStatus('error')
     }
   }
