@@ -49,7 +49,7 @@ export function OptimizedVideoPlayer({ resource, poster, className }: OptimizedV
 
   if (typeof resource === 'object' && resource !== null) {
     videoUrl = getMediaUrl(resource.url)
-    posterUrl = poster || getMediaUrl(resource.sizes?.thumbnail?.url) || getMediaUrl(resource.url)
+    posterUrl = poster || getMediaUrl(resource.url)
     mimeType = resource.mimeType || 'video/mp4'
   } else {
     videoUrl = resource

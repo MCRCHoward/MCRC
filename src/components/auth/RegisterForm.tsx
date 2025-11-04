@@ -251,7 +251,10 @@ export function RegisterForm() {
   }
 
   const goNext = async () => {
-    const stepFields = STEPS[currentStep].fields as (keyof FormValues)[]
+    const currentStepData = STEPS[currentStep]
+    if (!currentStepData) return
+
+    const stepFields = currentStepData.fields as (keyof FormValues)[]
     const isValid = await form.trigger(stepFields as Array<keyof FormValues>)
     if (isValid) {
       if (currentStep < STEPS.length - 1) {
@@ -369,7 +372,7 @@ export function RegisterForm() {
           <p className="text-sm text-muted-foreground">
             Step {currentStep + 1} of {STEPS.length}
           </p>
-          <p className="text-sm font-medium">{STEPS[currentStep].title}</p>
+          <p className="text-sm font-medium">{STEPS[currentStep]?.title || 'Step'}</p>
         </div>
         <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
           <div
@@ -634,7 +637,8 @@ export function RegisterForm() {
             <div className="mt-2 space-y-2">
               {languages.map((lang) => {
                 const langCode = lang.split('-')[0]
-                const checked = form.watch('languagesSpoken')?.includes(langCode) || false
+                const languagesSpoken = form.watch('languagesSpoken') || []
+                const checked = languagesSpoken.includes(langCode)
                 return (
                   <div key={lang} className="flex items-center gap-2">
                     <input
