@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
-import { fetchPostById, fetchCategories } from '@/lib/firebase-api-blog'
+import { fetchPostById } from '@/lib/firebase-api-blog'
 import { adminDb } from '@/lib/firebase-admin'
 import type { Post, Category } from '@/types'
 import PostForm from './PostForm'
