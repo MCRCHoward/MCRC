@@ -38,6 +38,7 @@ import {
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { defaultMenuItems, defaultLogo, defaultAuth } from './menu-data'
 
 // --- Types and Data ---
 interface MenuItem {
@@ -210,54 +211,9 @@ const ResourcesMenu = () => (
 
 // Main Header Component for the Homepage
 export function HomepageHeader({
-  logo = {
-    url: '/',
-    src: '/images/logo/mcrc-logo.png',
-    alt: 'logo',
-    title: 'MCRC Howard',
-  },
-  menu = [
-    { title: 'Home', url: '/' },
-    { title: 'About', url: '/about' },
-    {
-      title: 'Services',
-      url: '/services',
-      items: [
-        {
-          title: 'Mediation',
-          description: 'Resolve disputes amicably with guided, neutral support.',
-          icon: <Book className="size-5 shrink-0" />,
-          url: '/services/mediation',
-        },
-        {
-          title: 'Facilitation',
-          description: 'Navigate complex conversations and group decisions effectively.',
-          icon: <Trees className="size-5 shrink-0" />,
-          url: '/services/facilitation',
-        },
-        {
-          title: 'Restorative Justice',
-          description: 'Repair harm and rebuild community trust through dialogue.',
-          icon: <Sunset className="size-5 shrink-0" />,
-          url: '/services/restorative-justice',
-        },
-        {
-          title: 'Training',
-          description: 'Learn how to facilitate and mediate.',
-          icon: <Book className="size-5 shrink-0" />,
-          url: '/services/training',
-        },
-      ],
-    },
-    // { title: 'Resources', url: '/resources' },
-    { title: 'Events', url: '/events' },
-    { title: 'Blog', url: '/blog' },
-    { title: 'Contact', url: '/contact' },
-  ],
-  auth = {
-    login: { title: 'Get Started', url: '/get-started' },
-    signup: { title: 'Donate', url: '/donate' },
-  },
+  logo = defaultLogo,
+  menu = defaultMenuItems,
+  auth = defaultAuth,
 }: NavbarProps) {
   // --- Encapsulated helper components ---
   const SubMenuLink = ({ item }: { item: MenuItem }) => (

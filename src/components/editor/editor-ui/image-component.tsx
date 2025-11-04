@@ -1,21 +1,16 @@
-import * as React from "react"
-import { JSX, Suspense, useCallback, useEffect, useRef, useState } from "react"
-import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin"
-import { useCollaborationContext } from "@lexical/react/LexicalCollaborationContext"
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
-import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary"
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin"
-import { LexicalNestedComposer } from "@lexical/react/LexicalNestedComposer"
-import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin"
-import { useLexicalEditable } from "@lexical/react/useLexicalEditable"
-import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection"
-import { mergeRegister } from "@lexical/utils"
-import type {
-  BaseSelection,
-  LexicalCommand,
-  LexicalEditor,
-  NodeKey,
-} from "lexical"
+import * as React from 'react'
+import { JSX, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin'
+import { useCollaborationContext } from '@lexical/react/LexicalCollaborationContext'
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
+import { LexicalNestedComposer } from '@lexical/react/LexicalNestedComposer'
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
+import { useLexicalEditable } from '@lexical/react/useLexicalEditable'
+import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection'
+import { mergeRegister } from '@lexical/utils'
+import type { BaseSelection, LexicalCommand, LexicalEditor, NodeKey } from 'lexical'
 import {
   $getNodeByKey,
   $getSelection,
@@ -34,17 +29,18 @@ import {
   RootNode,
   SELECTION_CHANGE_COMMAND,
   TextNode,
-} from "lexical"
+} from 'lexical'
 
 // import brokenImage from '@/registry/new-york-v4/editor/images/image-broken.svg';
-import { ContentEditable } from "@/components/editor/editor-ui/content-editable"
-import { ImageResizer } from "@/components/editor/editor-ui/image-resizer"
-import { $isImageNode } from "@/components/editor/nodes/image-node"
+import { ContentEditable } from '@/components/editor/editor-ui/content-editable'
+import { ImageResizer } from '@/components/editor/editor-ui/image-resizer'
+import { $isImageNode } from '@/components/editor/nodes/image-node'
 
 const imageCache = new Set()
 
-export const RIGHT_CLICK_IMAGE_COMMAND: LexicalCommand<MouseEvent> =
-  createCommand("RIGHT_CLICK_IMAGE_COMMAND")
+export const RIGHT_CLICK_IMAGE_COMMAND: LexicalCommand<MouseEvent> = createCommand(
+  'RIGHT_CLICK_IMAGE_COMMAND',
+)
 
 function useSuspenseImage(src: string) {
   if (!imageCache.has(src)) {
@@ -74,11 +70,11 @@ function LazyImage({
 }: {
   altText: string
   className: string | null
-  height: "inherit" | number
+  height: 'inherit' | number
   imageRef: { current: null | HTMLImageElement }
   maxWidth: number
   src: string
-  width: "inherit" | number
+  width: 'inherit' | number
   onError: () => void
 }): JSX.Element {
   useSuspenseImage(src)
@@ -102,7 +98,8 @@ function LazyImage({
 function BrokenImage(): JSX.Element {
   return (
     <img
-      src={""}
+      src=""
+      alt=""
       style={{
         height: 200,
         opacity: 0.2,
@@ -127,21 +124,20 @@ export default function ImageComponent({
 }: {
   altText: string
   caption: LexicalEditor
-  height: "inherit" | number
+  height: 'inherit' | number
   maxWidth: number
   nodeKey: NodeKey
   resizable: boolean
   showCaption: boolean
   src: string
-  width: "inherit" | number
+  width: 'inherit' | number
   captionsEnabled: boolean
 }): JSX.Element {
   const imageRef = useRef<null | HTMLImageElement>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
-  const [isSelected, setSelected, clearSelection] =
-    useLexicalNodeSelection(nodeKey)
+  const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey)
   const [isResizing, setIsResizing] = useState<boolean>(false)
-  const { isCollabActive } = useCollaborationContext()
+  const { isCollabActive: _isCollabActive } = useCollaborationContext()
   const [editor] = useLexicalComposerContext()
   const [selection, setSelection] = useState<BaseSelection | null>(null)
   const activeEditorRef = useRef<LexicalEditor | null>(null)
@@ -164,7 +160,7 @@ export default function ImageComponent({
       }
       return false
     },
-    [editor, isSelected]
+    [editor, isSelected],
   )
 
   const $onEnter = useCallback(
@@ -182,10 +178,7 @@ export default function ImageComponent({
           event.preventDefault()
           caption.focus()
           return true
-        } else if (
-          buttonElem !== null &&
-          buttonElem !== document.activeElement
-        ) {
+        } else if (buttonElem !== null && buttonElem !== document.activeElement) {
           event.preventDefault()
           buttonElem.focus()
           return true
@@ -193,15 +186,12 @@ export default function ImageComponent({
       }
       return false
     },
-    [caption, isSelected, showCaption]
+    [caption, isSelected, showCaption],
   )
 
   const $onEscape = useCallback(
     (event: KeyboardEvent) => {
-      if (
-        activeEditorRef.current === caption ||
-        buttonRef.current === event.target
-      ) {
+      if (activeEditorRef.current === caption || buttonRef.current === event.target) {
         $setSelection(null)
         editor.update(() => {
           setSelected(true)
@@ -214,7 +204,7 @@ export default function ImageComponent({
       }
       return false
     },
-    [caption, editor, setSelected]
+    [caption, editor, setSelected],
   )
 
   const onClick = useCallback(
@@ -236,7 +226,7 @@ export default function ImageComponent({
 
       return false
     },
-    [isResizing, isSelected, setSelected, clearSelection]
+    [isResizing, isSelected, setSelected, clearSelection],
   )
 
   const onRightClick = useCallback(
@@ -245,7 +235,7 @@ export default function ImageComponent({
         const latestSelection = $getSelection()
         const domElement = event.target as HTMLElement
         if (
-          domElement.tagName === "IMG" &&
+          domElement.tagName === 'IMG' &&
           $isRangeSelection(latestSelection) &&
           latestSelection.getNodes().length === 1
         ) {
@@ -253,7 +243,7 @@ export default function ImageComponent({
         }
       })
     },
-    [editor]
+    [editor],
   )
 
   useEffect(() => {
@@ -271,18 +261,10 @@ export default function ImageComponent({
           activeEditorRef.current = activeEditor
           return false
         },
-        COMMAND_PRIORITY_LOW
+        COMMAND_PRIORITY_LOW,
       ),
-      editor.registerCommand<MouseEvent>(
-        CLICK_COMMAND,
-        onClick,
-        COMMAND_PRIORITY_LOW
-      ),
-      editor.registerCommand<MouseEvent>(
-        RIGHT_CLICK_IMAGE_COMMAND,
-        onClick,
-        COMMAND_PRIORITY_LOW
-      ),
+      editor.registerCommand<MouseEvent>(CLICK_COMMAND, onClick, COMMAND_PRIORITY_LOW),
+      editor.registerCommand<MouseEvent>(RIGHT_CLICK_IMAGE_COMMAND, onClick, COMMAND_PRIORITY_LOW),
       editor.registerCommand(
         DRAGSTART_COMMAND,
         (event) => {
@@ -294,32 +276,20 @@ export default function ImageComponent({
           }
           return false
         },
-        COMMAND_PRIORITY_LOW
+        COMMAND_PRIORITY_LOW,
       ),
-      editor.registerCommand(
-        KEY_DELETE_COMMAND,
-        $onDelete,
-        COMMAND_PRIORITY_LOW
-      ),
-      editor.registerCommand(
-        KEY_BACKSPACE_COMMAND,
-        $onDelete,
-        COMMAND_PRIORITY_LOW
-      ),
+      editor.registerCommand(KEY_DELETE_COMMAND, $onDelete, COMMAND_PRIORITY_LOW),
+      editor.registerCommand(KEY_BACKSPACE_COMMAND, $onDelete, COMMAND_PRIORITY_LOW),
       editor.registerCommand(KEY_ENTER_COMMAND, $onEnter, COMMAND_PRIORITY_LOW),
-      editor.registerCommand(
-        KEY_ESCAPE_COMMAND,
-        $onEscape,
-        COMMAND_PRIORITY_LOW
-      )
+      editor.registerCommand(KEY_ESCAPE_COMMAND, $onEscape, COMMAND_PRIORITY_LOW),
     )
 
-    rootElement?.addEventListener("contextmenu", onRightClick)
+    rootElement?.addEventListener('contextmenu', onRightClick)
 
     return () => {
       isMounted = false
       unregister()
-      rootElement?.removeEventListener("contextmenu", onRightClick)
+      rootElement?.removeEventListener('contextmenu', onRightClick)
     }
   }, [
     clearSelection,
@@ -344,10 +314,7 @@ export default function ImageComponent({
     })
   }
 
-  const onResizeEnd = (
-    nextWidth: "inherit" | number,
-    nextHeight: "inherit" | number
-  ) => {
+  const onResizeEnd = (nextWidth: 'inherit' | number, nextHeight: 'inherit' | number) => {
     // Delay hiding the resize bars for click case
     setTimeout(() => {
       setIsResizing(false)
@@ -377,7 +344,7 @@ export default function ImageComponent({
             <LazyImage
               className={`max-w-full cursor-default ${
                 isFocused
-                  ? `${$isNodeSelection(selection) ? "draggable cursor-grab active:cursor-grabbing" : ""} focused ring-primary ring-2 ring-offset-2`
+                  ? `${$isNodeSelection(selection) ? 'draggable cursor-grab active:cursor-grabbing' : ''} focused ring-primary ring-2 ring-offset-2`
                   : null
               }`}
               src={src}
