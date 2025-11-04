@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { getStorageBucket, adminDb } from '@/lib/firebase-admin'
 import { requireAuth } from '@/lib/custom-auth'
 import { FieldValue } from 'firebase-admin/firestore'
-import type { Post, PostInput, PostSection } from '@/types'
+import type { PostInput } from '@/types'
 
 /* -------------------------------------------------------------------------- */
 /* Utils & Auth                                                               */

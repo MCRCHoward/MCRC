@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, Clock, MapPin, Globe, CreditCard, Users } from 'lucide-react'
+import { Calendar, MapPin, Globe, CreditCard } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 

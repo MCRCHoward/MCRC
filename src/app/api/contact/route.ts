@@ -55,7 +55,6 @@ export async function POST(request: Request) {
     if (RESEND_API_KEY) {
       const resend = new Resend(RESEND_API_KEY)
       const { firstName, lastName, email, phone, service, subject, message } = parsed.data
-      const composedName = `${firstName} ${lastName}`.trim()
 
       try {
         await resend.emails.send({

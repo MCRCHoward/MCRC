@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -136,11 +135,12 @@ export function RestorativeProgramReferralForm() {
   const TOTAL_STEPS = STEP_TITLES.length
   const [currentStep, setCurrentStep] = React.useState(0)
 
-  const { isSubmitting, error, success, submitData } = useFirestoreFormSubmit(
+  const { isSubmitting, error, submitData } = useFirestoreFormSubmit(
     'forms/restorativeProgramReferral/submissions',
   )
 
   const form = useForm<ReferralValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(referralSchema) as any,
     defaultValues: {
       // Referrer
@@ -181,12 +181,16 @@ export function RestorativeProgramReferralForm() {
 
   const goNext = async () => {
     const fields = STEP_FIELDS[currentStep]
-    const isStepValid = await form.trigger(fields as any, { shouldFocus: true })
+    const isStepValid = await form.trigger(fields as (keyof ReferralValues)[], {
+      shouldFocus: true,
+    })
     if (isStepValid) setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1))
   }
 
   async function onSubmit(data: ReferralValues) {
-    const okay = await form.trigger(STEP_FIELDS[currentStep] as any, { shouldFocus: true })
+    const okay = await form.trigger(STEP_FIELDS[currentStep] as (keyof ReferralValues)[], {
+      shouldFocus: true,
+    })
     if (!okay) return
 
     await submitData(data)

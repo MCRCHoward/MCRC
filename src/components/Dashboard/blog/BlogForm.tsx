@@ -25,7 +25,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { FileInput } from '@/components/ui/file-inputs'
 import { BlogEditor } from './BlogEditor'
 import { createPost } from '@/app/(frontend)/(cms)/dashboard/blog/firebase-actions'
-import type { Category } from '@/types'
 import type { PostInput } from '@/types'
 
 type CategoryLike = { id: string; name?: string | null; slug?: string | null }

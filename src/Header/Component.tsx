@@ -15,8 +15,6 @@ import {
   PlayCircle,
   Pyramid,
   Rocket,
-  Sunset,
-  Trees,
 } from 'lucide-react'
 import { Fragment } from 'react'
 import Image from 'next/image'

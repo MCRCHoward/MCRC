@@ -4,7 +4,6 @@ import { GeistMono } from 'geist/font/mono'
 import { GeistSans } from 'geist/font/sans'
 import { cn } from '@/utilities/ui'
 import { InitTheme } from '../../providers/Theme/InitTheme/index'
-import { draftMode } from 'next/headers'
 
 import './globals.css'
 import { getServerSideURL } from '@/utilities/getURL'

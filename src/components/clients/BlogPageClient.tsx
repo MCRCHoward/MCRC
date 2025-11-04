@@ -233,7 +233,7 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
     console.log('[BlogPageClient] posts (count):', posts.length)
     console.log('[BlogPageClient] initialSelected:', initialSelected)
     setSelectedCategories(initialSelected)
-  }, [initialSelected])
+  }, [initialSelected, categories, posts.length])
 
   useEffect(() => {
     setCurrentPage(normalizedPage)

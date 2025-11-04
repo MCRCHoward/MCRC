@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import type { Event, Media } from '@/types'
+import type { Event } from '@/types'
 
 interface EventsPageClientProps {
   events: Event[]

@@ -117,11 +117,12 @@ export function GroupFacilitationInquiryForm() {
   const TOTAL_STEPS = STEP_TITLES.length
   const [currentStep, setCurrentStep] = React.useState(0)
 
-  const { isSubmitting, error, success, submitData } = useFirestoreFormSubmit(
+  const { isSubmitting, error, submitData } = useFirestoreFormSubmit(
     'forms/groupFacilitationInquiry/submissions',
   )
 
   const form = useForm<FacilitationValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(facilitationSchema) as any,
     defaultValues: {
       firstName: '',
@@ -146,12 +147,16 @@ export function GroupFacilitationInquiryForm() {
 
   const goNext = async () => {
     const fields = STEP_FIELDS[currentStep]
-    const isStepValid = await form.trigger(fields as any, { shouldFocus: true })
+    const isStepValid = await form.trigger(fields as (keyof FacilitationValues)[], {
+      shouldFocus: true,
+    })
     if (isStepValid) setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1))
   }
 
   async function onSubmit(data: FacilitationValues) {
-    const okay = await form.trigger(STEP_FIELDS[currentStep] as any, { shouldFocus: true })
+    const okay = await form.trigger(STEP_FIELDS[currentStep] as (keyof FacilitationValues)[], {
+      shouldFocus: true,
+    })
     if (!okay) return
 
     await submitData(data)
@@ -168,7 +173,7 @@ export function GroupFacilitationInquiryForm() {
 
   const progressPct = ((currentStep + 1) / TOTAL_STEPS) * 100
 
-  const control = form.control as any
+  const control = form.control
 
   return (
     <Form {...form}>

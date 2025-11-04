@@ -101,6 +101,7 @@ async function uploadEventImage(file: File): Promise<string | undefined> {
 export default function NewEventPage() {
   const router = useRouter()
   const form = useForm<FormValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(schema) as any,
     defaultValues: {
       title: '',
@@ -133,7 +134,7 @@ export default function NewEventPage() {
           : undefined
 
       let imageUrl: string | undefined
-      const file = (values as any).imageFile as File | undefined
+      const file = (values as FormValues & { imageFile?: File }).imageFile
       if (file instanceof File) {
         imageUrl = await uploadEventImage(file)
       }
@@ -170,8 +171,9 @@ export default function NewEventPage() {
 
       toast.success('Event created')
       router.push('/dashboard/events')
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to create event')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create event'
+      toast.error(errorMessage)
     }
   }
 

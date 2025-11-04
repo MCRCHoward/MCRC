@@ -5,10 +5,10 @@ import type {
   NodeKey,
   SerializedTextNode,
   Spread,
-} from "lexical"
-import { TextNode } from "lexical"
+} from 'lexical'
+import { TextNode } from 'lexical'
 
-import { uuid as UUID } from "@/components/editor/plugins/autocomplete-plugin"
+import { uuid as UUID } from '@/components/editor/plugins/autocomplete-plugin'
 
 export type SerializedAutocompleteNode = Spread<
   {
@@ -32,8 +32,8 @@ export class AutocompleteNode extends TextNode {
     return new AutocompleteNode(node.__text, node.__uuid, node.__key)
   }
 
-  static getType(): "autocomplete" {
-    return "autocomplete"
+  static getType(): 'autocomplete' {
+    return 'autocomplete'
   }
 
   static importDOM() {
@@ -41,13 +41,10 @@ export class AutocompleteNode extends TextNode {
     return null
   }
 
-  static importJSON(
-    serializedNode: SerializedAutocompleteNode
-  ): AutocompleteNode {
-    return $createAutocompleteNode(
-      serializedNode.text,
-      serializedNode.uuid
-    ).updateFromJSON(serializedNode)
+  static importJSON(serializedNode: SerializedAutocompleteNode): AutocompleteNode {
+    return $createAutocompleteNode(serializedNode.text, serializedNode.uuid).updateFromJSON(
+      serializedNode,
+    )
   }
 
   exportJSON(): SerializedAutocompleteNode {
@@ -62,12 +59,10 @@ export class AutocompleteNode extends TextNode {
     this.__uuid = uuid
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  updateDOM(prevNode: this, dom: HTMLElement, config: EditorConfig): boolean {
+  updateDOM(_prevNode: this, _dom: HTMLElement, _config: EditorConfig): boolean {
     return false
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   exportDOM(_: LexicalEditor): DOMExportOutput {
     return { element: null }
   }
@@ -80,15 +75,12 @@ export class AutocompleteNode extends TextNode {
     const dom = super.createDOM(config)
     dom.classList.add(config.theme.autocomplete)
     if (this.__uuid !== UUID) {
-      dom.style.display = "none"
+      dom.style.display = 'none'
     }
     return dom
   }
 }
 
-export function $createAutocompleteNode(
-  text: string,
-  uuid: string
-): AutocompleteNode {
-  return new AutocompleteNode(text, uuid).setMode("token")
+export function $createAutocompleteNode(text: string, uuid: string): AutocompleteNode {
+  return new AutocompleteNode(text, uuid).setMode('token')
 }

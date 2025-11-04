@@ -56,7 +56,7 @@ export function ComponentPickerMenuPlugin({
           regex.test(option.title) || option.keywords.some((keyword) => regex.test(keyword)),
       ),
     ]
-  }, [editor, queryString, showModal, baseOptions, dynamicOptionsFn])
+  }, [queryString, baseOptions, dynamicOptionsFn])
 
   const onSelectOption = useCallback(
     (
