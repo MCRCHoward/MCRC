@@ -116,21 +116,21 @@ export type SerializedTweetNode = Spread<
 export class TweetNode extends DecoratorBlockNode {
   __id: string
 
-  static getType(): string {
+  static override getType(): string {
     return 'tweet'
   }
 
-  static clone(node: TweetNode): TweetNode {
+  static override clone(node: TweetNode): TweetNode {
     return new TweetNode(node.__id, node.__format, node.__key)
   }
 
-  static importJSON(serializedNode: SerializedTweetNode): TweetNode {
+  static override importJSON(serializedNode: SerializedTweetNode): TweetNode {
     const node = $createTweetNode(serializedNode.id)
     node.setFormat(serializedNode.format)
     return node
   }
 
-  exportJSON(): SerializedTweetNode {
+  override exportJSON(): SerializedTweetNode {
     return {
       ...super.exportJSON(),
       id: this.getId(),
@@ -139,7 +139,7 @@ export class TweetNode extends DecoratorBlockNode {
     }
   }
 
-  static importDOM(): DOMConversionMap<HTMLDivElement> | null {
+  static override importDOM(): DOMConversionMap<HTMLDivElement> | null {
     return {
       div: (domNode: HTMLDivElement) => {
         if (!domNode.hasAttribute('data-lexical-tweet-id')) {
@@ -153,7 +153,7 @@ export class TweetNode extends DecoratorBlockNode {
     }
   }
 
-  exportDOM(): DOMExportOutput {
+  override exportDOM(): DOMExportOutput {
     const element = document.createElement('div')
     element.setAttribute('data-lexical-tweet-id', this.__id)
     const text = document.createTextNode(this.getTextContent())
@@ -170,14 +170,14 @@ export class TweetNode extends DecoratorBlockNode {
     return this.__id
   }
 
-  getTextContent(
+  override getTextContent(
     _includeInert?: boolean | undefined,
     _includeDirectionless?: false | undefined,
   ): string {
     return `https://x.com/i/web/status/${this.__id}`
   }
 
-  decorate(editor: LexicalEditor, config: EditorConfig): JSX.Element {
+  override decorate(editor: LexicalEditor, config: EditorConfig): JSX.Element {
     const embedBlockTheme = config.theme.embedBlock || {}
     const className = {
       base: embedBlockTheme.base || '',

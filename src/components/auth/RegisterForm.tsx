@@ -636,7 +636,7 @@ export function RegisterForm() {
             </label>
             <div className="mt-2 space-y-2">
               {languages.map((lang) => {
-                const langCode = lang.split('-')[0]
+                const langCode = lang.split('-')[0] || ''
                 const languagesSpoken = form.watch('languagesSpoken') || []
                 const checked = languagesSpoken.includes(langCode)
                 return (

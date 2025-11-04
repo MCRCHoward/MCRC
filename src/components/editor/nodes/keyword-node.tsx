@@ -1,18 +1,18 @@
-import type { EditorConfig, LexicalNode, SerializedTextNode } from "lexical"
-import { TextNode } from "lexical"
+import type { EditorConfig, LexicalNode, SerializedTextNode } from 'lexical'
+import { TextNode } from 'lexical'
 
 export type SerializedKeywordNode = SerializedTextNode
 
 export class KeywordNode extends TextNode {
-  static getType(): string {
-    return "keyword"
+  static override getType(): string {
+    return 'keyword'
   }
 
-  static clone(node: KeywordNode): KeywordNode {
+  static override clone(node: KeywordNode): KeywordNode {
     return new KeywordNode(node.__text, node.__key)
   }
 
-  static importJSON(serializedNode: SerializedKeywordNode): KeywordNode {
+  static override importJSON(serializedNode: SerializedKeywordNode): KeywordNode {
     const node = $createKeywordNode(serializedNode.text)
     node.setFormat(serializedNode.format)
     node.setDetail(serializedNode.detail)
@@ -21,30 +21,30 @@ export class KeywordNode extends TextNode {
     return node
   }
 
-  exportJSON(): SerializedKeywordNode {
+  override exportJSON(): SerializedKeywordNode {
     return {
       ...super.exportJSON(),
-      type: "keyword",
+      type: 'keyword',
       version: 1,
     }
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
+  override createDOM(config: EditorConfig): HTMLElement {
     const dom = super.createDOM(config)
-    dom.style.cursor = "default"
-    dom.className = "keyword text-purple-900 font-bold"
+    dom.style.cursor = 'default'
+    dom.className = 'keyword text-purple-900 font-bold'
     return dom
   }
 
-  canInsertTextBefore(): boolean {
+  override canInsertTextBefore(): boolean {
     return false
   }
 
-  canInsertTextAfter(): boolean {
+  override canInsertTextAfter(): boolean {
     return false
   }
 
-  isTextEntity(): true {
+  override isTextEntity(): true {
     return true
   }
 }

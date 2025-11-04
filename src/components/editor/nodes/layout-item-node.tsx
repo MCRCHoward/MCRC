@@ -1,51 +1,46 @@
-import { addClassNamesToElement } from "@lexical/utils"
-import type {
-  DOMConversionMap,
-  EditorConfig,
-  LexicalNode,
-  SerializedElementNode,
-} from "lexical"
-import { ElementNode } from "lexical"
+import { addClassNamesToElement } from '@lexical/utils'
+import type { DOMConversionMap, EditorConfig, LexicalNode, SerializedElementNode } from 'lexical'
+import { ElementNode } from 'lexical'
 
 export type SerializedLayoutItemNode = SerializedElementNode
 
 export class LayoutItemNode extends ElementNode {
-  static getType(): string {
-    return "layout-item"
+  static override getType(): string {
+    return 'layout-item'
   }
 
-  static clone(node: LayoutItemNode): LayoutItemNode {
+  static override clone(node: LayoutItemNode): LayoutItemNode {
     return new LayoutItemNode(node.__key)
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
-    const dom = document.createElement("div")
-    if (typeof config.theme.layoutItem === "string") {
+  override createDOM(config: EditorConfig): HTMLElement {
+    const dom = document.createElement('div')
+    if (typeof config.theme.layoutItem === 'string') {
       addClassNamesToElement(dom, config.theme.layoutItem)
     }
     return dom
   }
 
-  updateDOM(): boolean {
+  override updateDOM(): boolean {
     return false
   }
 
-  static importDOM(): DOMConversionMap | null {
+  static override importDOM(): DOMConversionMap | null {
     return {}
   }
 
-  static importJSON(): LayoutItemNode {
+  static override importJSON(): LayoutItemNode {
     return $createLayoutItemNode()
   }
 
-  isShadowRoot(): boolean {
+  override isShadowRoot(): boolean {
     return true
   }
 
-  exportJSON(): SerializedLayoutItemNode {
+  override exportJSON(): SerializedLayoutItemNode {
     return {
       ...super.exportJSON(),
-      type: "layout-item",
+      type: 'layout-item',
       version: 1,
     }
   }
@@ -55,8 +50,6 @@ export function $createLayoutItemNode(): LayoutItemNode {
   return new LayoutItemNode()
 }
 
-export function $isLayoutItemNode(
-  node: LexicalNode | null | undefined
-): node is LayoutItemNode {
+export function $isLayoutItemNode(node: LexicalNode | null | undefined): node is LayoutItemNode {
   return node instanceof LayoutItemNode
 }

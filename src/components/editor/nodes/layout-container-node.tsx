@@ -1,4 +1,4 @@
-import { addClassNamesToElement } from "@lexical/utils"
+import { addClassNamesToElement } from '@lexical/utils'
 import type {
   DOMConversionMap,
   DOMConversionOutput,
@@ -8,8 +8,8 @@ import type {
   NodeKey,
   SerializedElementNode,
   Spread,
-} from "lexical"
-import { ElementNode } from "lexical"
+} from 'lexical'
+import { ElementNode } from 'lexical'
 
 export type SerializedLayoutContainerNode = Spread<
   {
@@ -18,13 +18,9 @@ export type SerializedLayoutContainerNode = Spread<
   SerializedElementNode
 >
 
-function $convertLayoutContainerElement(
-  domNode: HTMLElement
-): DOMConversionOutput | null {
+function $convertLayoutContainerElement(domNode: HTMLElement): DOMConversionOutput | null {
   const styleAttributes = window.getComputedStyle(domNode)
-  const templateColumns = styleAttributes.getPropertyValue(
-    "grid-template-columns"
-  )
+  const templateColumns = styleAttributes.getPropertyValue('grid-template-columns')
   if (templateColumns) {
     const node = $createLayoutContainerNode(templateColumns)
     return { node }
@@ -40,41 +36,41 @@ export class LayoutContainerNode extends ElementNode {
     this.__templateColumns = templateColumns
   }
 
-  static getType(): string {
-    return "layout-container"
+  static override getType(): string {
+    return 'layout-container'
   }
 
-  static clone(node: LayoutContainerNode): LayoutContainerNode {
+  static override clone(node: LayoutContainerNode): LayoutContainerNode {
     return new LayoutContainerNode(node.__templateColumns, node.__key)
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
-    const dom = document.createElement("div")
+  override createDOM(config: EditorConfig): HTMLElement {
+    const dom = document.createElement('div')
     dom.style.gridTemplateColumns = this.__templateColumns
-    if (typeof config.theme.layoutContainer === "string") {
+    if (typeof config.theme.layoutContainer === 'string') {
       addClassNamesToElement(dom, config.theme.layoutContainer)
     }
     return dom
   }
 
-  exportDOM(): DOMExportOutput {
-    const element = document.createElement("div")
+  override exportDOM(): DOMExportOutput {
+    const element = document.createElement('div')
     element.style.gridTemplateColumns = this.__templateColumns
-    element.setAttribute("data-lexical-layout-container", "true")
+    element.setAttribute('data-lexical-layout-container', 'true')
     return { element }
   }
 
-  updateDOM(prevNode: LayoutContainerNode, dom: HTMLElement): boolean {
+  override updateDOM(prevNode: LayoutContainerNode, dom: HTMLElement): boolean {
     if (prevNode.__templateColumns !== this.__templateColumns) {
       dom.style.gridTemplateColumns = this.__templateColumns
     }
     return false
   }
 
-  static importDOM(): DOMConversionMap | null {
+  static override importDOM(): DOMConversionMap | null {
     return {
       div: (domNode: HTMLElement) => {
-        if (!domNode.hasAttribute("data-lexical-layout-container")) {
+        if (!domNode.hasAttribute('data-lexical-layout-container')) {
           return null
         }
         return {
@@ -85,23 +81,23 @@ export class LayoutContainerNode extends ElementNode {
     }
   }
 
-  static importJSON(json: SerializedLayoutContainerNode): LayoutContainerNode {
+  static override importJSON(json: SerializedLayoutContainerNode): LayoutContainerNode {
     return $createLayoutContainerNode(json.templateColumns)
   }
 
-  isShadowRoot(): boolean {
+  override isShadowRoot(): boolean {
     return true
   }
 
-  canBeEmpty(): boolean {
+  override canBeEmpty(): boolean {
     return false
   }
 
-  exportJSON(): SerializedLayoutContainerNode {
+  override exportJSON(): SerializedLayoutContainerNode {
     return {
       ...super.exportJSON(),
       templateColumns: this.__templateColumns,
-      type: "layout-container",
+      type: 'layout-container',
       version: 1,
     }
   }
@@ -115,14 +111,12 @@ export class LayoutContainerNode extends ElementNode {
   }
 }
 
-export function $createLayoutContainerNode(
-  templateColumns: string
-): LayoutContainerNode {
+export function $createLayoutContainerNode(templateColumns: string): LayoutContainerNode {
   return new LayoutContainerNode(templateColumns)
 }
 
 export function $isLayoutContainerNode(
-  node: LexicalNode | null | undefined
+  node: LexicalNode | null | undefined,
 ): node is LayoutContainerNode {
   return node instanceof LayoutContainerNode
 }

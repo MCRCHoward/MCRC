@@ -9,7 +9,7 @@ import {
   type NodeKey,
   type SerializedTextNode,
   type Spread,
-} from "lexical"
+} from 'lexical'
 
 export type SerializedMentionNode = Spread<
   {
@@ -18,9 +18,7 @@ export type SerializedMentionNode = Spread<
   SerializedTextNode
 >
 
-function $convertMentionElement(
-  domNode: HTMLElement
-): DOMConversionOutput | null {
+function $convertMentionElement(domNode: HTMLElement): DOMConversionOutput | null {
   const textContent = domNode.textContent
 
   if (textContent !== null) {
@@ -33,18 +31,18 @@ function $convertMentionElement(
   return null
 }
 
-const mentionStyle = "background-color: rgba(24, 119, 232, 0.2)"
+const mentionStyle = 'background-color: rgba(24, 119, 232, 0.2)'
 export class MentionNode extends TextNode {
   __mention: string
 
-  static getType(): string {
-    return "mention"
+  static override getType(): string {
+    return 'mention'
   }
 
-  static clone(node: MentionNode): MentionNode {
+  static override clone(node: MentionNode): MentionNode {
     return new MentionNode(node.__mention, node.__text, node.__key)
   }
-  static importJSON(serializedNode: SerializedMentionNode): MentionNode {
+  static override importJSON(serializedNode: SerializedMentionNode): MentionNode {
     const node = $createMentionNode(serializedNode.mentionName)
     node.setTextContent(serializedNode.text)
     node.setFormat(serializedNode.format)
@@ -59,33 +57,33 @@ export class MentionNode extends TextNode {
     this.__mention = mentionName
   }
 
-  exportJSON(): SerializedMentionNode {
+  override exportJSON(): SerializedMentionNode {
     return {
       ...super.exportJSON(),
       mentionName: this.__mention,
-      type: "mention",
+      type: 'mention',
       version: 1,
     }
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
+  override createDOM(config: EditorConfig): HTMLElement {
     const dom = super.createDOM(config)
     dom.style.cssText = mentionStyle
-    dom.className = "mention"
+    dom.className = 'mention'
     return dom
   }
 
-  exportDOM(): DOMExportOutput {
-    const element = document.createElement("span")
-    element.setAttribute("data-lexical-mention", "true")
+  override exportDOM(): DOMExportOutput {
+    const element = document.createElement('span')
+    element.setAttribute('data-lexical-mention', 'true')
     element.textContent = this.__text
     return { element }
   }
 
-  static importDOM(): DOMConversionMap | null {
+  static override importDOM(): DOMConversionMap | null {
     return {
       span: (domNode: HTMLElement) => {
-        if (!domNode.hasAttribute("data-lexical-mention")) {
+        if (!domNode.hasAttribute('data-lexical-mention')) {
           return null
         }
         return {
@@ -96,27 +94,25 @@ export class MentionNode extends TextNode {
     }
   }
 
-  isTextEntity(): true {
+  override isTextEntity(): true {
     return true
   }
 
-  canInsertTextBefore(): boolean {
+  override canInsertTextBefore(): boolean {
     return false
   }
 
-  canInsertTextAfter(): boolean {
+  override canInsertTextAfter(): boolean {
     return false
   }
 }
 
 export function $createMentionNode(mentionName: string): MentionNode {
   const mentionNode = new MentionNode(mentionName)
-  mentionNode.setMode("segmented").toggleDirectionless()
+  mentionNode.setMode('segmented').toggleDirectionless()
   return $applyNodeReplacement(mentionNode)
 }
 
-export function $isMentionNode(
-  node: LexicalNode | null | undefined
-): node is MentionNode {
+export function $isMentionNode(node: LexicalNode | null | undefined): node is MentionNode {
   return node instanceof MentionNode
 }

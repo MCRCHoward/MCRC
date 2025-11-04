@@ -1,11 +1,5 @@
-import type {
-  EditorConfig,
-  LexicalNode,
-  NodeKey,
-  SerializedTextNode,
-  Spread,
-} from "lexical"
-import { $applyNodeReplacement, TextNode } from "lexical"
+import type { EditorConfig, LexicalNode, NodeKey, SerializedTextNode, Spread } from 'lexical'
+import { $applyNodeReplacement, TextNode } from 'lexical'
 
 export type SerializedEmojiNode = Spread<
   {
@@ -17,11 +11,11 @@ export type SerializedEmojiNode = Spread<
 export class EmojiNode extends TextNode {
   __className: string
 
-  static getType(): string {
-    return "emoji"
+  static override getType(): string {
+    return 'emoji'
   }
 
-  static clone(node: EmojiNode): EmojiNode {
+  static override clone(node: EmojiNode): EmojiNode {
     return new EmojiNode(node.__className, node.__text, node.__key)
   }
 
@@ -30,16 +24,16 @@ export class EmojiNode extends TextNode {
     this.__className = className
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
-    const dom = document.createElement("span")
+  override createDOM(config: EditorConfig): HTMLElement {
+    const dom = document.createElement('span')
     const inner = super.createDOM(config)
     dom.className = this.__className
-    inner.className = "emoji-inner"
+    inner.className = 'emoji-inner'
     dom.appendChild(inner)
     return dom
   }
 
-  updateDOM(prevNode: this, dom: HTMLElement, config: EditorConfig): boolean {
+  override updateDOM(prevNode: this, dom: HTMLElement, config: EditorConfig): boolean {
     const inner = dom.firstChild
     if (inner === null) {
       return true
@@ -48,14 +42,13 @@ export class EmojiNode extends TextNode {
     return false
   }
 
-  static importJSON(serializedNode: SerializedEmojiNode): EmojiNode {
-    return $createEmojiNode(
-      serializedNode.className,
-      serializedNode.text
-    ).updateFromJSON(serializedNode)
+  static override importJSON(serializedNode: SerializedEmojiNode): EmojiNode {
+    return $createEmojiNode(serializedNode.className, serializedNode.text).updateFromJSON(
+      serializedNode,
+    )
   }
 
-  exportJSON(): SerializedEmojiNode {
+  override exportJSON(): SerializedEmojiNode {
     return {
       ...super.exportJSON(),
       className: this.getClassName(),
@@ -68,16 +61,11 @@ export class EmojiNode extends TextNode {
   }
 }
 
-export function $isEmojiNode(
-  node: LexicalNode | null | undefined
-): node is EmojiNode {
+export function $isEmojiNode(node: LexicalNode | null | undefined): node is EmojiNode {
   return node instanceof EmojiNode
 }
 
-export function $createEmojiNode(
-  className: string,
-  emojiText: string
-): EmojiNode {
-  const node = new EmojiNode(className, emojiText).setMode("token")
+export function $createEmojiNode(className: string, emojiText: string): EmojiNode {
+  const node = new EmojiNode(className, emojiText).setMode('token')
   return $applyNodeReplacement(node)
 }

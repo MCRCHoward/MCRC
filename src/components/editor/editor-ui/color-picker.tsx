@@ -18,10 +18,46 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+/* ============================================================================
+ * Constants
+ * ============================================================================ */
+
+/** Supported color formats */
+export const COLOR_FORMATS = ['hex', 'rgb', 'hsl', 'hsb'] as const
+
+/** Color format type */
+type ColorFormat = (typeof COLOR_FORMATS)[number]
+
+/** Default color values */
+const DEFAULT_COLOR = '#000000'
+const DEFAULT_FORMAT: ColorFormat = 'hex'
+const DEFAULT_ALPHA = 1
+
+/** Color value ranges */
+const RGB_MAX = 255
+const HUE_MAX = 360
+const PERCENTAGE_MAX = 100
+
+/** Color conversion constants */
+const RGB_NORMALIZATION = 255
+const HUE_DEGREES_TO_RATIO = 360
+const PERCENTAGE_TO_RATIO = 100
+const HSL_SECTORS = 6
+
+/** Regex patterns for color parsing */
+const HEX_PATTERN = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i
+const RGB_PATTERN = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)$/
+const HSL_PATTERN = /^hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*([\d.]+))?\s*\)$/
+const HSB_PATTERN = /^hsba?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*([\d.]+))?\s*\)$/
+const HEX_SHORT_PATTERN = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/
+
+/* ============================================================================
+ * Types
+ * ============================================================================ */
+
 /**
  * @see https://github.com/radix-ui/primitives/blob/main/packages/react/compose-refs/src/compose-refs.tsx
  */
-
 type PossibleRef<T> = React.Ref<T> | undefined
 
 /**
@@ -78,7 +114,7 @@ function composeRefs<T>(...refs: PossibleRef<T>[]): React.RefCallback<T> {
  */
 function useComposedRefs<T>(...refs: PossibleRef<T>[]): React.RefCallback<T> {
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  return React.useCallback(() => composeRefs(...refs)(), refs)
+  return React.useCallback(composeRefs(...refs), refs)
 }
 
 type InputValue = string[] | string
@@ -234,9 +270,6 @@ declare global {
   }
 }
 
-const colorFormats = ['hex', 'rgb', 'hsl', 'hsb'] as const
-type ColorFormat = (typeof colorFormats)[number]
-
 interface ColorValue {
   r: number
   g: number
@@ -251,16 +284,22 @@ interface HSVColorValue {
   a: number
 }
 
+/**
+ * Converts a hex color string to RGB color value
+ * @param hex - Hex color string (e.g., "#ff0000" or "ff0000")
+ * @param alpha - Optional alpha value (0-1), defaults to 1
+ * @returns RGB color value
+ */
 function hexToRgb(hex: string, alpha?: number): ColorValue {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  const result = HEX_PATTERN.exec(hex)
   return result
     ? {
         r: Number.parseInt(result[1] ?? '0', 16),
         g: Number.parseInt(result[2] ?? '0', 16),
         b: Number.parseInt(result[3] ?? '0', 16),
-        a: alpha ?? 1,
+        a: alpha ?? DEFAULT_ALPHA,
       }
-    : { r: 0, g: 0, b: 0, a: alpha ?? 1 }
+    : { r: 0, g: 0, b: 0, a: alpha ?? DEFAULT_ALPHA }
 }
 
 function rgbToHex(color: ColorValue): string {
@@ -271,10 +310,15 @@ function rgbToHex(color: ColorValue): string {
   return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`
 }
 
+/**
+ * Converts RGB color value to HSV color value
+ * @param color - RGB color value
+ * @returns HSV color value
+ */
 function rgbToHsv(color: ColorValue): HSVColorValue {
-  const r = color.r / 255
-  const g = color.g / 255
-  const b = color.b / 255
+  const r = color.r / RGB_NORMALIZATION
+  const g = color.g / RGB_NORMALIZATION
+  const b = color.b / RGB_NORMALIZATION
 
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)
@@ -284,7 +328,7 @@ function rgbToHsv(color: ColorValue): HSVColorValue {
   if (diff !== 0) {
     switch (max) {
       case r:
-        h = ((g - b) / diff) % 6
+        h = ((g - b) / diff) % HSL_SECTORS
         break
       case g:
         h = (b - r) / diff + 2
@@ -294,27 +338,32 @@ function rgbToHsv(color: ColorValue): HSVColorValue {
         break
     }
   }
-  h = Math.round(h * 60)
-  if (h < 0) h += 360
+  h = Math.round(h * (HUE_MAX / HSL_SECTORS))
+  if (h < 0) h += HUE_MAX
 
   const s = max === 0 ? 0 : diff / max
   const v = max
 
   return {
     h,
-    s: Math.round(s * 100),
-    v: Math.round(v * 100),
+    s: Math.round(s * PERCENTAGE_MAX),
+    v: Math.round(v * PERCENTAGE_MAX),
     a: color.a,
   }
 }
 
+/**
+ * Converts HSV color value to RGB color value
+ * @param hsv - HSV color value
+ * @returns RGB color value
+ */
 function hsvToRgb(hsv: HSVColorValue): ColorValue {
-  const h = hsv.h / 360
-  const s = hsv.s / 100
-  const v = hsv.v / 100
+  const h = hsv.h / HUE_DEGREES_TO_RATIO
+  const s = hsv.s / PERCENTAGE_TO_RATIO
+  const v = hsv.v / PERCENTAGE_TO_RATIO
 
-  const i = Math.floor(h * 6)
-  const f = h * 6 - i
+  const i = Math.floor(h * HSL_SECTORS)
+  const f = h * HSL_SECTORS - i
   const p = v * (1 - s)
   const q = v * (1 - f * s)
   const t = v * (1 - (1 - f) * s)
@@ -323,7 +372,7 @@ function hsvToRgb(hsv: HSVColorValue): ColorValue {
   let g: number
   let b: number
 
-  switch (i % 6) {
+  switch (i % HSL_SECTORS) {
     case 0: {
       r = v
       g = t
@@ -368,14 +417,20 @@ function hsvToRgb(hsv: HSVColorValue): ColorValue {
   }
 
   return {
-    r: Math.round(r * 255),
-    g: Math.round(g * 255),
-    b: Math.round(b * 255),
+    r: Math.round(r * RGB_NORMALIZATION),
+    g: Math.round(g * RGB_NORMALIZATION),
+    b: Math.round(b * RGB_NORMALIZATION),
     a: hsv.a,
   }
 }
 
-function colorToString(color: ColorValue, format: ColorFormat = 'hex'): string {
+/**
+ * Converts a color value to a string representation in the specified format
+ * @param color - RGB color value
+ * @param format - Target format (hex, rgb, hsl, hsb), defaults to 'hex'
+ * @returns Color string representation
+ */
+function colorToString(color: ColorValue, format: ColorFormat = DEFAULT_FORMAT): string {
   switch (format) {
     case 'hex':
       return rgbToHex(color)
@@ -400,10 +455,15 @@ function colorToString(color: ColorValue, format: ColorFormat = 'hex'): string {
   }
 }
 
+/**
+ * Converts RGB color value to HSL color value
+ * @param color - RGB color value
+ * @returns HSL color value (h: 0-360, s: 0-100, l: 0-100)
+ */
 function rgbToHsl(color: ColorValue) {
-  const r = color.r / 255
-  const g = color.g / 255
-  const b = color.b / 255
+  const r = color.r / RGB_NORMALIZATION
+  const g = color.g / RGB_NORMALIZATION
+  const b = color.b / RGB_NORMALIZATION
 
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)
@@ -429,16 +489,22 @@ function rgbToHsl(color: ColorValue) {
   }
 
   return {
-    h: Math.round(h * 360),
-    s: Math.round(s * 100),
-    l: Math.round(l * 100),
+    h: Math.round(h * HUE_MAX),
+    s: Math.round(s * PERCENTAGE_MAX),
+    l: Math.round(l * PERCENTAGE_MAX),
   }
 }
 
-function hslToRgb(hsl: { h: number; s: number; l: number }, alpha = 1): ColorValue {
-  const h = hsl.h / 360
-  const s = hsl.s / 100
-  const l = hsl.l / 100
+/**
+ * Converts HSL color value to RGB color value
+ * @param hsl - HSL color value (h: 0-360, s: 0-100, l: 0-100)
+ * @param alpha - Alpha value (0-1), defaults to 1
+ * @returns RGB color value
+ */
+function hslToRgb(hsl: { h: number; s: number; l: number }, alpha = DEFAULT_ALPHA): ColorValue {
+  const h = hsl.h / HUE_DEGREES_TO_RATIO
+  const s = hsl.s / PERCENTAGE_TO_RATIO
+  const l = hsl.l / PERCENTAGE_TO_RATIO
 
   const c = (1 - Math.abs(2 * l - 1)) * s
   const x = c * (1 - Math.abs(((h * 6) % 2) - 1))
@@ -475,50 +541,52 @@ function hslToRgb(hsl: { h: number; s: number; l: number }, alpha = 1): ColorVal
   }
 
   return {
-    r: Math.round((r + m) * 255),
-    g: Math.round((g + m) * 255),
-    b: Math.round((b + m) * 255),
+    r: Math.round((r + m) * RGB_NORMALIZATION),
+    g: Math.round((g + m) * RGB_NORMALIZATION),
+    b: Math.round((b + m) * RGB_NORMALIZATION),
     a: alpha,
   }
 }
 
+/**
+ * Parses a color string and converts it to a ColorValue
+ * Supports hex, rgb, rgba, hsl, hsla, hsb, and hsba formats
+ * @param value - Color string to parse
+ * @returns ColorValue or null if parsing fails
+ */
 function parseColorString(value: string): ColorValue | null {
   const trimmed = value.trim()
 
   // Parse hex colors
   if (trimmed.startsWith('#')) {
-    const hexMatch = trimmed.match(/^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/)
+    const hexMatch = trimmed.match(HEX_SHORT_PATTERN)
     if (hexMatch) {
       return hexToRgb(trimmed)
     }
   }
 
   // Parse rgb/rgba colors
-  const rgbMatch = trimmed.match(
-    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)$/,
-  )
+  const rgbMatch = trimmed.match(RGB_PATTERN)
   if (rgbMatch) {
     return {
       r: Number.parseInt(rgbMatch[1] ?? '0', 10),
       g: Number.parseInt(rgbMatch[2] ?? '0', 10),
       b: Number.parseInt(rgbMatch[3] ?? '0', 10),
-      a: rgbMatch[4] ? Number.parseFloat(rgbMatch[4]) : 1,
+      a: rgbMatch[4] ? Number.parseFloat(rgbMatch[4]) : DEFAULT_ALPHA,
     }
   }
 
   // Parse hsl/hsla colors
-  const hslMatch = trimmed.match(
-    /^hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*([\d.]+))?\s*\)$/,
-  )
+  const hslMatch = trimmed.match(HSL_PATTERN)
   if (hslMatch) {
     const h = Number.parseInt(hslMatch[1] ?? '0', 10)
-    const s = Number.parseInt(hslMatch[2] ?? '0', 10) / 100
-    const l = Number.parseInt(hslMatch[3] ?? '0', 10) / 100
-    const a = hslMatch[4] ? Number.parseFloat(hslMatch[4]) : 1
+    const s = Number.parseInt(hslMatch[2] ?? '0', 10) / PERCENTAGE_TO_RATIO
+    const l = Number.parseInt(hslMatch[3] ?? '0', 10) / PERCENTAGE_TO_RATIO
+    const a = hslMatch[4] ? Number.parseFloat(hslMatch[4]) : DEFAULT_ALPHA
 
     // Convert HSL to RGB
     const c = (1 - Math.abs(2 * l - 1)) * s
-    const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+    const x = c * (1 - Math.abs(((h / (HUE_MAX / HSL_SECTORS)) % 2) - 1))
     const m = l - c / 2
 
     let r = 0
@@ -545,29 +613,27 @@ function parseColorString(value: string): ColorValue | null {
       r = x
       g = 0
       b = c
-    } else if (h >= 300 && h < 360) {
+    } else if (h >= 300 && h < HUE_MAX) {
       r = c
       g = 0
       b = x
     }
 
     return {
-      r: Math.round((r + m) * 255),
-      g: Math.round((g + m) * 255),
-      b: Math.round((b + m) * 255),
+      r: Math.round((r + m) * RGB_NORMALIZATION),
+      g: Math.round((g + m) * RGB_NORMALIZATION),
+      b: Math.round((b + m) * RGB_NORMALIZATION),
       a,
     }
   }
 
   // Parse hsb/hsba colors
-  const hsbMatch = trimmed.match(
-    /^hsba?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(?:,\s*([\d.]+))?\s*\)$/,
-  )
+  const hsbMatch = trimmed.match(HSB_PATTERN)
   if (hsbMatch) {
     const h = Number.parseInt(hsbMatch[1] ?? '0', 10)
     const s = Number.parseInt(hsbMatch[2] ?? '0', 10)
     const v = Number.parseInt(hsbMatch[3] ?? '0', 10)
-    const a = hsbMatch[4] ? Number.parseFloat(hsbMatch[4]) : 1
+    const a = hsbMatch[4] ? Number.parseFloat(hsbMatch[4]) : DEFAULT_ALPHA
 
     return hsvToRgb({ h, s, v, a })
   }
@@ -632,10 +698,10 @@ function createColorPickerStore(
     },
     getState: () =>
       stateRef.current || {
-        color: { r: 0, g: 0, b: 0, a: 1 },
-        hsv: { h: 0, s: 0, v: 0, a: 1 },
+        color: { r: 0, g: 0, b: 0, a: DEFAULT_ALPHA },
+        hsv: { h: 0, s: 0, v: 0, a: DEFAULT_ALPHA },
         open: false,
-        format: 'hex' as ColorFormat,
+        format: DEFAULT_FORMAT,
       },
     setColor: (value: ColorValue) => {
       if (!stateRef.current) return
@@ -758,10 +824,10 @@ interface ColorPickerRootProps
 const ColorPickerRoot = React.memo(function ColorPickerRoot(props: ColorPickerRootProps) {
   const {
     value: valueProp,
-    defaultValue = '#000000',
+    defaultValue = DEFAULT_COLOR,
     onValueChange,
     format: formatProp,
-    defaultFormat = 'hex',
+    defaultFormat = DEFAULT_FORMAT,
     onFormatChange,
     defaultOpen,
     open: openProp,
@@ -1011,9 +1077,9 @@ function ColorPickerArea(props: ColorPickerAreaProps) {
 
       const newHsv: HSVColorValue = {
         h: hsv?.h ?? 0,
-        s: Math.round(x * 100),
-        v: Math.round(y * 100),
-        a: hsv?.a ?? 1,
+        s: Math.round(x * PERCENTAGE_MAX),
+        v: Math.round(y * PERCENTAGE_MAX),
+        a: hsv?.a ?? DEFAULT_ALPHA,
       }
 
       store.setHsv(newHsv)
@@ -1048,7 +1114,7 @@ function ColorPickerArea(props: ColorPickerAreaProps) {
   }, [])
 
   const hue = hsv?.h ?? 0
-  const backgroundHue = hsvToRgb({ h: hue, s: 100, v: 100, a: 1 })
+  const backgroundHue = hsvToRgb({ h: hue, s: PERCENTAGE_MAX, v: PERCENTAGE_MAX, a: DEFAULT_ALPHA })
 
   const AreaPrimitive = asChild ? Slot : 'div'
 
@@ -1124,7 +1190,7 @@ function ColorPickerHueSlider(props: ColorPickerHueSliderProps) {
     <SliderPrimitive.Root
       data-slot="color-picker-hue-slider"
       {...sliderProps}
-      max={360}
+      max={HUE_MAX}
       step={1}
       className={cn('relative flex w-full touch-none items-center select-none', className)}
       value={[hsv?.h ?? 0]}
@@ -1151,7 +1217,7 @@ function ColorPickerAlphaSlider(props: ColorPickerAlphaSliderProps) {
 
   const onValueChange = React.useCallback(
     (values: number[]) => {
-      const alpha = (values[0] ?? 0) / 100
+      const alpha = (values[0] ?? 0) / PERCENTAGE_MAX
       const newColor = { ...color, a: alpha }
       const newHsv = { ...hsv, a: alpha }
       store.setColor(newColor)
@@ -1166,11 +1232,11 @@ function ColorPickerAlphaSlider(props: ColorPickerAlphaSliderProps) {
     <SliderPrimitive.Root
       data-slot="color-picker-alpha-slider"
       {...sliderProps}
-      max={100}
+      max={PERCENTAGE_MAX}
       step={1}
       disabled={context.disabled}
       className={cn('relative flex w-full touch-none items-center select-none', className)}
-      value={[Math.round((color?.a ?? 1) * 100)]}
+      value={[Math.round((color?.a ?? DEFAULT_ALPHA) * PERCENTAGE_MAX)]}
       onValueChange={onValueChange}
     >
       <SliderPrimitive.Track
@@ -1267,7 +1333,7 @@ function ColorPickerEyeDropper(props: ColorPickerEyeDropperProps) {
       const result = await eyeDropper.open()
 
       if (result.sRGBHex) {
-        const currentAlpha = color?.a ?? 1
+        const currentAlpha = color?.a ?? DEFAULT_ALPHA
         const newColor = hexToRgb(result.sRGBHex, currentAlpha)
         const newHsv = rgbToHsv(newColor)
         store.setColor(newColor)
@@ -1329,7 +1395,7 @@ function ColorPickerFormatSelect(props: ColorPickerFormatSelectProps) {
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {colorFormats.map((format) => (
+        {COLOR_FORMATS.map((format) => (
           <SelectItem key={format} value={format}>
             {format.toUpperCase()}
           </SelectItem>
@@ -1419,14 +1485,14 @@ function HexInput(props: FormatInputProps) {
   const { color, onColorChange, context, withoutAlpha, className, ...inputProps } = props
 
   const hexValue = rgbToHex(color)
-  const alphaValue = Math.round((color?.a ?? 1) * 100)
+  const alphaValue = Math.round((color?.a ?? DEFAULT_ALPHA) * PERCENTAGE_MAX)
 
   const onHexChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value
       const parsedColor = parseColorString(value)
       if (parsedColor) {
-        onColorChange({ ...parsedColor, a: color?.a ?? 1 })
+        onColorChange({ ...parsedColor, a: color?.a ?? DEFAULT_ALPHA })
       }
     },
     [color, onColorChange],
@@ -1436,7 +1502,7 @@ function HexInput(props: FormatInputProps) {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = Number.parseInt(event.target.value, 10)
       if (!Number.isNaN(value) && value >= 0 && value <= 100) {
-        onColorChange({ ...color, a: value / 100 })
+        onColorChange({ ...color, a: value / PERCENTAGE_MAX })
       }
     },
     [color, onColorChange],
@@ -1477,7 +1543,7 @@ function HexInput(props: FormatInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="100"
+        max={String(PERCENTAGE_MAX)}
         className="w-14"
         value={alphaValue}
         onChange={onAlphaChange}
@@ -1493,14 +1559,14 @@ function RgbInput(props: FormatInputProps) {
   const rValue = Math.round(color?.r ?? 0)
   const gValue = Math.round(color?.g ?? 0)
   const bValue = Math.round(color?.b ?? 0)
-  const alphaValue = Math.round((color?.a ?? 1) * 100)
+  const alphaValue = Math.round((color?.a ?? DEFAULT_ALPHA) * PERCENTAGE_MAX)
 
   const onChannelChange = React.useCallback(
     (channel: 'r' | 'g' | 'b' | 'a', max: number, isAlpha = false) =>
       (event: React.ChangeEvent<HTMLInputElement>) => {
         const value = Number.parseInt(event.target.value, 10)
         if (!Number.isNaN(value) && value >= 0 && value <= max) {
-          const newValue = isAlpha ? value / 100 : value
+          const newValue = isAlpha ? value / PERCENTAGE_MAX : value
           onColorChange({ ...color, [channel]: newValue })
         }
       },
@@ -1517,10 +1583,10 @@ function RgbInput(props: FormatInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="255"
+        max={String(RGB_MAX)}
         className="w-14"
         value={rValue}
-        onChange={onChannelChange('r', 255)}
+        onChange={onChannelChange('r', RGB_MAX)}
         disabled={context.disabled}
       />
       <InputGroupItem
@@ -1531,10 +1597,10 @@ function RgbInput(props: FormatInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="255"
+        max={String(RGB_MAX)}
         className="w-14"
         value={gValue}
-        onChange={onChannelChange('g', 255)}
+        onChange={onChannelChange('g', RGB_MAX)}
         disabled={context.disabled}
       />
       <InputGroupItem
@@ -1545,10 +1611,10 @@ function RgbInput(props: FormatInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="255"
+        max={String(RGB_MAX)}
         className="w-14"
         value={bValue}
-        onChange={onChannelChange('b', 255)}
+        onChange={onChannelChange('b', RGB_MAX)}
         disabled={context.disabled}
       />
       {!withoutAlpha && (
@@ -1556,14 +1622,14 @@ function RgbInput(props: FormatInputProps) {
           aria-label="Alpha transparency percentage"
           position="last"
           {...inputProps}
-          placeholder="100"
+          placeholder={String(PERCENTAGE_MAX)}
           inputMode="numeric"
           pattern="[0-9]*"
           min="0"
-          max="100"
+          max={String(PERCENTAGE_MAX)}
           className="w-14"
           value={alphaValue}
-          onChange={onChannelChange('a', 100, true)}
+          onChange={onChannelChange('a', PERCENTAGE_MAX, true)}
           disabled={context.disabled}
         />
       )}
@@ -1575,14 +1641,14 @@ function HslInput(props: FormatInputProps) {
   const { color, onColorChange, context, withoutAlpha, className, ...inputProps } = props
 
   const hsl = React.useMemo(() => rgbToHsl(color), [color])
-  const alphaValue = Math.round((color?.a ?? 1) * 100)
+  const alphaValue = Math.round((color?.a ?? DEFAULT_ALPHA) * PERCENTAGE_MAX)
 
   const onHslChannelChange = React.useCallback(
     (channel: 'h' | 's' | 'l', max: number) => (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = Number.parseInt(event.target.value, 10)
       if (!Number.isNaN(value) && value >= 0 && value <= max) {
         const newHsl = { ...hsl, [channel]: value }
-        const newColor = hslToRgb(newHsl, color?.a ?? 1)
+        const newColor = hslToRgb(newHsl, color?.a ?? DEFAULT_ALPHA)
         onColorChange(newColor)
       }
     },
@@ -1593,7 +1659,7 @@ function HslInput(props: FormatInputProps) {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = Number.parseInt(event.target.value, 10)
       if (!Number.isNaN(value) && value >= 0 && value <= 100) {
-        onColorChange({ ...color, a: value / 100 })
+        onColorChange({ ...color, a: value / PERCENTAGE_MAX })
       }
     },
     [color, onColorChange],
@@ -1609,7 +1675,7 @@ function HslInput(props: FormatInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="360"
+        max={String(HUE_MAX)}
         className="w-14"
         value={hsl.h}
         onChange={onHslChannelChange('h', 360)}
@@ -1623,7 +1689,7 @@ function HslInput(props: FormatInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="100"
+        max={String(PERCENTAGE_MAX)}
         className="w-14"
         value={hsl.s}
         onChange={onHslChannelChange('s', 100)}
@@ -1637,7 +1703,7 @@ function HslInput(props: FormatInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="100"
+        max={String(PERCENTAGE_MAX)}
         className="w-14"
         value={hsl.l}
         onChange={onHslChannelChange('l', 100)}
@@ -1652,7 +1718,7 @@ function HslInput(props: FormatInputProps) {
           inputMode="numeric"
           pattern="[0-9]*"
           min="0"
-          max="100"
+          max={String(PERCENTAGE_MAX)}
           className="w-14"
           value={alphaValue}
           onChange={onAlphaChange}
@@ -1705,7 +1771,7 @@ function HsbInput(props: HsbInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="360"
+        max={String(HUE_MAX)}
         className="w-14"
         value={hsv?.h ?? 0}
         onChange={onHsvChannelChange('h', 360)}
@@ -1719,7 +1785,7 @@ function HsbInput(props: HsbInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="100"
+        max={String(PERCENTAGE_MAX)}
         className="w-14"
         value={hsv?.s ?? 0}
         onChange={onHsvChannelChange('s', 100)}
@@ -1733,7 +1799,7 @@ function HsbInput(props: HsbInputProps) {
         inputMode="numeric"
         pattern="[0-9]*"
         min="0"
-        max="100"
+        max={String(PERCENTAGE_MAX)}
         className="w-14"
         value={hsv?.v ?? 0}
         onChange={onHsvChannelChange('v', 100)}
@@ -1748,7 +1814,7 @@ function HsbInput(props: HsbInputProps) {
           inputMode="numeric"
           pattern="[0-9]*"
           min="0"
-          max="100"
+          max={String(PERCENTAGE_MAX)}
           className="w-14"
           value={alphaValue}
           onChange={onAlphaChange}
