@@ -144,7 +144,13 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
         }) as Event,
     )
   } catch (error) {
-    console.error('Error fetching events:', error)
+    // During build time, Firebase errors are expected if Firestore rules restrict access
+    // These are caught and logged, but don't fail the build
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[fetchPublishedEvents] Error during build (may be expected):', error)
+    } else {
+      console.error('[fetchPublishedEvents] Error fetching events:', error)
+    }
     return []
   }
 }
@@ -226,7 +232,13 @@ export async function fetchAllPages(): Promise<Page[]> {
         }) as Page,
     )
   } catch (error) {
-    console.error('Error fetching pages:', error)
+    // During build time, Firebase errors are expected if Firestore rules restrict access
+    // These are caught and logged, but don't fail the build
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[fetchAllPages] Error during build (may be expected):', error)
+    } else {
+      console.error('[fetchAllPages] Error fetching pages:', error)
+    }
     return []
   }
 }

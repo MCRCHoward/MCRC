@@ -599,7 +599,7 @@ export default function NewEventPage() {
               <FormField
                 control={form.control}
                 name="imageFile"
-                render={({ field: { value, onChange, ...field } }) => (
+                render={({ field: { onChange, value: _value, ...field } }) => (
                   <FormItem>
                     <FormLabel>Event image</FormLabel>
                     <FormControl>
