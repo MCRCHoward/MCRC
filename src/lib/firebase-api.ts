@@ -1,20 +1,33 @@
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
-import { db } from './firebase'
+/**
+ * Firebase API functions for server-side data fetching.
+ *
+ * All functions in this file use Firebase Admin SDK, which:
+ * - Bypasses Firestore security rules (safe for build-time static generation)
+ * - Works without user authentication
+ * - Is the recommended approach for Next.js server components and static generation
+ *
+ * Client SDK (firebase/firestore) should only be used in client components ('use client')
+ */
 import type { Post, Event, Page, Category } from '@/types'
 
 // Posts API
 export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
   try {
-    let postsQuery = query(
-      collection(db, 'posts'),
-      where('_status', '==', 'published'),
-      orderBy('publishedAt', 'desc'),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+
+    let postsQuery = adminDb
+      .collection('posts')
+      .where('_status', '==', 'published')
+      .orderBy('publishedAt', 'desc')
 
     if (categorySlug) {
       // First get the category by slug
-      const categoriesQuery = query(collection(db, 'categories'), where('slug', '==', categorySlug))
-      const categorySnapshot = await getDocs(categoriesQuery)
+      const categorySnapshot = await adminDb
+        .collection('categories')
+        .where('slug', '==', categorySlug)
+        .limit(1)
+        .get()
 
       if (categorySnapshot.empty) {
         return []
@@ -26,15 +39,14 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
       }
 
       const categoryId = firstDoc.id
-      postsQuery = query(
-        collection(db, 'posts'),
-        where('_status', '==', 'published'),
-        where('categories', 'array-contains', categoryId),
-        orderBy('publishedAt', 'desc'),
-      )
+      postsQuery = adminDb
+        .collection('posts')
+        .where('_status', '==', 'published')
+        .where('categories', 'array-contains', categoryId)
+        .orderBy('publishedAt', 'desc')
     }
 
-    const snapshot = await getDocs(postsQuery)
+    const snapshot = await postsQuery.get()
     return snapshot.docs.map(
       (doc) =>
         ({
@@ -43,24 +55,25 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
         }) as Post,
     )
   } catch (error) {
-    console.error('Error fetching posts:', error)
+    console.error('[fetchPosts] Error fetching posts:', error)
     return []
   }
 }
 
 export async function fetchFeaturedPost(): Promise<Post | null> {
   try {
-    const postsQuery = query(
-      collection(db, 'posts'),
-      where('_status', '==', 'published'),
-      orderBy('publishedAt', 'desc'),
-      limit(1),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+    const postsSnapshot = await adminDb
+      .collection('posts')
+      .where('_status', '==', 'published')
+      .orderBy('publishedAt', 'desc')
+      .limit(1)
+      .get()
 
-    const snapshot = await getDocs(postsQuery)
-    if (snapshot.empty) return null
+    if (postsSnapshot.empty) return null
 
-    const firstDoc = snapshot.docs[0]
+    const firstDoc = postsSnapshot.docs[0]
     if (!firstDoc) return null
 
     return {
@@ -68,23 +81,25 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
       ...firstDoc.data(),
     } as Post
   } catch (error) {
-    console.error('Error fetching featured post:', error)
+    console.error('[fetchFeaturedPost] Error fetching featured post:', error)
     return null
   }
 }
 
 export async function fetchPostBySlug(slug: string): Promise<Post | null> {
   try {
-    const postsQuery = query(
-      collection(db, 'posts'),
-      where('slug', '==', slug),
-      where('_status', '==', 'published'),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+    const postsSnapshot = await adminDb
+      .collection('posts')
+      .where('slug', '==', slug)
+      .where('_status', '==', 'published')
+      .limit(1)
+      .get()
 
-    const snapshot = await getDocs(postsQuery)
-    if (snapshot.empty) return null
+    if (postsSnapshot.empty) return null
 
-    const firstDoc = snapshot.docs[0]
+    const firstDoc = postsSnapshot.docs[0]
     if (!firstDoc) return null
 
     return {
@@ -92,7 +107,7 @@ export async function fetchPostBySlug(slug: string): Promise<Post | null> {
       ...firstDoc.data(),
     } as Post
   } catch (error) {
-    console.error('Error fetching post by slug:', error)
+    console.error('[fetchPostBySlug] Error fetching post by slug:', error)
     return null
   }
 }
@@ -104,24 +119,27 @@ export async function fetchRelatedPosts(
   if (!categoryIds || categoryIds.length === 0) return []
 
   try {
-    const postsQuery = query(
-      collection(db, 'posts'),
-      where('_status', '==', 'published'),
-      where('categories', 'array-contains-any', categoryIds),
-      where('__name__', '!=', currentPostId),
-      limit(3),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+    const postsSnapshot = await adminDb
+      .collection('posts')
+      .where('_status', '==', 'published')
+      .where('categories', 'array-contains-any', categoryIds)
+      .limit(3)
+      .get()
 
-    const snapshot = await getDocs(postsQuery)
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-        }) as Post,
-    )
+    // Filter out the current post manually (Admin SDK doesn't support __name__ !=)
+    return postsSnapshot.docs
+      .filter((doc) => doc.id !== currentPostId)
+      .map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          }) as Post,
+      )
   } catch (error) {
-    console.error('Error fetching related posts:', error)
+    console.error('[fetchRelatedPosts] Error fetching related posts:', error)
     return []
   }
 }
@@ -129,14 +147,15 @@ export async function fetchRelatedPosts(
 // Events API
 export async function fetchPublishedEvents(): Promise<Event[]> {
   try {
-    const eventsQuery = query(
-      collection(db, 'events'),
-      where('meta.status', 'in', ['published', 'completed']),
-      orderBy('eventStartTime', 'desc'),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+    const eventsSnapshot = await adminDb
+      .collection('events')
+      .where('meta.status', 'in', ['published', 'completed'])
+      .orderBy('eventStartTime', 'desc')
+      .get()
 
-    const snapshot = await getDocs(eventsQuery)
-    return snapshot.docs.map(
+    return eventsSnapshot.docs.map(
       (doc) =>
         ({
           id: doc.id,
@@ -144,29 +163,25 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
         }) as Event,
     )
   } catch (error) {
-    // During build time, Firebase errors are expected if Firestore rules restrict access
-    // These are caught and logged, but don't fail the build
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('[fetchPublishedEvents] Error during build (may be expected):', error)
-    } else {
-      console.error('[fetchPublishedEvents] Error fetching events:', error)
-    }
+    console.error('[fetchPublishedEvents] Error fetching events:', error)
     return []
   }
 }
 
 export async function fetchEventBySlug(slug: string): Promise<Event | null> {
   try {
-    const eventsQuery = query(
-      collection(db, 'events'),
-      where('slug', '==', slug),
-      where('meta.status', 'in', ['published', 'completed']),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+    const eventsSnapshot = await adminDb
+      .collection('events')
+      .where('slug', '==', slug)
+      .where('meta.status', 'in', ['published', 'completed'])
+      .limit(1)
+      .get()
 
-    const snapshot = await getDocs(eventsQuery)
-    if (snapshot.empty) return null
+    if (eventsSnapshot.empty) return null
 
-    const firstDoc = snapshot.docs[0]
+    const firstDoc = eventsSnapshot.docs[0]
     if (!firstDoc) return null
 
     return {
@@ -174,7 +189,7 @@ export async function fetchEventBySlug(slug: string): Promise<Event | null> {
       ...firstDoc.data(),
     } as Event
   } catch (error) {
-    console.error('Error fetching event by slug:', error)
+    console.error('[fetchEventBySlug] Error fetching event by slug:', error)
     return null
   }
 }
@@ -182,10 +197,11 @@ export async function fetchEventBySlug(slug: string): Promise<Event | null> {
 // Categories API
 export async function fetchCategories(): Promise<Category[]> {
   try {
-    const categoriesQuery = query(collection(db, 'categories'), orderBy('name', 'asc'))
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+    const categoriesSnapshot = await adminDb.collection('categories').orderBy('name', 'asc').get()
 
-    const snapshot = await getDocs(categoriesQuery)
-    return snapshot.docs.map(
+    return categoriesSnapshot.docs.map(
       (doc) =>
         ({
           id: doc.id,
@@ -193,7 +209,7 @@ export async function fetchCategories(): Promise<Category[]> {
         }) as Category,
     )
   } catch (error) {
-    console.error('Error fetching categories:', error)
+    console.error('[fetchCategories] Error fetching categories:', error)
     return []
   }
 }
@@ -201,12 +217,13 @@ export async function fetchCategories(): Promise<Category[]> {
 // Pages API
 export async function fetchPageBySlug(slug: string): Promise<Page | null> {
   try {
-    const pagesQuery = query(collection(db, 'pages'), where('slug', '==', slug))
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+    const pagesSnapshot = await adminDb.collection('pages').where('slug', '==', slug).limit(1).get()
 
-    const snapshot = await getDocs(pagesQuery)
-    if (snapshot.empty) return null
+    if (pagesSnapshot.empty) return null
 
-    const firstDoc = snapshot.docs[0]
+    const firstDoc = pagesSnapshot.docs[0]
     if (!firstDoc) return null
 
     return {
@@ -214,17 +231,19 @@ export async function fetchPageBySlug(slug: string): Promise<Page | null> {
       ...firstDoc.data(),
     } as Page
   } catch (error) {
-    console.error('Error fetching page by slug:', error)
+    console.error('[fetchPageBySlug] Error fetching page by slug:', error)
     return null
   }
 }
 
 export async function fetchAllPages(): Promise<Page[]> {
   try {
-    const pagesQuery = query(collection(db, 'pages'), orderBy('title', 'asc'))
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    // This is necessary during build time when there's no authenticated user
+    const { adminDb } = await import('./firebase-admin')
+    const pagesSnapshot = await adminDb.collection('pages').orderBy('title', 'asc').get()
 
-    const snapshot = await getDocs(pagesQuery)
-    return snapshot.docs.map(
+    return pagesSnapshot.docs.map(
       (doc) =>
         ({
           id: doc.id,
@@ -232,13 +251,7 @@ export async function fetchAllPages(): Promise<Page[]> {
         }) as Page,
     )
   } catch (error) {
-    // During build time, Firebase errors are expected if Firestore rules restrict access
-    // These are caught and logged, but don't fail the build
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('[fetchAllPages] Error during build (may be expected):', error)
-    } else {
-      console.error('[fetchAllPages] Error fetching pages:', error)
-    }
+    console.error('[fetchAllPages] Error fetching pages:', error)
     return []
   }
 }
