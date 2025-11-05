@@ -15,10 +15,20 @@ const defaultOpenGraph: Metadata['openGraph'] = {
   title: siteName,
 }
 
+/**
+ * Merges custom Open Graph metadata with default values.
+ * Custom images will override default images if provided.
+ *
+ * @param og - Custom Open Graph metadata to merge
+ * @returns Merged Open Graph metadata
+ */
 export const mergeOpenGraph = (og?: Metadata['openGraph']): Metadata['openGraph'] => {
+  // Check if custom images are provided (can be single object or array)
+  const hasCustomImages = og?.images && (Array.isArray(og.images) ? og.images.length > 0 : true)
+
   return {
     ...defaultOpenGraph,
     ...og,
-    images: og?.images ? og.images : defaultOpenGraph.images,
+    images: hasCustomImages ? og.images : defaultOpenGraph.images,
   }
 }

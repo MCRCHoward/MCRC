@@ -1,20 +1,27 @@
+/**
+ * Formats a timestamp string into MM/DD/YYYY format.
+ * @param timestamp - ISO date string or date string
+ * @returns Formatted date string in MM/DD/YYYY format
+ */
 export const formatDateTime = (timestamp: string): string => {
-  const now = new Date()
-  let date = now
-  if (timestamp) date = new Date(timestamp)
-  const months = date.getMonth()
-  const days = date.getDate()
-  // const hours = date.getHours();
-  // const minutes = date.getMinutes();
-  // const seconds = date.getSeconds();
+  if (!timestamp) {
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const day = now.getDate()
+    const year = now.getFullYear()
+    return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year}`
+  }
 
-  const MM = months + 1 < 10 ? `0${months + 1}` : months + 1
-  const DD = days < 10 ? `0${days}` : days
-  const YYYY = date.getFullYear()
-  // const AMPM = hours < 12 ? 'AM' : 'PM';
-  // const HH = hours > 12 ? hours - 12 : hours;
-  // const MinMin = (minutes < 10) ? `0${minutes}` : minutes;
-  // const SS = (seconds < 10) ? `0${seconds}` : seconds;
+  const date = new Date(timestamp)
 
-  return `${MM}/${DD}/${YYYY}`
+  // Validate date
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const year = date.getFullYear()
+
+  return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year}`
 }

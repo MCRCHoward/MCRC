@@ -1,6 +1,12 @@
 import canUseDOM from './canUseDOM'
 
-export const getServerSideURL = () => {
+/**
+ * Gets the server-side URL from environment variables.
+ * Falls back to Vercel production URL or localhost for development.
+ *
+ * @returns Server-side URL string
+ */
+export const getServerSideURL = (): string => {
   let url = process.env.NEXT_PUBLIC_SERVER_URL
 
   if (!url && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
@@ -14,8 +20,14 @@ export const getServerSideURL = () => {
   return url
 }
 
-export const getClientSideURL = () => {
-  if (canUseDOM) {
+/**
+ * Gets the client-side URL.
+ * Uses browser location if available, otherwise falls back to environment variables.
+ *
+ * @returns Client-side URL string
+ */
+export const getClientSideURL = (): string => {
+  if (canUseDOM && typeof window !== 'undefined') {
     const protocol = window.location.protocol
     const domain = window.location.hostname
     const port = window.location.port
@@ -29,8 +41,13 @@ export const getClientSideURL = () => {
   return process.env.NEXT_PUBLIC_SERVER_URL || ''
 }
 
-/** Convenience: choose the right origin based on environment */
-export const getURL = () => (canUseDOM ? getClientSideURL() : getServerSideURL())
+/**
+ * Convenience function that chooses the right URL based on environment.
+ * Uses client-side URL if DOM is available, otherwise server-side URL.
+ *
+ * @returns The appropriate URL string
+ */
+export const getURL = (): string => (canUseDOM ? getClientSideURL() : getServerSideURL())
 
-// optional: also export default for convenience
+// Export default for convenience
 export default getURL
