@@ -2,10 +2,11 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import DeletePostButton from '@/components/Dashboard/posts/DeletePostButton'
-import type { Post } from '@/types'
 import { adminDb } from '@/lib/firebase-admin'
 import { deletePost } from './firebase-actions'
+import type { Post } from '@/types'
 
+// Server-side rendering configuration
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
@@ -71,8 +72,8 @@ export default async function BlogPage() {
             <div>
               <div className="font-medium">{post.title ?? '(untitled)'}</div>
               <div className="text-sm text-muted-foreground">
-                {post.slug ? `/${post.slug}` : ''} &middot; {_statusBadge(post._status)} &middot;{' '}
-                {post.updatedAt?.slice(0, 10)}
+                {post.slug ? `/${post.slug}` : ''} &middot; <StatusBadge status={post._status} />{' '}
+                &middot; {post.updatedAt?.slice(0, 10)}
               </div>
             </div>
 
@@ -97,6 +98,11 @@ export default async function BlogPage() {
   )
 }
 
-function _statusBadge(s?: string | null) {
-  return <Badge variant={s === 'published' ? 'default' : 'secondary'}>{s ?? 'draft'}</Badge>
+/**
+ * Status badge component for post status
+ */
+function StatusBadge({ status }: { status?: string | null }) {
+  return (
+    <Badge variant={status === 'published' ? 'default' : 'secondary'}>{status ?? 'draft'}</Badge>
+  )
 }

@@ -1,23 +1,103 @@
-// app/(frontend)/(cms)/dashboard/page.tsx
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { adminDb } from '@/lib/firebase-admin'
 import type { Event, Post } from '@/types'
 
+// Server-side rendering configuration
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+/**
+ * Fetches the 3 most recently updated blog posts
+ */
 async function getRecentPosts(): Promise<Post[]> {
-  // TODO: Implement Firebase query for recent posts
-  // For now, return empty array
-  return []
+  try {
+    const snapshot = await adminDb.collection('posts').orderBy('updatedAt', 'desc').limit(3).get()
+
+    if (snapshot.empty) {
+      return []
+    }
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data()
+
+      // Helper to convert Firestore Timestamp to ISO string
+      const toISOString = (value: unknown): string | undefined => {
+        if (!value) return undefined
+        if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+          return value.toDate().toISOString()
+        }
+        if (typeof value === 'string') return value
+        return undefined
+      }
+
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
+        updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
+        publishedAt: toISOString(data.publishedAt),
+      } as Post
+    })
+  } catch (error) {
+    console.error('[getRecentPosts] Error:', error)
+    return []
+  }
 }
 
+/**
+ * Fetches the 3 upcoming events (events with startAt in the future)
+ */
 async function getUpcomingEvents(): Promise<Event[]> {
-  // TODO: Implement Firebase query for upcoming events
-  // For now, return empty array
-  return []
+  try {
+    const now = new Date()
+    const snapshot = await adminDb
+      .collection('events')
+      .where('status', '==', 'published')
+      .where('listed', '==', true)
+      .orderBy('startAt', 'asc')
+      .limit(3)
+      .get()
+
+    if (snapshot.empty) {
+      return []
+    }
+
+    const events: Event[] = []
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data()
+      const startAt =
+        data.startAt?.toDate?.() ?? (data.startAt instanceof Date ? data.startAt : null)
+
+      // Only include future events
+      if (startAt && startAt > now) {
+        events.push({
+          id: doc.id,
+          name: data.title || '',
+          slug: data.slug || doc.id,
+          eventStartTime: startAt.toISOString(),
+          eventEndTime:
+            data.endAt?.toDate?.()?.toISOString() || data.endAt || startAt.toISOString(),
+          modality: data.isOnline ? 'online' : 'in_person',
+          meta: {
+            slug: data.slug || doc.id,
+            status: data.status === 'published' ? 'published' : 'draft',
+            eventType: data.category || data.format,
+          },
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        } as Event)
+      }
+    }
+
+    return events.slice(0, 3)
+  } catch (error) {
+    console.error('[getUpcomingEvents] Error:', error)
+    return []
+  }
 }
 
 function formatDate(dateString?: string) {
@@ -68,7 +148,7 @@ export default async function DashboardPage() {
                       {post._status}
                     </Badge>
                     <Button asChild variant="ghost" size="sm" className="ml-2">
-                      <Link href={`/dashboard/posts/${post.id}`}>Edit</Link>
+                      <Link href={`/dashboard/blog/${post.id}/edit`}>Edit</Link>
                     </Button>
                   </div>
                 ))
@@ -106,7 +186,7 @@ export default async function DashboardPage() {
                       {event.meta?.status}
                     </Badge>
                     <Button asChild variant="ghost" size="sm" className="ml-2">
-                      <Link href={`/dashboard/events/${event.id}`}>Edit</Link>
+                      <Link href={`/dashboard/events/${event.slug}`}>Edit</Link>
                     </Button>
                   </div>
                 ))

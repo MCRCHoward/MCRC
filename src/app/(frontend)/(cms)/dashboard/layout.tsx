@@ -1,5 +1,4 @@
-// app/(frontend)/(cms)/dashboard/layout.tsx
-
+import type { ReactNode } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import {
@@ -10,18 +9,28 @@ import {
 import { getCurrentUser } from '@/lib/custom-auth'
 import DashboardBreadcrumbs from '@/components/Dashboard/dashboard-breadcrumbs'
 
-// Optional hints (match what you used in the page)
+// Server-side rendering configuration
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // (cms)/layout.tsx already guards auth/role and redirects, so here we just read the user for UI.
+interface DashboardLayoutProps {
+  children: ReactNode
+}
+
+/**
+ * Dashboard Layout - Server Component
+ *
+ * Provides the main dashboard structure with sidebar navigation.
+ * The parent (cms)/layout.tsx already handles authentication, so we just read user for UI.
+ */
+export default async function DashboardLayout({ children }: DashboardLayoutProps) {
   const user = await getCurrentUser()
-  console.log('DashboardLayout user', user)
+
+  // User is guaranteed to exist due to parent layout auth check
   const sidebarUser = {
     name: user?.name ?? 'Staff User',
     email: user?.email ?? 'staff@example.com',
-    avatar: undefined as string | undefined, // map real avatar url later if you want
+    avatar: undefined as string | undefined,
   }
 
   const navMain: SidebarNavItem[] = [

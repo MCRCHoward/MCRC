@@ -36,40 +36,41 @@ const categories = ['Business', 'Science & Tech', 'Health', 'Arts', 'Community']
 
 const tzDefault = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
-const schema = z
-  .object({
-    title: z.string().min(1, 'Title is required'),
-    summary: z.string().optional(),
-    descriptionHtml: z.string().optional(),
-    startDate: z.string().min(1, 'Start date is required'),
-    startTime: z.string().min(1, 'Start time is required'),
-    endDate: z.string().optional(),
-    endTime: z.string().optional(),
-    timezone: z.string().min(1),
-    isOnline: z.boolean().default(false),
-    venueName: z.string().optional(),
-    addressLine1: z.string().optional(),
-    addressLine2: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    postalCode: z.string().optional(),
-    country: z.string().optional(),
-    capacity: z
-      .union([z.number().int().min(1), z.string().regex(/^\d+$/)])
-      .optional()
-      .transform((v) => (typeof v === 'string' ? (v ? Number(v) : undefined) : v)),
-    isFree: z.boolean().default(true),
-    price: z
-      .union([z.number().min(0), z.string().regex(/^\d+(?:\.\d{1,2})?$/)])
-      .optional()
-      .transform((v) => (typeof v === 'string' ? (v ? Number(v) : undefined) : v)),
-    currency: z.enum(currencies).optional(),
-    listed: z.boolean().default(true),
-    category: z.enum(categories).optional(),
-    subcategory: z.string().optional(),
-    format: z.enum(formats).optional(),
-    imageFile: z.any().optional(),
-  })
+const baseSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  summary: z.string().optional(),
+  descriptionHtml: z.string().optional(),
+  startDate: z.string().min(1, 'Start date is required'),
+  startTime: z.string().min(1, 'Start time is required'),
+  endDate: z.string().optional(),
+  endTime: z.string().optional(),
+  timezone: z.string().min(1),
+  isOnline: z.boolean().default(false),
+  venueName: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  postalCode: z.string().optional(),
+  country: z.string().optional(),
+  capacity: z
+    .union([z.number().int().min(1), z.string().regex(/^\d+$/)])
+    .optional()
+    .transform((v) => (typeof v === 'string' ? (v ? Number(v) : undefined) : v)),
+  isFree: z.boolean().default(true),
+  price: z
+    .union([z.number().min(0), z.string().regex(/^\d+(?:\.\d{1,2})?$/)])
+    .optional()
+    .transform((v) => (typeof v === 'string' ? (v ? Number(v) : undefined) : v)),
+  currency: z.enum(currencies).optional(),
+  listed: z.boolean().default(true),
+  category: z.enum(categories).optional(),
+  subcategory: z.string().optional(),
+  format: z.enum(formats).optional(),
+  imageFile: z.instanceof(File).optional().or(z.literal(undefined)),
+})
+
+const schema = baseSchema
   .refine(
     (d) =>
       d.isOnline ||
@@ -81,7 +82,7 @@ const schema = z
     message: 'Price and currency required unless event is free',
   })
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.input<typeof baseSchema>
 
 async function uploadEventImage(file: File): Promise<string | undefined> {
   if (!file) return undefined
@@ -101,8 +102,7 @@ async function uploadEventImage(file: File): Promise<string | undefined> {
 export default function NewEventPage() {
   const router = useRouter()
   const form = useForm<FormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema) as any,
+    resolver: zodResolver(schema),
     defaultValues: {
       title: '',
       summary: '',
@@ -134,9 +134,8 @@ export default function NewEventPage() {
           : undefined
 
       let imageUrl: string | undefined
-      const file = (values as FormValues & { imageFile?: File }).imageFile
-      if (file instanceof File) {
-        imageUrl = await uploadEventImage(file)
+      if (values.imageFile instanceof File) {
+        imageUrl = await uploadEventImage(values.imageFile)
       }
 
       await createEvent({
@@ -147,7 +146,7 @@ export default function NewEventPage() {
         startAt: startAt.toISOString(),
         endAt: endAt?.toISOString(),
         timezone: values.timezone,
-        isOnline: values.isOnline,
+        isOnline: values.isOnline ?? false,
         venue: values.isOnline
           ? undefined
           : {
@@ -159,11 +158,15 @@ export default function NewEventPage() {
               postalCode: values.postalCode,
               country: values.country,
             },
-        capacity: values.capacity,
-        isFree: values.isFree,
-        price: values.isFree ? undefined : values.price,
+        capacity: typeof values.capacity === 'number' ? values.capacity : undefined,
+        isFree: values.isFree ?? true,
+        price: values.isFree
+          ? undefined
+          : typeof values.price === 'number'
+            ? values.price
+            : undefined,
         currency: values.isFree ? undefined : values.currency,
-        listed: values.listed,
+        listed: values.listed ?? true,
         category: values.category,
         subcategory: values.subcategory,
         format: values.format,
@@ -596,14 +599,18 @@ export default function NewEventPage() {
               <FormField
                 control={form.control}
                 name="imageFile"
-                render={({ field }) => (
+                render={({ field: { value, onChange, ...field } }) => (
                   <FormItem>
                     <FormLabel>Event image</FormLabel>
                     <FormControl>
                       <Input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => field.onChange(e.target.files?.[0])}
+                        {...field}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          onChange(file || undefined)
+                        }}
                       />
                     </FormControl>
                     <FormMessage />

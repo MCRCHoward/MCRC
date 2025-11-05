@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn } from '@/utilities/ui'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -81,7 +81,7 @@ export default function PostForm({ mode, post, categories }: PostFormProps) {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const totalSteps = 5
-  const [isPending] = useTransition() // 🔧 drop unused `startTransition`
+  const [isPending] = useTransition()
 
   // 🔧 remove `(c: any)` — type the relation union you actually support
   type CategoryRel = string | number | CategoryLike

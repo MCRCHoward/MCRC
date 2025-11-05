@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,13 @@ export default function CategoriesPageClient({
 }: CategoriesPageProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  // Use initialCategories as the source of truth, refresh will update it
   const [categories, setCategories] = useState<Category[]>(initialCategories)
+
+  // Sync with server state when initialCategories changes
+  React.useEffect(() => {
+    setCategories(initialCategories)
+  }, [initialCategories])
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
