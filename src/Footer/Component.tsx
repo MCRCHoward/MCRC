@@ -37,7 +37,6 @@ const sections = [
       { name: 'Donate', href: '/donate' },
       { name: 'Blog', href: '/blog' },
       { name: 'Events', href: '/events' },
-      { name: 'News', href: '/news' },
     ] as FooterLink[],
   },
   {
