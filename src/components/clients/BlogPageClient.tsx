@@ -282,10 +282,13 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
   const categoryLabelToValue = useMemo(() => {
     const m = new Map<string, string>()
     for (const c of categories) {
-      // Map both label and normalized label to value
+      // Map both label and normalized label to value (only if different)
       const normalizedLabel = c.label.toLowerCase().trim()
       m.set(c.label, c.value)
-      m.set(normalizedLabel, c.value)
+      // Only add normalized if it's different from the original label
+      if (normalizedLabel !== c.label) {
+        m.set(normalizedLabel, c.value)
+      }
     }
     console.log('[BlogPageClient] categoryLabelToValue:', Array.from(m.entries()))
     return m

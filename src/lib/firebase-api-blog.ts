@@ -1,23 +1,13 @@
 /**
- * This file serves as the central library for all Firebase API calls.
- * It contains functions for fetching data related to various collections
- * like Posts, Categories, and Events.
+ * Firebase API functions for blog-related data fetching.
+ *
+ * All functions in this file use Firebase Admin SDK, which:
+ * - Bypasses Firestore security rules (safe for build-time static generation)
+ * - Works without user authentication
+ * - Is the recommended approach for Next.js server components and static generation
+ *
+ * Client SDK (firebase/firestore) should only be used in client components ('use client')
  */
-
-import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  type Query,
-  type DocumentData,
-} from 'firebase/firestore'
-import { FirebaseError } from 'firebase/app'
-import { db } from './firebase'
 import type { Post, Category } from '@/types'
 
 // ====================================================================
@@ -25,151 +15,87 @@ import type { Post, Category } from '@/types'
 // ====================================================================
 
 /**
+ * Helper to extract timestamp from various Firebase date formats
+ */
+function getTimestamp(value: unknown): number {
+  if (!value) return 0
+  // Firebase Timestamp has toMillis method
+  if (typeof value === 'object' && value !== null && 'toMillis' in value) {
+    return (value as { toMillis: () => number }).toMillis()
+  }
+  // Date object or ISO string
+  if (value instanceof Date) {
+    return value.getTime()
+  }
+  if (typeof value === 'string') {
+    return new Date(value).getTime()
+  }
+  return 0
+}
+
+/**
+ * Sorts posts by date descending (newest first)
+ */
+function sortByDateDesc<T extends { createdAt?: unknown; publishedAt?: unknown }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const aTs = getTimestamp(a.publishedAt ?? a.createdAt)
+    const bTs = getTimestamp(b.publishedAt ?? b.createdAt)
+    return bTs - aTs
+  })
+}
+
+/**
  * Fetches published posts from Firebase. Can optionally filter by category.
  * @param categorySlug - The slug of the category to filter by.
  */
 export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
-  function isIndexError(e: unknown) {
-    return e instanceof FirebaseError && e.code === 'failed-precondition'
-  }
-
-  function mapSnapshot<T>(snap: Awaited<ReturnType<typeof getDocs>>): T[] {
-    return snap.docs.map((d) => {
-      const data = (d.data() || {}) as Record<string, unknown>
-      return { id: d.id, ...data } as T
-    })
-  }
-
-  function sortByDateDesc<T extends { createdAt?: unknown; publishedAt?: unknown }>(rows: T[]) {
-    return [...rows].sort((a, b) => {
-      // Handle Firebase Timestamp or Date objects
-      const getTimestamp = (value: unknown): number => {
-        if (!value) return 0
-        // Firebase Timestamp has toMillis method
-        if (typeof value === 'object' && value !== null && 'toMillis' in value) {
-          return (value as { toMillis: () => number }).toMillis()
-        }
-        // Date object or ISO string
-        if (value instanceof Date) {
-          return value.getTime()
-        }
-        if (typeof value === 'string') {
-          return new Date(value).getTime()
-        }
-        return 0
-      }
-
-      const aTs = getTimestamp(a.publishedAt ?? a.createdAt)
-      const bTs = getTimestamp(b.publishedAt ?? b.createdAt)
-      return bTs - aTs
-    })
-  }
-
   try {
-    let base: Query<DocumentData>
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+
+    let postsQuery = adminDb.collection('posts').where('_status', '==', 'published')
 
     if (categorySlug) {
-      // Resolve category id from slug first
-      const categoriesQ = query(collection(db, 'categories'), where('slug', '==', categorySlug))
-      const catSnap = await getDocs(categoriesQ)
-      if (catSnap.empty) return []
-      const firstCat = catSnap.docs.at(0)
-      if (!firstCat) return []
-      const categoryId = firstCat.id
+      // First get the category by slug
+      const categorySnapshot = await adminDb
+        .collection('categories')
+        .where('slug', '==', categorySlug)
+        .limit(1)
+        .get()
 
-      // Primary query (may need composite index)
-      base = query(
-        collection(db, 'posts'),
-        where('_status', '==', 'published'),
-        where('categories', 'array-contains', categoryId),
-        orderBy('publishedAt', 'desc'),
-      )
-
-      try {
-        const snap = await getDocs(base)
-        return mapSnapshot<Post>(snap)
-      } catch (e) {
-        if (isIndexError(e)) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn(
-              '[fetchPosts] Missing index for (categories ARRAY_CONTAINS, _status ==, orderBy publishedAt). Falling back to createdAt…',
-            )
-          }
-          // Fallback 1: order by createdAt
-          const fb1 = query(
-            collection(db, 'posts'),
-            where('_status', '==', 'published'),
-            where('categories', 'array-contains', categoryId),
-            orderBy('createdAt', 'desc'),
-          )
-          try {
-            const snap = await getDocs(fb1)
-            return mapSnapshot<Post>(snap)
-          } catch (e2) {
-            if (isIndexError(e2)) {
-              if (process.env.NODE_ENV !== 'production') {
-                console.warn(
-                  '[fetchPosts] Missing index for (categories ARRAY_CONTAINS, _status ==, orderBy createdAt). Falling back to no order…',
-                )
-              }
-              const fb2 = query(
-                collection(db, 'posts'),
-                where('_status', '==', 'published'),
-                where('categories', 'array-contains', categoryId),
-              )
-              const snap = await getDocs(fb2)
-              return sortByDateDesc<Post>(mapSnapshot<Post>(snap))
-            }
-            throw e2
-          }
-        }
-        throw e
+      if (categorySnapshot.empty) {
+        return []
       }
-    } else {
-      // No category filter
-      base = query(
-        collection(db, 'posts'),
-        where('_status', '==', 'published'),
-        orderBy('publishedAt', 'desc'),
-      )
 
+      const firstDoc = categorySnapshot.docs[0]
+      if (!firstDoc) {
+        return []
+      }
+
+      const categoryId = firstDoc.id
+      postsQuery = adminDb
+        .collection('posts')
+        .where('_status', '==', 'published')
+        .where('categories', 'array-contains', categoryId)
+    }
+
+    // Try to order by publishedAt first, fallback to createdAt, then no order
+    try {
+      const snapshot = await postsQuery.orderBy('publishedAt', 'desc').get()
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Post)
+    } catch {
       try {
-        const snap = await getDocs(base)
-        return mapSnapshot<Post>(snap)
-      } catch (e) {
-        if (isIndexError(e)) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn(
-              '[fetchPosts] Missing index for (_status ==, orderBy publishedAt). Falling back to createdAt…',
-            )
-          }
-          const fb1 = query(
-            collection(db, 'posts'),
-            where('_status', '==', 'published'),
-            orderBy('createdAt', 'desc'),
-          )
-          try {
-            const snap = await getDocs(fb1)
-            return mapSnapshot<Post>(snap)
-          } catch (e2) {
-            if (isIndexError(e2)) {
-              if (process.env.NODE_ENV !== 'production') {
-                console.warn(
-                  '[fetchPosts] Missing index for (_status ==, orderBy createdAt). Falling back to no order…',
-                )
-              }
-              const fb2 = query(collection(db, 'posts'), where('_status', '==', 'published'))
-              const snap = await getDocs(fb2)
-              return sortByDateDesc<Post>(mapSnapshot<Post>(snap))
-            }
-            throw e2
-          }
-        }
-        throw e
+        const snapshot = await postsQuery.orderBy('createdAt', 'desc').get()
+        return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Post)
+      } catch {
+        // No orderBy - fetch all and sort in memory
+        const snapshot = await postsQuery.get()
+        const posts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Post)
+        return sortByDateDesc(posts)
       }
     }
   } catch (error) {
-    console.error('Error fetching posts:', error)
+    console.error('[fetchPosts] Error fetching posts:', error)
     return []
   }
 }
@@ -179,78 +105,85 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
  * If no featured post exists, falls back to the most recent published post.
  */
 export async function fetchFeaturedPost(): Promise<Post | null> {
-  function isIndexError(e: unknown) {
-    return e instanceof FirebaseError && e.code === 'failed-precondition'
-  }
-
   try {
-    // Primary: featured=true, published, newest by createdAt
-    const primary = query(
-      collection(db, 'posts'),
-      where('_status', '==', 'published'),
-      where('featured', '==', true),
-      orderBy('createdAt', 'desc'),
-      limit(1),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
 
+    // Primary: featured=true, published, newest by publishedAt
     try {
-      const snap = await getDocs(primary)
-      if (!snap.empty) {
-        const doc0 = snap.docs.at(0)
-        if (doc0) return { id: doc0.id, ...(doc0.data() as Record<string, unknown>) } as Post
+      const snapshot = await adminDb
+        .collection('posts')
+        .where('_status', '==', 'published')
+        .where('featured', '==', true)
+        .orderBy('publishedAt', 'desc')
+        .limit(1)
+        .get()
+
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0]
+        if (doc) return { id: doc.id, ...doc.data() } as Post
       }
-    } catch (e) {
-      if (isIndexError(e) && process.env.NODE_ENV !== 'production') {
-        console.warn(
-          '[fetchFeaturedPost] Missing index for (_status ==, featured ==, orderBy createdAt). Falling back…',
-        )
+    } catch {
+      // Fallback: try with createdAt
+      try {
+        const snapshot = await adminDb
+          .collection('posts')
+          .where('_status', '==', 'published')
+          .where('featured', '==', true)
+          .orderBy('createdAt', 'desc')
+          .limit(1)
+          .get()
+
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0]
+          if (doc) return { id: doc.id, ...doc.data() } as Post
+        }
+      } catch {
+        // Fallback: any featured (no orderBy)
+        const snapshot = await adminDb
+          .collection('posts')
+          .where('_status', '==', 'published')
+          .where('featured', '==', true)
+          .limit(1)
+          .get()
+
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0]
+          if (doc) return { id: doc.id, ...doc.data() } as Post
+        }
       }
-      // fall through
     }
 
-    // Fallback 1: any featured (no orderBy)
-    const fb1 = query(
-      collection(db, 'posts'),
-      where('_status', '==', 'published'),
-      where('featured', '==', true),
-      limit(1),
-    )
-    const fb1Snap = await getDocs(fb1)
-    if (!fb1Snap.empty) {
-      const doc0 = fb1Snap.docs.at(0)
-      if (doc0) return { id: doc0.id, ...(doc0.data() as Record<string, unknown>) } as Post
-    }
-
-    // Fallback 2: most recent published by createdAt
-    const fb2 = query(
-      collection(db, 'posts'),
-      where('_status', '==', 'published'),
-      orderBy('createdAt', 'desc'),
-      limit(1),
-    )
+    // Fallback: most recent published post
     try {
-      const fb2Snap = await getDocs(fb2)
-      if (!fb2Snap.empty) {
-        const doc0 = fb2Snap.docs.at(0)
-        if (doc0) return { id: doc0.id, ...(doc0.data() as Record<string, unknown>) } as Post
+      const snapshot = await adminDb
+        .collection('posts')
+        .where('_status', '==', 'published')
+        .orderBy('publishedAt', 'desc')
+        .limit(1)
+        .get()
+
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0]
+        if (doc) return { id: doc.id, ...doc.data() } as Post
       }
-    } catch (e2) {
-      if (isIndexError(e2) && process.env.NODE_ENV !== 'production') {
-        console.warn(
-          '[fetchFeaturedPost] Missing index for (_status ==, orderBy createdAt). Final fallback…',
-        )
-      }
-      const fb3 = query(collection(db, 'posts'), where('_status', '==', 'published'), limit(1))
-      const fb3Snap = await getDocs(fb3)
-      if (!fb3Snap.empty) {
-        const doc0 = fb3Snap.docs.at(0)
-        if (doc0) return { id: doc0.id, ...(doc0.data() as Record<string, unknown>) } as Post
+    } catch {
+      // Final fallback: any published post (no orderBy)
+      const snapshot = await adminDb
+        .collection('posts')
+        .where('_status', '==', 'published')
+        .limit(1)
+        .get()
+
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0]
+        if (doc) return { id: doc.id, ...doc.data() } as Post
       }
     }
 
     return null
   } catch (error) {
-    console.error('Error fetching featured post:', error)
+    console.error('[fetchFeaturedPost] Error fetching featured post:', error)
     return null
   }
 }
@@ -260,20 +193,19 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
  */
 export async function fetchCategories(): Promise<Category[]> {
   try {
-    const q = query(collection(db, 'categories'), orderBy('name', 'asc'))
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
+
     try {
-      const snapshot = await getDocs(q)
+      const snapshot = await adminDb.collection('categories').orderBy('name', 'asc').get()
       return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Category)
-    } catch (_e) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('[fetchCategories] Failed orderBy(name). Retrying without orderBy…')
-      }
-      const fb = query(collection(db, 'categories'))
-      const snapshot = await getDocs(fb)
+    } catch {
+      // Fallback: no orderBy
+      const snapshot = await adminDb.collection('categories').get()
       return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Category)
     }
   } catch (error) {
-    console.error('Error fetching categories:', error)
+    console.error('[fetchCategories] Error fetching categories:', error)
     return []
   }
 }
@@ -283,19 +215,24 @@ export async function fetchCategories(): Promise<Category[]> {
  */
 export async function fetchPostBySlug(slug: string): Promise<Post | null> {
   try {
-    const postsQuery = query(
-      collection(db, 'posts'),
-      where('slug', '==', slug),
-      where('_status', '==', 'published'),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
 
-    const snapshot = await getDocs(postsQuery)
+    const snapshot = await adminDb
+      .collection('posts')
+      .where('slug', '==', slug)
+      .where('_status', '==', 'published')
+      .limit(1)
+      .get()
+
     if (snapshot.empty) return null
-    const doc0 = snapshot.docs.at(0)
-    if (!doc0) return null
-    return { id: doc0.id, ...(doc0.data() as Record<string, unknown>) } as Post
+
+    const doc = snapshot.docs[0]
+    if (!doc) return null
+
+    return { id: doc.id, ...doc.data() } as Post
   } catch (error) {
-    console.error('Error fetching post by slug:', error)
+    console.error('[fetchPostBySlug] Error fetching post by slug:', error)
     return null
   }
 }
@@ -305,14 +242,16 @@ export async function fetchPostBySlug(slug: string): Promise<Post | null> {
  */
 export async function fetchPostById(id: string): Promise<Post | null> {
   try {
-    const postRef = doc(db, 'posts', id)
-    const postSnap = await getDoc(postRef)
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
 
-    if (!postSnap.exists()) return null
+    const postDoc = await adminDb.collection('posts').doc(id).get()
 
-    return { id: postSnap.id, ...(postSnap.data() as Record<string, unknown>) } as Post
+    if (!postDoc.exists) return null
+
+    return { id: postDoc.id, ...postDoc.data() } as Post
   } catch (error) {
-    console.error('Error fetching post by id:', error)
+    console.error('[fetchPostById] Error fetching post by id:', error)
     return null
   }
 }
@@ -327,24 +266,25 @@ export async function fetchRelatedPosts(
   if (!categoryIds || categoryIds.length === 0) return []
 
   try {
-    const postsQuery = query(
-      collection(db, 'posts'),
-      where('_status', '==', 'published'),
-      where('categories', 'array-contains-any', categoryIds),
-      where('__name__', '!=', currentPostId),
-      limit(3),
-    )
+    // Use Admin SDK for server-side operations (bypasses Firestore rules)
+    const { adminDb } = await import('./firebase-admin')
 
-    const snapshot = await getDocs(postsQuery)
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-        }) as Post,
-    )
+    const snapshot = await adminDb
+      .collection('posts')
+      .where('_status', '==', 'published')
+      .where('categories', 'array-contains-any', categoryIds)
+      .limit(4) // Get 4 to filter out current post
+      .get()
+
+    // Filter out the current post and limit to 3
+    const posts = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }) as Post)
+      .filter((post) => post.id !== currentPostId)
+      .slice(0, 3)
+
+    return posts
   } catch (error) {
-    console.error('Error fetching related posts:', error)
+    console.error('[fetchRelatedPosts] Error fetching related posts:', error)
     return []
   }
 }
