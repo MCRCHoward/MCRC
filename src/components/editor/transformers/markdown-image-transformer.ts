@@ -1,10 +1,6 @@
-import { TextMatchTransformer } from "@lexical/markdown"
+import { TextMatchTransformer } from '@lexical/markdown'
 
-import {
-  $createImageNode,
-  $isImageNode,
-  ImageNode,
-} from "@/components/editor/nodes/image-node"
+import { $createImageNode, $isImageNode, ImageNode } from '@/components/editor/nodes/image-node'
 
 export const IMAGE: TextMatchTransformer = {
   dependencies: [ImageNode],
@@ -19,13 +15,14 @@ export const IMAGE: TextMatchTransformer = {
   regExp: /!(?:\[([^[]*)\])(?:\(([^(]+)\))$/,
   replace: (textNode, match) => {
     const [, altText, src] = match
+    if (!src) return
     const imageNode = $createImageNode({
-      altText,
+      altText: altText || '',
       maxWidth: 800,
       src,
     })
     textNode.replace(imageNode)
   },
-  trigger: ")",
-  type: "text-match",
+  trigger: ')',
+  type: 'text-match',
 }

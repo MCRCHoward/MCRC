@@ -1,19 +1,21 @@
 import type { Metadata } from 'next'
 
-import type { Media, Page, Post, Config } from '../payload-types'
+import type { Media, Page, Post } from '@/types'
 
 import { mergeOpenGraph } from './mergeOpenGraph'
 import { getServerSideURL } from './getURL'
 
-const getImageURL = (image?: Media | Config['db']['defaultIDType'] | null) => {
+const getImageURL = (image?: Media | string | null) => {
   const serverUrl = getServerSideURL()
 
   let url = serverUrl + '/website-template-OG.webp'
 
   if (image && typeof image === 'object' && 'url' in image) {
-    const ogUrl = image.sizes?.og?.url
-
-    url = ogUrl ? serverUrl + ogUrl : serverUrl + image.url
+    // Firebase Media type has url property
+    url = serverUrl + image.url
+  } else if (typeof image === 'string') {
+    // If image is a string URL, use it directly
+    url = image.startsWith('http') ? image : serverUrl + image
   }
 
   return url
@@ -24,23 +26,45 @@ export const generateMeta = async (args: {
 }): Promise<Metadata> => {
   const { doc } = args
 
+  if (!doc) {
+    const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MCRC Howard'
+    return {
+      title: siteName,
+      description: '',
+      openGraph: mergeOpenGraph({
+        title: siteName,
+        description: '',
+      }),
+    }
+  }
+
   // Handle different meta structures for Page vs Post
+  const isPage = 'meta' in doc && doc.meta
+  const isPost = 'heroImage' in doc || 'metaImage' in doc
+
   const ogImage = getImageURL(
-    doc && 'meta' in doc && doc.meta && 'image' in doc.meta
-      ? (doc.meta as { image?: Media | number | null }).image
-      : doc && 'heroImage' in doc
-        ? (doc as { heroImage?: Media | number | null }).heroImage
-        : null,
+    isPage && doc.meta && 'image' in doc.meta
+      ? (doc.meta as { image?: Media | string | null }).image
+      : isPost && 'heroImage' in doc
+        ? (doc.heroImage as Media | string | null)
+        : isPost && 'metaImage' in doc
+          ? (doc.metaImage as Media | string | null)
+          : null,
   )
 
-  const title = doc?.meta?.title
-    ? doc?.meta?.title + ' | Payload Website Template'
-    : 'Payload Website Template'
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MCRC Howard'
+  const metaTitle = isPage && doc.meta?.title ? doc.meta.title : doc.title || ''
+  const metaDescription = (isPage && doc.meta?.description) || (isPost && doc.excerpt) || ''
+  const title = metaTitle ? `${metaTitle} | ${siteName}` : siteName
+
+  // Handle slug - Page has slug as string, Post also has slug as string
+  const slug = doc.slug || ''
+  const url = slug && slug !== 'home' ? `/${slug}` : '/'
 
   return {
-    description: doc?.meta?.description,
+    description: metaDescription,
     openGraph: mergeOpenGraph({
-      description: doc?.meta?.description || '',
+      description: metaDescription,
       images: ogImage
         ? [
             {
@@ -49,7 +73,7 @@ export const generateMeta = async (args: {
           ]
         : undefined,
       title,
-      url: Array.isArray(doc?.slug) ? doc?.slug.join('/') : '/',
+      url,
     }),
     title,
   }

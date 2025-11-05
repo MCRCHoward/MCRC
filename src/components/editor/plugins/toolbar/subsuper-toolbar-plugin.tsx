@@ -16,10 +16,8 @@ export function SubSuperToolbarPlugin() {
 
   const $updateToolbar = (selection: BaseSelection) => {
     if ($isRangeSelection(selection) || $isTableSelection(selection)) {
-      // @ts-expect-error - hasFormat method exists on selection but not in type definition
-      setIsSubscript(selection.hasFormat('subscript'))
-      // @ts-expect-error - hasFormat method exists on selection but not in type definition
-      setIsSuperscript(selection.hasFormat('superscript'))
+      setIsSubscript((selection as { hasFormat?: (format: string) => boolean }).hasFormat?.('subscript') ?? false)
+      setIsSuperscript((selection as { hasFormat?: (format: string) => boolean }).hasFormat?.('superscript') ?? false)
     }
   }
 

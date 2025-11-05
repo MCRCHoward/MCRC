@@ -555,7 +555,7 @@ function checkForAtSignMentions(
   if (match === null) {
     match = AtSignMentionsRegexAliasRegex.exec(text)
   }
-  if (match !== null) {
+  if (match !== null && match[1] !== undefined && match[2] !== undefined && match[3] !== undefined) {
     // The strategy ignores leading whitespace but we need to know it's
     // length to add it to the leadOffset
 

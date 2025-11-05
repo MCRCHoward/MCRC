@@ -42,8 +42,25 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
 
   function sortByDateDesc<T extends { createdAt?: unknown; publishedAt?: unknown }>(rows: T[]) {
     return [...rows].sort((a, b) => {
-      const aTs = (a.publishedAt ?? a.createdAt)?.toMillis?.() ?? 0
-      const bTs = (b.publishedAt ?? b.createdAt)?.toMillis?.() ?? 0
+      // Handle Firebase Timestamp or Date objects
+      const getTimestamp = (value: unknown): number => {
+        if (!value) return 0
+        // Firebase Timestamp has toMillis method
+        if (typeof value === 'object' && value !== null && 'toMillis' in value) {
+          return (value as { toMillis: () => number }).toMillis()
+        }
+        // Date object or ISO string
+        if (value instanceof Date) {
+          return value.getTime()
+        }
+        if (typeof value === 'string') {
+          return new Date(value).getTime()
+        }
+        return 0
+      }
+
+      const aTs = getTimestamp(a.publishedAt ?? a.createdAt)
+      const bTs = getTimestamp(b.publishedAt ?? b.createdAt)
       return bTs - aTs
     })
   }

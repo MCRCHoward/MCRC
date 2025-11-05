@@ -66,6 +66,10 @@ export function ContextMenuPlugin(): JSX.Element {
               return
             }
 
+            if (!item) {
+              return
+            }
+
             for (const type of item.types) {
               const dataString = await (await item.getType(type)).text()
               data.setData(type, dataString)

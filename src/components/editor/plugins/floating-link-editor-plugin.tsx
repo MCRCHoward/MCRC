@@ -320,11 +320,13 @@ function useFloatingLinkEditorToolbar(
           return
         }
         const node = nodes[0]
-        const parent = node.getParent()
-        if ($isLinkNode(parent) || $isLinkNode(node)) {
-          setIsLink(true)
-        } else {
-          setIsLink(false)
+        if (node) {
+          const parent = node.getParent()
+          if ($isLinkNode(parent) || $isLinkNode(node)) {
+            setIsLink(true)
+          } else {
+            setIsLink(false)
+          }
         }
       }
     }

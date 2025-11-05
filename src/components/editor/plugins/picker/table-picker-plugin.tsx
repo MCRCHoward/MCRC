@@ -28,7 +28,7 @@ export function DynamicTablePickerPlugin({
 
   const tableMatch = queryString.match(/^([1-9]\d?)(?:x([1-9]\d?)?)?$/)
 
-  if (tableMatch !== null) {
+  if (tableMatch !== null && tableMatch[1]) {
     const rows = tableMatch[1]
     const colOptions = tableMatch[2]
       ? [tableMatch[2]]

@@ -10,7 +10,7 @@ export const MediumImpactHero: React.FC<Page['hero']> = ({ links, media, richTex
   return (
     <div className="">
       <div className="container mb-8">
-        {richText && <RichText className="mb-6" data={richText} enableGutter={false} />}
+        {richText != null && <RichText className="mb-6" data={richText} enableGutter={false} />}
 
         {Array.isArray(links) && links.length > 0 && (
           <ul className="flex gap-4">
@@ -33,7 +33,7 @@ export const MediumImpactHero: React.FC<Page['hero']> = ({ links, media, richTex
               priority
               resource={media}
             />
-            {media?.caption && (
+            {typeof media === 'object' && media !== null && 'caption' in media && media.caption != null && (
               <div className="mt-3">
                 <RichText data={media.caption} enableGutter={false} />
               </div>

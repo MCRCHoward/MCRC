@@ -13,7 +13,8 @@ const firebaseConfig = {
 }
 
 // Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+const existingApps = getApps()
+const app = existingApps.length === 0 ? initializeApp(firebaseConfig) : existingApps[0]!
 
 // Initialize Firebase services
 export const db = getFirestore(app)

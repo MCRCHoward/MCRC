@@ -14,10 +14,20 @@ export function caretFromPoint(
       node: range.startContainer,
       offset: range.startOffset,
     }
-    // @ts-expect-error - caretRangeFromPoint may not exist in all browsers
-  } else if (document.caretPositionFromPoint !== 'undefined') {
-    // @ts-expect-error FF - no types
-    const range = document.caretPositionFromPoint(x, y)
+  } else if (
+    typeof (
+      document as unknown as {
+        caretPositionFromPoint?: (
+          x: number,
+          y: number,
+        ) => { offsetNode: Node; offset: number } | null
+      }
+    ).caretPositionFromPoint !== 'undefined'
+  ) {
+    const doc = document as unknown as {
+      caretPositionFromPoint: (x: number, y: number) => { offsetNode: Node; offset: number } | null
+    }
+    const range = doc.caretPositionFromPoint(x, y)
     if (range === null) {
       return null
     }

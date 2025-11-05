@@ -72,12 +72,14 @@ export function EmojiPickerPlugin() {
   const emojiOptions = useMemo(
     () =>
       emojis != null
-        ? emojis.map(
-            ({ emoji, aliases, tags }) =>
-              new EmojiOption(aliases[0], emoji, {
-                keywords: [...aliases, ...tags],
-              }),
-          )
+        ? emojis
+            .filter(({ aliases }) => aliases[0] != null)
+            .map(
+              ({ emoji, aliases, tags }) =>
+                new EmojiOption(aliases[0]!, emoji, {
+                  keywords: [...aliases, ...tags],
+                }),
+            )
         : [],
     [emojis],
   )

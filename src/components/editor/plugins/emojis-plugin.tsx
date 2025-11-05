@@ -25,11 +25,15 @@ function $findAndTransformEmoji(node: TextNode): null | TextNode {
   const text = node.getTextContent()
 
   for (let i = 0; i < text.length; i++) {
-    const emojiData = emojis.get(text[i]) || emojis.get(text.slice(i, i + 2))
+    const char = text[i]
+    const slice = text.slice(i, i + 2)
+    const emojiData = (char && emojis.get(char)) || (slice && emojis.get(slice))
 
-    if (emojiData !== undefined) {
+    if (emojiData) {
       const [emojiStyle, emojiText] = emojiData
-      let targetNode
+      if (!emojiStyle || !emojiText) continue
+
+      let targetNode: TextNode | undefined
 
       if (i === 0) {
         ;[targetNode] = node.splitText(i + 2)
@@ -37,9 +41,11 @@ function $findAndTransformEmoji(node: TextNode): null | TextNode {
         ;[, targetNode] = node.splitText(i, i + 2)
       }
 
-      const emojiNode = $createEmojiNode(emojiStyle, emojiText)
-      targetNode.replace(emojiNode)
-      return emojiNode
+      if (targetNode) {
+        const emojiNode = $createEmojiNode(emojiStyle, emojiText)
+        targetNode.replace(emojiNode)
+        return emojiNode
+      }
     }
   }
 

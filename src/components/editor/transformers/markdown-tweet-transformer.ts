@@ -1,10 +1,10 @@
-import { ElementTransformer } from "@lexical/markdown"
+import { ElementTransformer } from '@lexical/markdown'
 
 import {
   $createTweetNode,
   $isTweetNode,
   TweetNode,
-} from "@/components/editor/nodes/embeds/tweet-node"
+} from '@/components/editor/nodes/embeds/tweet-node'
 
 export const TWEET: ElementTransformer = {
   dependencies: [TweetNode],
@@ -18,8 +18,9 @@ export const TWEET: ElementTransformer = {
   regExp: /<tweet id="([^"]+?)"\s?\/>\s?$/,
   replace: (textNode, _1, match) => {
     const [, id] = match
+    if (!id) return
     const tweetNode = $createTweetNode(id)
     textNode.replace(tweetNode)
   },
-  type: "element",
+  type: 'element',
 }

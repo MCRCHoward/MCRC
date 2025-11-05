@@ -36,7 +36,7 @@ export function KeywordsPlugin(): JSX.Element | null {
   const getKeywordMatch = useCallback((text: string) => {
     const matchArr = KEYWORDS_REGEX.exec(text)
 
-    if (matchArr === null) {
+    if (matchArr === null || !matchArr[1] || !matchArr[2]) {
       return null
     }
 
