@@ -1,4 +1,37 @@
 import { z } from 'zod'
+import { stripPhoneNumber } from '@/utilities/phoneUtils'
+
+// Phone number validation regex - matches US phone format: (XXX) XXX-XXXX
+const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/
+
+// Custom phone validation
+const phoneSchema = z
+  .string()
+  .min(1, 'Phone number is required.')
+  .refine(
+    (val) => {
+      const digits = stripPhoneNumber(val)
+      return digits.length === 10
+    },
+    { message: 'Please enter a valid 10-digit phone number.' },
+  )
+  .refine((val) => phoneRegex.test(val) || stripPhoneNumber(val).length === 10, {
+    message: 'Phone number format: (XXX) XXX-XXXX',
+  })
+
+// Optional phone validation (for fields that may be empty)
+const optionalPhoneSchema = z
+  .string()
+  .optional()
+  .or(z.literal(''))
+  .refine(
+    (val) => {
+      if (!val || val.trim() === '') return true
+      const digits = stripPhoneNumber(val)
+      return digits.length === 10 || digits.length === 0
+    },
+    { message: 'Please enter a valid 10-digit phone number or leave blank.' },
+  )
 
 // Zod schema for form validation
 export const mediationFormSchema = z.object({
@@ -6,7 +39,7 @@ export const mediationFormSchema = z.object({
   prefix: z.string().min(1, 'Prefix is required.'),
   firstName: z.string().min(1, 'First name is required.'),
   lastName: z.string().min(1, 'Last name is required.'),
-  phone: z.string().min(1, 'Phone number is required.'),
+  phone: phoneSchema,
   email: z.string().email('Invalid email address.'),
   preferredContactMethod: z.enum(['Email', 'Phone', 'Either is fine'], {
     required_error: 'Please select a preferred contact method.',
@@ -35,12 +68,12 @@ export const mediationFormSchema = z.object({
   // Section 3: Other Participants
   contactOneFirstName: z.string().min(1, 'First name is required.'),
   contactOneLastName: z.string().min(1, 'Last name is required.'),
-  contactOnePhone: z.string().min(1, 'Phone number is required.'),
+  contactOnePhone: phoneSchema,
   contactOneEmail: z.string().email('Invalid email address.'),
 
   contactTwoFirstName: z.string().optional(),
   contactTwoLastName: z.string().optional(),
-  contactTwoPhone: z.string().optional(),
+  contactTwoPhone: optionalPhoneSchema,
   contactTwoEmail: z.string().email('Invalid email address.').optional().or(z.literal('')), // Allow empty string or valid email
 
   // Section 4: Scheduling

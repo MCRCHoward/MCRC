@@ -115,8 +115,15 @@ export async function createPost(data: PostInput) {
   try {
     const user = await requireAuth() // Get authenticated user
 
+    // Ensure the authenticated user is included in authors array
+    const authors = Array.isArray(data.authors) ? [...data.authors] : []
+    if (!authors.includes(user.id)) {
+      authors.push(user.id)
+    }
+
     const postData = {
       ...data,
+      authors, // Use the updated authors array with the current user
       slug: data.slug || slugify(data.title ?? 'No title'),
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -210,13 +217,23 @@ export async function updatePost(id: string, data: PostInput) {
   console.log('[updatePost] START', { id })
 
   try {
-    await requireAuth() // Ensure user is authenticated
+    const user = await requireAuth() // Get authenticated user
+
+    // Ensure the authenticated user is included in authors array if authors are being updated
+    let authors = data.authors
+    if (authors !== undefined) {
+      authors = Array.isArray(authors) ? [...authors] : []
+      if (!authors.includes(user.id)) {
+        authors.push(user.id)
+      }
+    }
 
     // Use Admin SDK to update post (bypasses Firestore rules)
     // Authentication is enforced via requireAuth() above
     const postRef = adminDb.doc(`posts/${id}`)
     const updateData = {
       ...data,
+      ...(authors !== undefined && { authors }), // Only update authors if explicitly provided
       updatedAt: FieldValue.serverTimestamp(),
     }
 
@@ -362,7 +379,7 @@ export async function createPostFromForm(fd: FormData) {
     const postData: PostInput = {
       title: data.title || '',
       excerpt: data.excerpt,
-      authors: [], // TODO: Add authors
+      authors: [], // Will be automatically populated with current user in createPost()
       categories: data.categoryIds ?? [],
       contentHtml: combinedHTML || '',
       sections,

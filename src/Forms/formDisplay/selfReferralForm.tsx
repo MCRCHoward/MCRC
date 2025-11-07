@@ -11,6 +11,10 @@ import {
   mediationFormSchema,
   MediationFormValues,
 } from '../schema/request-mediation-self-referral-form'
+import { handlePhoneInputChange, handlePhoneKeyPress } from '@/utilities/phoneUtils'
+import { useFormAutoSave } from '@/hooks/useFormAutoSave'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 // --- shadcn/ui ---
 import { Button } from '@/components/ui/button'
@@ -148,8 +152,11 @@ export function MediationSelfReferralForm() {
       accessibilityNeeds: 'None',
       additionalInfo: 'None',
     },
-    mode: 'onTouched',
+    mode: 'onChange', // Changed from 'onTouched' for real-time validation
   })
+
+  // Auto-save form data
+  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'mediation-self-referral')
 
   const goBack = () => setCurrentStep((s) => Math.max(0, s - 1))
 
@@ -173,6 +180,7 @@ export function MediationSelfReferralForm() {
     // Allow the success UI to render, then reset
     setTimeout(() => {
       if (form.formState.isSubmitSuccessful && !error) {
+        clearSavedData() // Clear auto-saved data on successful submission
         setCurrentStep(0)
         form.reset()
       }
@@ -235,7 +243,12 @@ export function MediationSelfReferralForm() {
                   <FormItem>
                     <FormLabel>First Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Jane" {...field} />
+                      <Input
+                        placeholder="Jane"
+                        aria-label="First name"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -248,7 +261,12 @@ export function MediationSelfReferralForm() {
                   <FormItem>
                     <FormLabel>Last Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Doe" {...field} />
+                      <Input
+                        placeholder="Doe"
+                        aria-label="Last name"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -261,7 +279,22 @@ export function MediationSelfReferralForm() {
                   <FormItem>
                     <FormLabel>Phone Number *</FormLabel>
                     <FormControl>
-                      <Input placeholder="(123) 456-7890" {...field} />
+                      <Input
+                        type="tel"
+                        inputMode="tel"
+                        placeholder="(123) 456-7890"
+                        pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                        aria-label="Phone number"
+                        aria-describedby={
+                          form.formState.errors.phone ? undefined : 'phone-description'
+                        }
+                        {...field}
+                        onChange={(e) => {
+                          handlePhoneInputChange(e.target.value, field.onChange)
+                        }}
+                        onKeyPress={handlePhoneKeyPress}
+                        disabled={isSubmitting}
+                      />
                     </FormControl>
                     <FormDescription>
                       We will generally follow up by email unless phone is preferred.
@@ -277,7 +310,13 @@ export function MediationSelfReferralForm() {
                   <FormItem>
                     <FormLabel>Email Address *</FormLabel>
                     <FormControl>
-                      <Input placeholder="jane.doe@example.com" {...field} />
+                      <Input
+                        type="email"
+                        placeholder="jane.doe@example.com"
+                        aria-label="Email address"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -369,7 +408,12 @@ export function MediationSelfReferralForm() {
                   <FormItem className="md:col-span-2">
                     <FormLabel>Street Address *</FormLabel>
                     <FormControl>
-                      <Input placeholder="1234 Main St" {...field} />
+                      <Input
+                        placeholder="1234 Main St"
+                        aria-label="Street address"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormDescription>
                       Our mediation process is free for people who live or work in Howard County.
@@ -385,7 +429,12 @@ export function MediationSelfReferralForm() {
                   <FormItem>
                     <FormLabel>City *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Columbia" {...field} />
+                      <Input
+                        placeholder="Columbia"
+                        aria-label="City"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -398,7 +447,12 @@ export function MediationSelfReferralForm() {
                   <FormItem>
                     <FormLabel>State *</FormLabel>
                     <FormControl>
-                      <Input placeholder="MD" {...field} />
+                      <Input
+                        placeholder="MD"
+                        aria-label="State"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -411,7 +465,12 @@ export function MediationSelfReferralForm() {
                   <FormItem>
                     <FormLabel>Zip Code *</FormLabel>
                     <FormControl>
-                      <Input placeholder="21044" {...field} />
+                      <Input
+                        placeholder="21044"
+                        aria-label="Zip code"
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -496,6 +555,8 @@ export function MediationSelfReferralForm() {
                       <Textarea
                         placeholder="Briefly share what's happening, who's involved, and your goals."
                         className="min-h-[100px]"
+                        aria-label="Conflict overview"
+                        disabled={isSubmitting}
                         {...field}
                       />
                     </FormControl>
@@ -578,7 +639,17 @@ export function MediationSelfReferralForm() {
                     <FormItem>
                       <FormLabel>Phone *</FormLabel>
                       <FormControl>
-                        <Input placeholder="(123) 456-7890" {...field} />
+                        <Input
+                          type="tel"
+                          inputMode="tel"
+                          placeholder="(123) 456-7890"
+                          pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                          {...field}
+                          onChange={(e) => {
+                            handlePhoneInputChange(e.target.value, field.onChange)
+                          }}
+                          onKeyPress={handlePhoneKeyPress}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -634,7 +705,17 @@ export function MediationSelfReferralForm() {
                     <FormItem>
                       <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input
+                          type="tel"
+                          inputMode="tel"
+                          placeholder="(123) 456-7890"
+                          pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                          {...field}
+                          onChange={(e) => {
+                            handlePhoneInputChange(e.target.value, field.onChange)
+                          }}
+                          onKeyPress={handlePhoneKeyPress}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -757,11 +838,32 @@ export function MediationSelfReferralForm() {
         {/* Footer: errors/success + nav buttons */}
         <div className="flex flex-col gap-3">
           {success && (
-            <p className="text-green-600">
-              Form submitted successfully! We will contact you within 2 business days.
-            </p>
+            <Alert className="border-green-500/50 bg-green-50 dark:bg-green-950/20">
+              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertTitle className="text-green-800 dark:text-green-200">
+                Form submitted successfully!
+              </AlertTitle>
+              <AlertDescription className="text-green-700 dark:text-green-300">
+                We will contact you within 2 business days.
+              </AlertDescription>
+            </Alert>
           )}
-          {error && <p className="text-red-600">Error: {error}</p>}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Submission Error</AlertTitle>
+              <AlertDescription>
+                {error}. Please try again or contact us if the problem persists.
+              </AlertDescription>
+            </Alert>
+          )}
+          {hasSavedData() && !isSubmitting && !success && (
+            <Alert className="border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+              <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
+                Your progress has been saved automatically.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="flex items-center justify-between gap-3">
             <Button
@@ -779,7 +881,14 @@ export function MediationSelfReferralForm() {
               </Button>
             ) : (
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Submitting…' : 'Submit Referral Form'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  'Submit Referral Form'
+                )}
               </Button>
             )}
           </div>

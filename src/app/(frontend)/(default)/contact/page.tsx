@@ -25,6 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { useFormAutoSave } from '@/hooks/useFormAutoSave'
 
 // Form validation schema
 const serviceOptions = [
@@ -58,6 +61,7 @@ export default function Contact() {
   // Initialize form with validation
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    mode: 'onChange', // Real-time validation
     defaultValues: {
       firstName: '',
       lastName: '',
@@ -68,6 +72,9 @@ export default function Contact() {
       message: '',
     },
   })
+
+  // Auto-save form data
+  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'contact-form')
 
   async function onSubmit(data: FormValues) {
     setIsSubmitting(true)
@@ -84,6 +91,7 @@ export default function Contact() {
         throw new Error('Failed to send message')
       }
 
+      clearSavedData() // Clear auto-saved data on successful submission
       toast.success('Message sent! We will get back to you as soon as possible.')
       form.reset()
     } catch (error) {

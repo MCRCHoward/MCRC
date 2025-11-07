@@ -34,6 +34,87 @@ function getTimestamp(value: unknown): number {
 }
 
 /**
+ * Converts Firebase Timestamp to ISO string for serialization
+ * Handles both Admin SDK Timestamps (with toDate()) and raw Firestore Timestamps (with _seconds/_nanoseconds)
+ */
+function timestampToISOString(value: unknown): string | undefined {
+  if (!value) return undefined
+
+  // Firebase Admin SDK Timestamp has toDate() method
+  if (typeof value === 'object' && value !== null && 'toDate' in value) {
+    const toDate = (value as { toDate: () => Date }).toDate
+    if (typeof toDate === 'function') {
+      return toDate().toISOString()
+    }
+  }
+
+  // Raw Firestore Timestamp format: {_seconds: number, _nanoseconds: number}
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    '_seconds' in value &&
+    '_nanoseconds' in value
+  ) {
+    const seconds = (value as { _seconds: number })._seconds
+    const nanoseconds = (value as { _nanoseconds: number })._nanoseconds
+    if (typeof seconds === 'number') {
+      // Convert seconds + nanoseconds to milliseconds
+      const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
+      return new Date(milliseconds).toISOString()
+    }
+  }
+
+  // Already a Date object
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+
+  // Already a string
+  if (typeof value === 'string') {
+    return value
+  }
+
+  return undefined
+}
+
+/**
+ * Recursively serializes Firebase data, converting Timestamps to ISO strings
+ * This is required for passing data from Server Components to Client Components
+ */
+function serializeFirebaseData<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return data
+  }
+
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data.map((item) => serializeFirebaseData(item)) as T
+  }
+
+  // Handle objects
+  if (typeof data === 'object') {
+    // Check if it's a Firebase Timestamp (Admin SDK with toDate() or raw format)
+    if (
+      ('toDate' in data && typeof (data as { toDate?: () => Date }).toDate === 'function') ||
+      ('_seconds' in data && '_nanoseconds' in data)
+    ) {
+      const timestamp = timestampToISOString(data)
+      return timestamp as unknown as T
+    }
+
+    // Regular object - serialize all properties
+    const serialized = {} as T
+    for (const [key, value] of Object.entries(data)) {
+      ;(serialized as Record<string, unknown>)[key] = serializeFirebaseData(value)
+    }
+    return serialized
+  }
+
+  // Primitive values (string, number, boolean) - return as-is
+  return data
+}
+
+/**
  * Sorts posts by date descending (newest first)
  */
 function sortByDateDesc<T extends { createdAt?: unknown; publishedAt?: unknown }>(rows: T[]): T[] {
@@ -82,15 +163,27 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
     // Try to order by publishedAt first, fallback to createdAt, then no order
     try {
       const snapshot = await postsQuery.orderBy('publishedAt', 'desc').get()
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Post)
+      return snapshot.docs.map((doc) => {
+        const rawData = doc.data()
+        const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+        return serialized as Post
+      })
     } catch {
       try {
         const snapshot = await postsQuery.orderBy('createdAt', 'desc').get()
-        return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Post)
+        return snapshot.docs.map((doc) => {
+          const rawData = doc.data()
+          const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+          return serialized as Post
+        })
       } catch {
         // No orderBy - fetch all and sort in memory
         const snapshot = await postsQuery.get()
-        const posts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Post)
+        const posts = snapshot.docs.map((doc) => {
+          const rawData = doc.data()
+          const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+          return serialized as Post
+        })
         return sortByDateDesc(posts)
       }
     }
@@ -121,7 +214,11 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
 
       if (!snapshot.empty) {
         const doc = snapshot.docs[0]
-        if (doc) return { id: doc.id, ...doc.data() } as Post
+        if (doc) {
+          const rawData = doc.data()
+          const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+          return serialized as Post
+        }
       }
     } catch {
       // Fallback: try with createdAt
@@ -136,7 +233,11 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
 
         if (!snapshot.empty) {
           const doc = snapshot.docs[0]
-          if (doc) return { id: doc.id, ...doc.data() } as Post
+          if (doc) {
+            const rawData = doc.data()
+            const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+            return serialized as Post
+          }
         }
       } catch {
         // Fallback: any featured (no orderBy)
@@ -149,7 +250,11 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
 
         if (!snapshot.empty) {
           const doc = snapshot.docs[0]
-          if (doc) return { id: doc.id, ...doc.data() } as Post
+          if (doc) {
+            const rawData = doc.data()
+            const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+            return serialized as Post
+          }
         }
       }
     }
@@ -165,7 +270,11 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
 
       if (!snapshot.empty) {
         const doc = snapshot.docs[0]
-        if (doc) return { id: doc.id, ...doc.data() } as Post
+        if (doc) {
+          const rawData = doc.data()
+          const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+          return serialized as Post
+        }
       }
     } catch {
       // Final fallback: any published post (no orderBy)
@@ -177,7 +286,11 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
 
       if (!snapshot.empty) {
         const doc = snapshot.docs[0]
-        if (doc) return { id: doc.id, ...doc.data() } as Post
+        if (doc) {
+          const rawData = doc.data()
+          const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+          return serialized as Post
+        }
       }
     }
 
@@ -190,6 +303,7 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
 
 /**
  * Fetches all categories.
+ * Categories are serialized to convert Firebase Timestamps to ISO strings for client components.
  */
 export async function fetchCategories(): Promise<Category[]> {
   try {
@@ -198,11 +312,19 @@ export async function fetchCategories(): Promise<Category[]> {
 
     try {
       const snapshot = await adminDb.collection('categories').orderBy('name', 'asc').get()
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Category)
+      return snapshot.docs.map((doc) => {
+        const rawData = doc.data()
+        const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+        return serialized as Category
+      })
     } catch {
       // Fallback: no orderBy
       const snapshot = await adminDb.collection('categories').get()
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Category)
+      return snapshot.docs.map((doc) => {
+        const rawData = doc.data()
+        const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+        return serialized as Category
+      })
     }
   } catch (error) {
     console.error('[fetchCategories] Error fetching categories:', error)
@@ -230,7 +352,9 @@ export async function fetchPostBySlug(slug: string): Promise<Post | null> {
     const doc = snapshot.docs[0]
     if (!doc) return null
 
-    return { id: doc.id, ...doc.data() } as Post
+    const rawData = doc.data()
+    const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+    return serialized as Post
   } catch (error) {
     console.error('[fetchPostBySlug] Error fetching post by slug:', error)
     return null
@@ -249,7 +373,10 @@ export async function fetchPostById(id: string): Promise<Post | null> {
 
     if (!postDoc.exists) return null
 
-    return { id: postDoc.id, ...postDoc.data() } as Post
+    const rawData = postDoc.data()
+    if (!rawData) return null
+    const serialized = serializeFirebaseData({ id: postDoc.id, ...rawData })
+    return serialized as Post
   } catch (error) {
     console.error('[fetchPostById] Error fetching post by id:', error)
     return null
@@ -278,7 +405,11 @@ export async function fetchRelatedPosts(
 
     // Filter out the current post and limit to 3
     const posts = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as Post)
+      .map((doc) => {
+        const rawData = doc.data()
+        const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+        return serialized as Post
+      })
       .filter((post) => post.id !== currentPostId)
       .slice(0, 3)
 

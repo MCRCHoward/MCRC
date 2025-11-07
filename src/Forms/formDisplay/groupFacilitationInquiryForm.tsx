@@ -8,6 +8,14 @@ import { format } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 
 import { useFirestoreFormSubmit } from '@/hooks/useFirestoreFormSubmit'
+import {
+  handlePhoneInputChange,
+  handlePhoneKeyPress,
+  stripPhoneNumber,
+} from '@/utilities/phoneUtils'
+import { useFormAutoSave } from '@/hooks/useFormAutoSave'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 // shadcn/ui
 import { Button } from '@/components/ui/button'
@@ -50,13 +58,29 @@ const supportOptions = [
   'Other',
 ] as const
 
+// Phone validation
+const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/
+const phoneSchema = z
+  .string()
+  .min(1, 'Phone number is required.')
+  .refine(
+    (val) => {
+      const digits = stripPhoneNumber(val)
+      return digits.length === 10
+    },
+    { message: 'Please enter a valid 10-digit phone number.' },
+  )
+  .refine((val) => phoneRegex.test(val) || stripPhoneNumber(val).length === 10, {
+    message: 'Phone number format: (XXX) XXX-XXXX',
+  })
+
 const facilitationSchema = z
   .object({
     // Contact Information
     firstName: z.string().min(1, 'First name is required.'),
     lastName: z.string().min(1, 'Last name is required.'),
     email: z.string().email('Please enter a valid email.'),
-    phone: z.string().min(1, 'Phone number is required.'),
+    phone: phoneSchema,
 
     // Organization Information
     organizationName: z.string().optional().or(z.literal('')),
@@ -140,8 +164,11 @@ export function GroupFacilitationInquiryForm() {
       heardAbout: undefined as unknown as FacilitationValues['heardAbout'],
       heardAboutOther: '',
     },
-    mode: 'onTouched',
+    mode: 'onChange', // Changed from 'onTouched' for real-time validation
   })
+
+  // Auto-save form data
+  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'group-facilitation-inquiry')
 
   const goBack = () => setCurrentStep((s) => Math.max(0, s - 1))
 
@@ -163,8 +190,9 @@ export function GroupFacilitationInquiryForm() {
 
     setTimeout(() => {
       if (form.formState.isSubmitSuccessful && !error) {
+        clearSavedData() // Clear auto-saved data on successful submission
         toast.success(
-          'Thank you! Your facilitation inquiry was submitted. We’ll follow up shortly.',
+          'Thank you! Your facilitation inquiry was submitted. We'll follow up shortly.',
         )
         setCurrentStep(TOTAL_STEPS - 1)
       }
@@ -246,7 +274,17 @@ export function GroupFacilitationInquiryForm() {
                   <FormItem className="md:col-span-2">
                     <FormLabel>Phone number</FormLabel>
                     <FormControl>
-                      <Input placeholder="(123) 456-7890" {...field} />
+                      <Input
+                        type="tel"
+                        inputMode="tel"
+                        placeholder="(123) 456-7890"
+                        pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                        {...field}
+                        onChange={(e) => {
+                          handlePhoneInputChange(e.target.value, field.onChange)
+                        }}
+                        onKeyPress={handlePhoneKeyPress}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -525,7 +563,22 @@ export function GroupFacilitationInquiryForm() {
 
         {/* Footer: status + nav buttons */}
         <div className="flex flex-col gap-3">
-          {error && <p className="text-red-600">Error: {error}</p>}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Submission Error</AlertTitle>
+              <AlertDescription>
+                {error}. Please try again or contact us if the problem persists.
+              </AlertDescription>
+            </Alert>
+          )}
+          {hasSavedData() && !isSubmitting && !error && (
+            <Alert className="border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+              <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
+                Your progress has been saved automatically.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="flex items-center justify-between gap-3">
             {currentStep < TOTAL_STEPS - 1 ? (
@@ -545,7 +598,14 @@ export function GroupFacilitationInquiryForm() {
                   </Button>
                 ) : (
                   <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting…' : 'Submit Inquiry'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting…
+                      </>
+                    ) : (
+                      'Submit Inquiry'
+                    )}
                   </Button>
                 )}
               </>
@@ -556,6 +616,7 @@ export function GroupFacilitationInquiryForm() {
                   type="button"
                   variant="outline"
                   onClick={() => {
+                    clearSavedData()
                     form.reset()
                     setCurrentStep(0)
                   }}

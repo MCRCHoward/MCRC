@@ -140,7 +140,7 @@ export default function BlogForm({ categories }: BlogFormProps) {
         const postData: PostInput = {
           slug: slugify(values.title, { lower: true, strict: true, trim: true }),
           excerpt: values.heroBriefSummary?.slice(0, 150) ?? '',
-          authors: [], // TODO: Add authors from current user
+          authors: [], // Will be automatically populated with current user in createPost()
           categories: values.categoryIds,
           contentHtml: values.contentHtml,
           heroImage: heroImageUrl,

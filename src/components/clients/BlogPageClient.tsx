@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, Slash, X } from 'lucide-react'
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { ControllerRenderProps, useForm } from 'react-hook-form'
 import Image from 'next/image'
 import { z } from 'zod'
@@ -60,7 +60,20 @@ const FilterFormSchema = z.object({
   }),
 })
 
-function ResourcesCard({ category, title, thumbnail, summary, link, cta }: CardPost) {
+// Constants
+const POSTS_PER_PAGE = 6
+
+/**
+ * Memoized card component to prevent unnecessary re-renders
+ */
+const ResourcesCard = memo(function ResourcesCard({
+  category,
+  title,
+  thumbnail,
+  summary,
+  link,
+  cta,
+}: CardPost) {
   return (
     <Link href={link} className="block h-full w-full">
       <Card className="size-full border py-0">
@@ -75,6 +88,7 @@ function ResourcesCard({ category, title, thumbnail, summary, link, cta }: CardP
               className="block size-full object-cover object-center"
               width={500}
               height={500}
+              loading="lazy"
             />
           </AspectRatio>
           <div className="flex w-full flex-col gap-5 p-5">
@@ -95,8 +109,13 @@ function ResourcesCard({ category, title, thumbnail, summary, link, cta }: CardP
       </Card>
     </Link>
   )
-}
+})
 
+ResourcesCard.displayName = 'ResourcesCard'
+
+/**
+ * Filter form component with optimized state management
+ */
 function FilterForm({
   categories,
   selectedCategories,
@@ -113,9 +132,16 @@ function FilterForm({
     },
   })
 
-  // keep RHF in sync with controlled selection
+  // Sync form state with controlled selection (only when selection actually changes)
   useEffect(() => {
-    form.setValue('items', selectedCategories)
+    const currentItems = form.getValues('items')
+    const hasChanged =
+      currentItems.length !== selectedCategories.length ||
+      !currentItems.every((item, index) => item === selectedCategories[index])
+
+    if (hasChanged) {
+      form.setValue('items', selectedCategories, { shouldDirty: false })
+    }
   }, [selectedCategories, form])
 
   const handleCheckboxChange = useCallback(
@@ -124,15 +150,13 @@ function FilterForm({
       categoryValue: string,
       field: ControllerRenderProps<z.infer<typeof FilterFormSchema>, 'items'>,
     ) => {
-      // --- SPECIAL CASE: clicking "All" selects only "all" ---
+      // Special case: clicking "All" selects only "all"
       if (categoryValue === 'all') {
         if (checked) {
-          form.setValue('items', ['all'])
           onCategoryChange(['all'])
         } else {
-          // If user unchecks "All" and nothing else is selected, keep "all" to satisfy the schema
+          // If user unchecks "All" and nothing else is selected, keep "all"
           if (!field.value || field.value.length === 0 || field.value.every((v) => v === 'all')) {
-            form.setValue('items', ['all'])
             onCategoryChange(['all'])
           }
         }
@@ -149,13 +173,17 @@ function FilterForm({
         updated = ['all']
       }
 
-      // Avoid unnecessary updates
-      if (JSON.stringify(field.value) !== JSON.stringify(updated)) {
-        form.setValue('items', updated)
+      // Avoid unnecessary updates by comparing arrays properly
+      const currentSet = new Set(field.value)
+      const updatedSet = new Set(updated)
+      if (
+        currentSet.size !== updatedSet.size ||
+        !Array.from(currentSet).every((item) => updatedSet.has(item))
+      ) {
         onCategoryChange(updated)
       }
     },
-    [form, onCategoryChange],
+    [onCategoryChange],
   )
 
   return (
@@ -195,22 +223,33 @@ function FilterForm({
   )
 }
 
+/**
+ * Main results component with optimized filtering and pagination
+ */
 function ResourcesResult({ posts, categories }: BlogsResultProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // helpers
+  // Memoize category value set for efficient lookups
   const validValues = useMemo(
     () => new Set(categories.map((c) => c.value.toLowerCase())),
     [categories],
   )
 
-  const rawCat = searchParams.get('cat') // "accessibility,performance"
-  const pageParam = Number(searchParams.get('page') || '1')
+  // Parse URL params once
+  const urlParams = useMemo(() => {
+    const rawCat = searchParams.get('cat') ?? ''
+    const pageParam = Number.parseInt(searchParams.get('page') || '1', 10)
+    return {
+      rawCat: rawCat.trim(),
+      page: Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1,
+    }
+  }, [searchParams])
 
+  // Parse initial selected categories from URL
   const initialSelected = useMemo(() => {
-    if (!rawCat || rawCat.trim() === '') return ['all']
-    const list = rawCat
+    if (!urlParams.rawCat) return ['all']
+    const list = urlParams.rawCat
       .split(',')
       .map((s) => s.trim().toLowerCase())
       .filter(Boolean)
@@ -218,148 +257,132 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
 
     if (list.length === 0) return ['all']
     return list.includes('all') && list.length > 1 ? list.filter((v) => v !== 'all') : list
-  }, [rawCat, validValues])
+  }, [urlParams.rawCat, validValues])
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialSelected)
+  const [currentPage, setCurrentPage] = useState<number>(urlParams.page)
 
-  // page state
-  const [currentPage, setCurrentPage] = useState<number>(
-    Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1,
-  )
-  const normalizedPage = Number(searchParams.get('page') || '1') || 1
-
+  // Sync state with URL params (consolidated into single effect)
   useEffect(() => {
-    console.log('[BlogPageClient] categories:', categories)
-    console.log('[BlogPageClient] posts (count):', posts.length)
-    console.log('[BlogPageClient] initialSelected:', initialSelected)
     setSelectedCategories(initialSelected)
-  }, [initialSelected, categories, posts.length])
+    setCurrentPage(urlParams.page)
+  }, [initialSelected, urlParams.page])
 
-  useEffect(() => {
-    setCurrentPage(normalizedPage)
-  }, [normalizedPage])
+  // Optimized category mappings - computed once and reused
+  const categoryMappings = useMemo(() => {
+    const labelToValue = new Map<string, string>()
+    const valueToLabel = new Map<string, string>()
 
-  // build URL
+    for (const c of categories) {
+      const normalizedLabel = c.label.toLowerCase().trim()
+      labelToValue.set(c.label, c.value)
+      valueToLabel.set(c.value, c.label)
+      // Only add normalized if different from original
+      if (normalizedLabel !== c.label) {
+        labelToValue.set(normalizedLabel, c.value)
+      }
+    }
+
+    return { labelToValue, valueToLabel }
+  }, [categories])
+
+  // Optimized URL update function
   const replaceUrl = useCallback(
     (page: number, cats: string[]) => {
       const sp = new URLSearchParams()
       sp.set('page', String(page))
       const onlyAll = cats.length === 1 && cats[0] === 'all'
-      if (!onlyAll) sp.set('cat', cats.join(','))
+      if (!onlyAll) {
+        sp.set('cat', cats.join(','))
+      }
       router.replace(`?${sp.toString()}`, { scroll: false })
     },
     [router],
   )
 
-  // change filters
+  // Optimized category change handler
   const handleCategoryChange = useCallback(
     (selected: string[]) => {
-      console.log('[BlogPageClient] handleCategoryChange → selected:', selected)
       setSelectedCategories(selected)
       setCurrentPage(1)
       replaceUrl(1, selected)
-      requestAnimationFrame(() => {
+      // Use setTimeout instead of requestAnimationFrame for better browser compatibility
+      setTimeout(() => {
         const grid = document.querySelector('[data-blog-grid]')
-        grid?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      })
+        if (grid) {
+          grid.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 0)
     },
     [replaceUrl],
   )
 
-  // remove a single filter chip
-  const handleRemoveFilter = (value: string) => {
-    if (value === 'all') return // nothing to remove
-    const next = selectedCategories.filter((v) => v !== value)
-    handleCategoryChange(next.length ? next : ['all'])
-  }
+  const handleRemoveFilter = useCallback(
+    (value: string) => {
+      if (value === 'all') return
+      const next = selectedCategories.filter((v) => v !== value)
+      handleCategoryChange(next.length ? next : ['all'])
+    },
+    [selectedCategories, handleCategoryChange],
+  )
 
-  // clear all -> just 'all'
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     handleCategoryChange(['all'])
-  }
+  }, [handleCategoryChange])
 
-  // Create a mapping from category label to value for filtering
-  const categoryLabelToValue = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const c of categories) {
-      // Map both label and normalized label to value (only if different)
-      const normalizedLabel = c.label.toLowerCase().trim()
-      m.set(c.label, c.value)
-      // Only add normalized if it's different from the original label
-      if (normalizedLabel !== c.label) {
-        m.set(normalizedLabel, c.value)
-      }
-    }
-    console.log('[BlogPageClient] categoryLabelToValue:', Array.from(m.entries()))
-    return m
-  }, [categories])
-
-  // Filter posts
+  // Optimized filtering logic
   const filteredPosts = useMemo(() => {
     const wantsAll = selectedCategories.includes('all')
     if (wantsAll) {
-      console.log('[BlogPageClient] wantsAll=true → returning all posts:', posts.length)
       return posts
     }
 
-    const selectedValues = new Set(selectedCategories.map((s) => s.toLowerCase().trim()))
+    const selectedValues = new Set(
+      selectedCategories.map((s) => s.toLowerCase().trim()).filter(Boolean),
+    )
 
-    const result = posts.filter((p) => {
+    return posts.filter((p) => {
       if (!p.category) return false
 
-      // Get the normalized category from the post
       const postCategoryNormalized = p.category.toLowerCase().trim()
-
-      // Check if the post's category matches any selected category value
-      // First, try to get the value from the label mapping
       const categoryValue =
-        categoryLabelToValue.get(p.category) || categoryLabelToValue.get(postCategoryNormalized)
+        categoryMappings.labelToValue.get(p.category) ||
+        categoryMappings.labelToValue.get(postCategoryNormalized)
 
       if (categoryValue) {
         return selectedValues.has(categoryValue.toLowerCase().trim())
       }
 
-      // Fallback: direct comparison (for backward compatibility)
+      // Fallback: direct comparison
       return selectedValues.has(postCategoryNormalized)
     })
+  }, [posts, selectedCategories, categoryMappings])
 
-    console.log('[BlogPageClient] filter debug:', {
-      selectedCategories,
-      selectedValues: Array.from(selectedValues),
-      postsCount: posts.length,
-      filteredCount: result.length,
-      samplePostCategories: posts.slice(0, 5).map((p) => p.category),
-    })
+  // Pagination calculations
+  const pagination = useMemo(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredPosts.length / POSTS_PER_PAGE))
+    const safePage = Math.min(Math.max(1, currentPage), totalPages)
+    const start = (safePage - 1) * POSTS_PER_PAGE
+    const pageItems = filteredPosts.slice(start, start + POSTS_PER_PAGE)
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
 
-    return result
-  }, [posts, selectedCategories, categoryLabelToValue])
+    return { totalPages, safePage, pageItems, pages }
+  }, [filteredPosts, currentPage])
 
-  // Pagination
-  const perPage = 6
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / perPage))
-  const safePage = Math.min(Math.max(1, currentPage), totalPages)
-
-  const start = (safePage - 1) * perPage
-  const pageItems = filteredPosts.slice(start, start + perPage)
-
-  const goToPage = (p: number) => {
-    const next = Math.min(Math.max(1, p), totalPages)
-    setCurrentPage(next)
-    replaceUrl(next, selectedCategories)
-    requestAnimationFrame(() => {
-      const grid = document.querySelector('[data-blog-grid]')
-      grid?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }
-
-  const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
-
-  // map for labels
-  const labelByValue = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const c of categories) m.set(c.value, c.label)
-    return m
-  }, [categories])
+  const goToPage = useCallback(
+    (p: number) => {
+      const next = Math.min(Math.max(1, p), pagination.totalPages)
+      setCurrentPage(next)
+      replaceUrl(next, selectedCategories)
+      setTimeout(() => {
+        const grid = document.querySelector('[data-blog-grid]')
+        if (grid) {
+          grid.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 0)
+    },
+    [pagination.totalPages, replaceUrl, selectedCategories],
+  )
 
   const showClear =
     !(selectedCategories.length === 1 && selectedCategories[0] === 'all') &&
@@ -389,7 +412,7 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
               className="rounded-full"
               onClick={() => handleRemoveFilter(v)}
             >
-              {labelByValue.get(v) ?? v}
+              {categoryMappings.valueToLabel.get(v) ?? v}
               <X className="ml-1 h-4 w-4" />
             </Button>
           ),
@@ -410,9 +433,9 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
 
       {/* Results */}
       <div className="flex w-full flex-col gap-4 py-8">
-        {pageItems.length > 0 ? (
+        {pagination.pageItems.length > 0 ? (
           <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3" data-blog-grid>
-            {pageItems.map((post) => (
+            {pagination.pageItems.map((post) => (
               <ResourcesCard key={post.link} {...post} />
             ))}
           </div>
@@ -421,20 +444,22 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
         )}
 
         {/* Pagination */}
-        {filteredPosts.length > 0 && totalPages > 1 && (
+        {filteredPosts.length > 0 && pagination.totalPages > 1 && (
           <Pagination className="mt-4">
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  aria-disabled={safePage === 1}
-                  className={safePage === 1 ? 'pointer-events-none opacity-50' : undefined}
-                  onClick={() => goToPage(safePage - 1)}
+                  aria-disabled={pagination.safePage === 1}
+                  className={
+                    pagination.safePage === 1 ? 'pointer-events-none opacity-50' : undefined
+                  }
+                  onClick={() => goToPage(pagination.safePage - 1)}
                 />
               </PaginationItem>
 
-              {pages.map((p) => (
+              {pagination.pages.map((p) => (
                 <PaginationItem key={p}>
-                  <PaginationLink isActive={p === safePage} onClick={() => goToPage(p)}>
+                  <PaginationLink isActive={p === pagination.safePage} onClick={() => goToPage(p)}>
                     {p}
                   </PaginationLink>
                 </PaginationItem>
@@ -442,9 +467,13 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
 
               <PaginationItem>
                 <PaginationNext
-                  aria-disabled={safePage === totalPages}
-                  className={safePage === totalPages ? 'pointer-events-none opacity-50' : undefined}
-                  onClick={() => goToPage(safePage + 1)}
+                  aria-disabled={pagination.safePage === pagination.totalPages}
+                  className={
+                    pagination.safePage === pagination.totalPages
+                      ? 'pointer-events-none opacity-50'
+                      : undefined
+                  }
+                  onClick={() => goToPage(pagination.safePage + 1)}
                 />
               </PaginationItem>
             </PaginationContent>
@@ -455,28 +484,31 @@ function ResourcesResult({ posts, categories }: BlogsResultProps) {
   )
 }
 
-function BreadcrumbBlog({ breadcrumb }: BreadcrumbBlogProps) {
+/**
+ * Memoized breadcrumb component
+ */
+const BreadcrumbBlog = memo(function BreadcrumbBlog({ breadcrumb }: BreadcrumbBlogProps) {
   return (
     <Breadcrumb>
       <BreadcrumbList>
-        {breadcrumb.map((item, i) => {
-          return (
-            <Fragment key={`${item.label}`}>
-              <BreadcrumbItem>
-                <BreadcrumbLink href={item.link}>{item.label}</BreadcrumbLink>
-              </BreadcrumbItem>
-              {i < breadcrumb.length - 1 ? (
-                <BreadcrumbSeparator>
-                  <Slash />
-                </BreadcrumbSeparator>
-              ) : null}
-            </Fragment>
-          )
-        })}
+        {breadcrumb.map((item, i) => (
+          <Fragment key={`${item.label}-${i}`}>
+            <BreadcrumbItem>
+              <BreadcrumbLink href={item.link}>{item.label}</BreadcrumbLink>
+            </BreadcrumbItem>
+            {i < breadcrumb.length - 1 ? (
+              <BreadcrumbSeparator>
+                <Slash />
+              </BreadcrumbSeparator>
+            ) : null}
+          </Fragment>
+        ))}
       </BreadcrumbList>
     </Breadcrumb>
   )
-}
+})
+
+BreadcrumbBlog.displayName = 'BreadcrumbBlog'
 
 const EmailFormSchema = z
   .object({
@@ -484,14 +516,23 @@ const EmailFormSchema = z
   })
   .required({ email: true })
 
+/**
+ * Email form component
+ */
 function EmailForm() {
   const form = useForm<z.infer<typeof EmailFormSchema>>({
     resolver: zodResolver(EmailFormSchema),
     defaultValues: { email: '' },
   })
-  function onSubmit(values: z.infer<typeof EmailFormSchema>) {
-    console.log(values)
-  }
+
+  const onSubmit = useCallback((values: z.infer<typeof EmailFormSchema>) => {
+    // TODO: Implement email submission
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.log('[EmailForm] Submission:', values)
+    }
+  }, [])
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
@@ -528,12 +569,17 @@ function EmailForm() {
   )
 }
 
+/**
+ * Main blog page client component
+ */
+
 export default function BlogPageClient({
   featured,
   posts,
   categories,
   breadcrumb,
 }: BlogPageClientProps) {
+  console.log('BlogPageClient: posts', posts)
   return (
     <section className="pb-32">
       <div className="bg-muted bg-[url('https://deifkwefumgah.cloudfront.net/shadcnblocks/block/patterns/dot-pattern-2.svg')] bg-[length:3.125rem_3.125rem] bg-repeat">
@@ -543,16 +589,14 @@ export default function BlogPageClient({
               <BreadcrumbBlog breadcrumb={breadcrumb} />
               <div className="flex w-full flex-col gap-5">
                 <h1 className="text-[2.5rem] font-semibold leading-[1.2] md:text-5xl lg:text-6xl">
-                  Explore Reports
+                  The MCRC Journal
                 </h1>
                 <p className="text-foreground text-xl font-semibold leading-[1.4]">
-                  The best Reports is one that captivates readers with engaging, well-researched
-                  content presented in a clear and relatable way.
+                  News, how-tos, and lived lessons that empower people to solve their own challenges
+                  and build a more connected Howard County.
                 </p>
               </div>
-              <div className="max-w-[30rem]">
-                <EmailForm />
-              </div>
+              <div className="max-w-[30rem]">{/* <EmailForm /> */}</div>
             </div>
           </div>
 
@@ -565,7 +609,7 @@ export default function BlogPageClient({
       <div className="py-20">
         <div className="container flex flex-col gap-8">
           <h2 className="text-[1.75rem] font-medium leading-none md:text-[2.25rem] lg:text-[2rem]">
-            All Reports
+            All Posts & Guides
           </h2>
           <div>
             <ResourcesResult posts={posts} categories={categories} />

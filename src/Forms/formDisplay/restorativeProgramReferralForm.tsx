@@ -8,6 +8,10 @@ import { format } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 
 import { useFirestoreFormSubmit } from '@/hooks/useFirestoreFormSubmit'
+import { handlePhoneInputChange, handlePhoneKeyPress } from '@/utilities/phoneUtils'
+import { useFormAutoSave } from '@/hooks/useFormAutoSave'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Loader2, AlertCircle } from 'lucide-react'
 
 // shadcn/ui
 import { Button } from '@/components/ui/button'
@@ -50,11 +54,27 @@ const serviceOptions = [
 
 const urgencyOptions = ['high', 'medium', 'low'] as const
 
+// Phone validation helpers
+const stripPhoneNumber = (value: string): string => value.replace(/\D/g, '')
+
+const optionalPhoneSchema = z
+  .string()
+  .optional()
+  .or(z.literal(''))
+  .refine(
+    (val) => {
+      if (!val || val.trim() === '') return true
+      const digits = stripPhoneNumber(val)
+      return digits.length === 10 || digits.length === 0
+    },
+    { message: 'Please enter a valid 10-digit phone number or leave blank.' },
+  )
+
 const referralSchema = z.object({
   // 1. Referrer
   referrerName: z.string().min(1, 'Your name is required.'),
   referrerEmail: z.string().email('Valid email is required.'),
-  referrerPhone: z.string().optional().or(z.literal('')),
+  referrerPhone: optionalPhoneSchema,
   referrerOrg: z.enum(orgOptions).optional().or(z.literal('')),
   referrerRole: z.string().optional().or(z.literal('')),
   referrerPreferredContact: z.enum(['email', 'phone-call', 'text']).optional().or(z.literal('')),
@@ -64,10 +84,10 @@ const referralSchema = z.object({
   participantDob: z.date().optional(),
   participantPronouns: z.string().optional().or(z.literal('')),
   participantSchool: z.string().optional().or(z.literal('')),
-  participantPhone: z.string().optional().or(z.literal('')),
+  participantPhone: optionalPhoneSchema,
   participantEmail: z.string().optional().or(z.literal('')),
   parentGuardianName: z.string().optional().or(z.literal('')),
-  parentGuardianPhone: z.string().optional().or(z.literal('')),
+  parentGuardianPhone: optionalPhoneSchema,
   parentGuardianEmail: z.string().optional().or(z.literal('')),
   participantBestTime: z.string().optional().or(z.literal('')),
 
@@ -174,8 +194,11 @@ export function RestorativeProgramReferralForm() {
       urgency: '',
       additionalNotes: '',
     },
-    mode: 'onTouched',
+    mode: 'onChange', // Changed from 'onTouched' for real-time validation
   })
+
+  // Auto-save form data
+  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'restorative-program-referral')
 
   const goBack = () => setCurrentStep((s) => Math.max(0, s - 1))
 
@@ -261,7 +284,17 @@ export function RestorativeProgramReferralForm() {
                   <FormItem>
                     <FormLabel>Your phone</FormLabel>
                     <FormControl>
-                      <Input inputMode="tel" {...field} />
+                      <Input
+                        type="tel"
+                        inputMode="tel"
+                        placeholder="(123) 456-7890"
+                        pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                        {...field}
+                        onChange={(e) => {
+                          handlePhoneInputChange(e.target.value, field.onChange)
+                        }}
+                        onKeyPress={handlePhoneKeyPress}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -434,7 +467,17 @@ export function RestorativeProgramReferralForm() {
                     <FormItem>
                       <FormLabel>Participant phone (if appropriate)</FormLabel>
                       <FormControl>
-                        <Input inputMode="tel" {...field} />
+                        <Input
+                          type="tel"
+                          inputMode="tel"
+                          placeholder="(123) 456-7890"
+                          pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                          {...field}
+                          onChange={(e) => {
+                            handlePhoneInputChange(e.target.value, field.onChange)
+                          }}
+                          onKeyPress={handlePhoneKeyPress}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -476,7 +519,17 @@ export function RestorativeProgramReferralForm() {
                     <FormItem>
                       <FormLabel>Parent/guardian phone</FormLabel>
                       <FormControl>
-                        <Input inputMode="tel" {...field} />
+                        <Input
+                          type="tel"
+                          inputMode="tel"
+                          placeholder="(123) 456-7890"
+                          pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                          {...field}
+                          onChange={(e) => {
+                            handlePhoneInputChange(e.target.value, field.onChange)
+                          }}
+                          onKeyPress={handlePhoneKeyPress}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -762,7 +815,22 @@ export function RestorativeProgramReferralForm() {
 
         {/* Footer: status + nav buttons */}
         <div className="flex flex-col gap-3">
-          {error && <p className="text-red-600">Error: {error}</p>}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Submission Error</AlertTitle>
+              <AlertDescription>
+                {error}. Please try again or contact us if the problem persists.
+              </AlertDescription>
+            </Alert>
+          )}
+          {hasSavedData() && !isSubmitting && !error && (
+            <Alert className="border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+              <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
+                Your progress has been saved automatically.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="flex items-center justify-between gap-3">
             {currentStep < TOTAL_STEPS - 1 ? (
@@ -782,7 +850,14 @@ export function RestorativeProgramReferralForm() {
                   </Button>
                 ) : (
                   <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting…' : 'Submit Referral'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting…
+                      </>
+                    ) : (
+                      'Submit Referral'
+                    )}
                   </Button>
                 )}
               </>
@@ -793,6 +868,7 @@ export function RestorativeProgramReferralForm() {
                   type="button"
                   variant="outline"
                   onClick={() => {
+                    clearSavedData()
                     form.reset()
                     setCurrentStep(0)
                   }}
