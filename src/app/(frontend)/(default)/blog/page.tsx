@@ -104,14 +104,53 @@ export default async function BlogPage() {
   let featured = null,
     posts: Post[] = [],
     categories: Category[] = []
+
+  const startTime = Date.now()
+
   try {
+    // Verify Admin SDK initialization in development
+    if (process.env.NODE_ENV !== 'production') {
+      const { verifyAdminSDKInitialization } = await import('@/lib/firebase-admin')
+      const initStatus = verifyAdminSDKInitialization()
+      if (!initStatus.initialized) {
+        console.error('[BlogPage] Admin SDK initialization failed:', initStatus.errors)
+      }
+    }
+
     ;[featured, posts, categories] = await Promise.all([
       fetchFeaturedPost(),
       fetchPosts(),
       fetchCategories(),
     ])
+
+    const duration = Date.now() - startTime
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[BlogPage] Data fetched:', {
+        featured: featured ? featured.title : 'none',
+        postsCount: posts.length,
+        categoriesCount: categories.length,
+        duration: `${duration}ms`,
+      })
+    }
+
+    // Log warnings for empty results
+    if (posts.length === 0 && process.env.NODE_ENV !== 'production') {
+      console.warn('[BlogPage] No posts fetched. Possible issues:')
+      console.warn('  - No posts with _status="published" in Firestore')
+      console.warn('  - Missing Firestore indexes (check firestore.indexes.json)')
+      console.warn('  - Admin SDK connection issues')
+      console.warn('  - Posts missing required fields (id, slug, _status, title)')
+    }
   } catch (error) {
-    console.error('Error fetching blog data:', error)
+    const duration = Date.now() - startTime
+    console.error('[BlogPage] Error fetching blog data:', {
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      duration: `${duration}ms`,
+      postsFetched: posts.length,
+      categoriesFetched: categories.length,
+    })
   }
 
   // Create a category map for efficient lookups
@@ -119,6 +158,17 @@ export default async function BlogPage() {
 
   // Update toCardPost to use category map
   const toCardPostWithCategories = (p: Post): CardPost | null => {
+    // Validate required fields
+    if (!p.slug || typeof p.slug !== 'string') {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[BlogPage] Post missing slug, filtering out:', {
+          id: p.id,
+          title: p.title,
+        })
+      }
+      return null
+    }
+
     const firstCategoryId =
       Array.isArray(p.categories) && p.categories[0] ? String(p.categories[0]) : null
 
@@ -129,9 +179,6 @@ export default async function BlogPage() {
           'Uncategorized'
         : 'Uncategorized'
 
-    const slug = p.slug
-    if (!slug) return null
-
     // Normalize heroImage to Firebase download URL (honors Firebase Storage rules)
     const thumbnail = normalizeToFirebaseDownloadURL(p.heroImage) || FALLBACK_THUMB
 
@@ -139,7 +186,7 @@ export default async function BlogPage() {
       category: categoryLabel,
       title: p.title || 'Untitled',
       summary: p.excerpt || '',
-      link: `/blog/${slug}`,
+      link: `/blog/${p.slug}`,
       cta: 'Read article',
       thumbnail,
     }

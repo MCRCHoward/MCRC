@@ -46,6 +46,95 @@ const adminApp = getAdminApp()
 export const adminDb = getFirestore(adminApp)
 export const adminAuth = getAuth(adminApp)
 
+/**
+ * Verifies Admin SDK initialization and environment variables
+ * Logs diagnostic information in development mode
+ */
+export function verifyAdminSDKInitialization(): {
+  initialized: boolean
+  hasProjectId: boolean
+  hasClientEmail: boolean
+  hasPrivateKey: boolean
+  projectId?: string
+  errors: string[]
+} {
+  const errors: string[] = []
+  const hasProjectId = Boolean(process.env.FIREBASE_ADMIN_PROJECT_ID)
+  const hasClientEmail = Boolean(process.env.FIREBASE_ADMIN_CLIENT_EMAIL)
+  const hasPrivateKey = Boolean(process.env.FIREBASE_ADMIN_PRIVATE_KEY)
+
+  if (!hasProjectId) {
+    errors.push('FIREBASE_ADMIN_PROJECT_ID is missing')
+  }
+  if (!hasClientEmail) {
+    errors.push('FIREBASE_ADMIN_CLIENT_EMAIL is missing')
+  }
+  if (!hasPrivateKey) {
+    errors.push('FIREBASE_ADMIN_PRIVATE_KEY is missing')
+  }
+
+  const initialized = adminApp !== null && errors.length === 0
+
+  // Log diagnostic info in development only
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[Admin SDK] Initialization status:', {
+      initialized,
+      hasProjectId,
+      hasClientEmail,
+      hasPrivateKey: hasPrivateKey ? '***' : false,
+      projectId: adminApp.options.projectId,
+      errors: errors.length > 0 ? errors : 'none',
+    })
+  }
+
+  return {
+    initialized,
+    hasProjectId,
+    hasClientEmail,
+    hasPrivateKey,
+    projectId: adminApp.options.projectId,
+    errors,
+  }
+}
+
+/**
+ * Health check function to test Admin SDK connection
+ */
+export async function healthCheckAdminSDK(): Promise<{
+  healthy: boolean
+  error?: string
+  details?: {
+    projectId: string
+    canQuery: boolean
+  }
+}> {
+  try {
+    verifyAdminSDKInitialization()
+
+    // Try a simple query to verify connection
+    const testRef = adminDb.collection('posts').limit(1)
+    await testRef.get()
+
+    return {
+      healthy: true,
+      details: {
+        projectId: adminApp.options.projectId || 'unknown',
+        canQuery: true,
+      },
+    }
+  } catch (error) {
+    return {
+      healthy: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+// Verify initialization on module load (dev only)
+if (process.env.NODE_ENV !== 'production') {
+  verifyAdminSDKInitialization()
+}
+
 // Get storage bucket name from environment variable
 // Default bucket format is usually: project-id.appspot.com
 const storageBucketName =

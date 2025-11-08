@@ -510,64 +510,8 @@ const BreadcrumbBlog = memo(function BreadcrumbBlog({ breadcrumb }: BreadcrumbBl
 
 BreadcrumbBlog.displayName = 'BreadcrumbBlog'
 
-const EmailFormSchema = z
-  .object({
-    email: z.string().email({ message: 'Invalid email address' }),
-  })
-  .required({ email: true })
-
-/**
- * Email form component
- */
-function EmailForm() {
-  const form = useForm<z.infer<typeof EmailFormSchema>>({
-    resolver: zodResolver(EmailFormSchema),
-    defaultValues: { email: '' },
-  })
-
-  const onSubmit = useCallback((values: z.infer<typeof EmailFormSchema>) => {
-    // TODO: Implement email submission
-    if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
-      console.log('[EmailForm] Submission:', values)
-    }
-  }, [])
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormControl>
-                <div className="w-full">
-                  <div className="relative flex w-full flex-col gap-2 lg:block">
-                    <Input
-                      {...field}
-                      type="email"
-                      id="emailInput"
-                      placeholder="What's your work email?"
-                      className="bg-background h-fit py-4 pl-5 pr-5 lg:pr-[13.75rem]"
-                    />
-                    <div className="right-2.5 top-1/2 lg:absolute lg:-translate-y-1/2">
-                      <Button type="submit" className="w-full rounded-full lg:w-fit">
-                        See Company in action
-                        <ArrowRight />
-                      </Button>
-                    </div>
-                  </div>
-                  <FormMessage className="py-1" />
-                </div>
-              </FormControl>
-            </FormItem>
-          )}
-        />
-      </form>
-    </Form>
-  )
-}
+// EmailForm component removed - currently unused
+// TODO: Implement email subscription form when needed
 
 /**
  * Main blog page client component

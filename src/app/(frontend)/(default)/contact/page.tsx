@@ -72,7 +72,7 @@ export default function Contact() {
   })
 
   // Auto-save form data
-  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'contact-form')
+  const { clearSavedData } = useFormAutoSave(form, 'contact-form')
 
   async function onSubmit(data: FormValues) {
     setIsSubmitting(true)

@@ -43,7 +43,7 @@ export function useFormAutoSave<T extends Record<string, unknown>>(
       // Clear corrupted data
       localStorage.removeItem(storageKey)
     }
-  }, [form, storageKey, enabled])
+  }, [form, formKey, storageKey, enabled])
 
   // Save form data on change
   useEffect(() => {
@@ -58,7 +58,7 @@ export function useFormAutoSave<T extends Record<string, unknown>>(
     })
 
     return () => subscription.unsubscribe()
-  }, [form, storageKey, enabled])
+  }, [form, formKey, storageKey, enabled])
 
   // Clear saved data on successful submission
   const clearSavedData = () => {

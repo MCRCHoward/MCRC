@@ -8,7 +8,7 @@
  *
  * Client SDK (firebase/firestore) should only be used in client components ('use client')
  */
-import type { Post, Event, Page, Category } from '@/types'
+import type { Event, Page } from '@/types'
 
 /**
  * Converts Firebase Timestamp to ISO string for serialization
@@ -91,133 +91,16 @@ function serializeFirebaseData<T>(data: T): T {
   return data
 }
 
-// Posts API
-export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
-  try {
-    // Use Admin SDK for server-side operations (bypasses Firestore rules)
-    const { adminDb } = await import('./firebase-admin')
-
-    let postsQuery = adminDb
-      .collection('posts')
-      .where('_status', '==', 'published')
-      .orderBy('publishedAt', 'desc')
-
-    if (categorySlug) {
-      // First get the category by slug
-      const categorySnapshot = await adminDb
-        .collection('categories')
-        .where('slug', '==', categorySlug)
-        .limit(1)
-        .get()
-
-      if (categorySnapshot.empty) {
-        return []
-      }
-
-      const firstDoc = categorySnapshot.docs[0]
-      if (!firstDoc) {
-        return []
-      }
-
-      const categoryId = firstDoc.id
-      postsQuery = adminDb
-        .collection('posts')
-        .where('_status', '==', 'published')
-        .where('categories', 'array-contains', categoryId)
-        .orderBy('publishedAt', 'desc')
-    }
-
-    const snapshot = await postsQuery.get()
-    return snapshot.docs.map((doc) => {
-      const rawData = doc.data()
-      const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-      return serialized as Post
-    })
-  } catch (error) {
-    console.error('[fetchPosts] Error fetching posts:', error)
-    return []
-  }
-}
-
-export async function fetchFeaturedPost(): Promise<Post | null> {
-  try {
-    // Use Admin SDK for server-side operations (bypasses Firestore rules)
-    const { adminDb } = await import('./firebase-admin')
-    const postsSnapshot = await adminDb
-      .collection('posts')
-      .where('_status', '==', 'published')
-      .orderBy('publishedAt', 'desc')
-      .limit(1)
-      .get()
-
-    if (postsSnapshot.empty) return null
-
-    const firstDoc = postsSnapshot.docs[0]
-    if (!firstDoc) return null
-
-    const rawData = firstDoc.data()
-    const serialized = serializeFirebaseData({ id: firstDoc.id, ...rawData })
-    return serialized as Post
-  } catch (error) {
-    console.error('[fetchFeaturedPost] Error fetching featured post:', error)
-    return null
-  }
-}
-
-export async function fetchPostBySlug(slug: string): Promise<Post | null> {
-  try {
-    // Use Admin SDK for server-side operations (bypasses Firestore rules)
-    const { adminDb } = await import('./firebase-admin')
-    const postsSnapshot = await adminDb
-      .collection('posts')
-      .where('slug', '==', slug)
-      .where('_status', '==', 'published')
-      .limit(1)
-      .get()
-
-    if (postsSnapshot.empty) return null
-
-    const firstDoc = postsSnapshot.docs[0]
-    if (!firstDoc) return null
-
-    const rawData = firstDoc.data()
-    const serialized = serializeFirebaseData({ id: firstDoc.id, ...rawData })
-    return serialized as Post
-  } catch (error) {
-    console.error('[fetchPostBySlug] Error fetching post by slug:', error)
-    return null
-  }
-}
-
-export async function fetchRelatedPosts(
-  currentPostId: string,
-  categoryIds: string[],
-): Promise<Post[]> {
-  if (!categoryIds || categoryIds.length === 0) return []
-
-  try {
-    // Use Admin SDK for server-side operations (bypasses Firestore rules)
-    const { adminDb } = await import('./firebase-admin')
-    const postsSnapshot = await adminDb
-      .collection('posts')
-      .where('_status', '==', 'published')
-      .where('categories', 'array-contains-any', categoryIds)
-      .limit(3)
-      .get()
-
-    // Filter out the current post manually (Admin SDK doesn't support __name__ !=)
-    return postsSnapshot.docs
-      .filter((doc) => doc.id !== currentPostId)
-      .map((doc) => {
-        const rawData = doc.data()
-        const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-        return serialized as Post
-      })
-  } catch (error) {
-    console.error('[fetchRelatedPosts] Error fetching related posts:', error)
-    return []
-  }
-}
+// Posts API - Re-exported from firebase-api-blog.ts
+// All blog-related functions have been moved to firebase-api-blog.ts for better organization
+// These re-exports maintain backward compatibility
+export {
+  fetchPosts,
+  fetchFeaturedPost,
+  fetchPostBySlug,
+  fetchPostById,
+  fetchRelatedPosts,
+} from './firebase-api-blog'
 
 // Events API
 export async function fetchPublishedEvents(): Promise<Event[]> {
@@ -266,23 +149,8 @@ export async function fetchEventBySlug(slug: string): Promise<Event | null> {
   }
 }
 
-// Categories API
-export async function fetchCategories(): Promise<Category[]> {
-  try {
-    // Use Admin SDK for server-side operations (bypasses Firestore rules)
-    const { adminDb } = await import('./firebase-admin')
-    const categoriesSnapshot = await adminDb.collection('categories').orderBy('name', 'asc').get()
-
-    return categoriesSnapshot.docs.map((doc) => {
-      const rawData = doc.data()
-      const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-      return serialized as Category
-    })
-  } catch (error) {
-    console.error('[fetchCategories] Error fetching categories:', error)
-    return []
-  }
-}
+// Categories API - Re-exported from firebase-api-blog.ts
+export { fetchCategories } from './firebase-api-blog'
 
 // Pages API
 export async function fetchPageBySlug(slug: string): Promise<Page | null> {

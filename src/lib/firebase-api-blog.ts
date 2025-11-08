@@ -127,10 +127,61 @@ function sortByDateDesc<T extends { createdAt?: unknown; publishedAt?: unknown }
 }
 
 /**
+ * Validates post structure and filters out invalid posts
+ */
+function validateAndFilterPosts(posts: Post[]): Post[] {
+  const validPosts: Post[] = []
+  const invalidPosts: Array<{ id: string; errors: string[] }> = []
+
+  for (const post of posts) {
+    const errors: string[] = []
+
+    if (!post.id || typeof post.id !== 'string') {
+      errors.push('Missing or invalid id')
+    }
+    if (!post.slug || typeof post.slug !== 'string') {
+      errors.push('Missing or invalid slug')
+    }
+    if (!post._status || typeof post._status !== 'string') {
+      errors.push('Missing or invalid _status')
+    } else if (!['draft', 'published', 'deleted'].includes(post._status)) {
+      errors.push(`Invalid _status: ${post._status}`)
+    }
+    if (!post.title || typeof post.title !== 'string') {
+      errors.push('Missing or invalid title')
+    }
+
+    if (errors.length === 0) {
+      validPosts.push(post)
+    } else {
+      invalidPosts.push({ id: post.id || 'unknown', errors })
+    }
+  }
+
+  if (invalidPosts.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[fetchPosts] Filtered out invalid posts:', invalidPosts)
+  }
+
+  return validPosts
+}
+
+/**
  * Fetches published posts from Firebase. Can optionally filter by category.
+ *
+ * Required Firestore indexes:
+ * - Collection: posts, Fields: _status (Ascending), publishedAt (Descending)
+ * - Collection: posts, Fields: _status (Ascending), createdAt (Descending)
+ * - Collection: posts, Fields: _status (Ascending), categories (Arrays), publishedAt (Descending)
+ *
  * @param categorySlug - The slug of the category to filter by.
  */
 export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
+  const startTime = Date.now()
+  const queryDetails = {
+    categorySlug: categorySlug || 'all',
+    hasCategoryFilter: Boolean(categorySlug),
+  }
+
   try {
     // Use Admin SDK for server-side operations (bypasses Firestore rules)
     const { adminDb } = await import('./firebase-admin')
@@ -139,30 +190,41 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
 
     if (categorySlug) {
       // First get the category by slug
-      const categorySnapshot = await adminDb
-        .collection('categories')
-        .where('slug', '==', categorySlug)
-        .limit(1)
-        .get()
+      try {
+        const categorySnapshot = await adminDb
+          .collection('categories')
+          .where('slug', '==', categorySlug)
+          .limit(1)
+          .get()
 
-      if (categorySnapshot.empty) {
+        if (categorySnapshot.empty) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[fetchPosts] Category not found:', categorySlug)
+          }
+          return []
+        }
+
+        const firstDoc = categorySnapshot.docs[0]
+        if (!firstDoc) {
+          return []
+        }
+
+        const categoryId = firstDoc.id
+        postsQuery = adminDb
+          .collection('posts')
+          .where('_status', '==', 'published')
+          .where('categories', 'array-contains', categoryId)
+      } catch (error) {
+        console.error('[fetchPosts] Error fetching category:', error)
         return []
       }
-
-      const firstDoc = categorySnapshot.docs[0]
-      if (!firstDoc) {
-        return []
-      }
-
-      const categoryId = firstDoc.id
-      postsQuery = adminDb
-        .collection('posts')
-        .where('_status', '==', 'published')
-        .where('categories', 'array-contains', categoryId)
     }
 
     // Try to order by publishedAt first, fallback to createdAt, then no order
     let posts: Post[]
+    let queryMethod = 'unknown'
+    let queryError: Error | null = null
+
     try {
       const snapshot = await postsQuery.orderBy('publishedAt', 'desc').get()
       posts = snapshot.docs.map((doc) => {
@@ -170,7 +232,22 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
         const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
         return serialized as Post
       })
-    } catch {
+      queryMethod = 'publishedAt desc'
+    } catch (error) {
+      queryError = error instanceof Error ? error : new Error(String(error))
+      const errorCode = (error as { code?: string })?.code
+
+      // Check if it's a missing index error
+      if (errorCode === 'failed-precondition') {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            '[fetchPosts] Missing index for _status + publishedAt. Falling back to createdAt.',
+          )
+        }
+      } else {
+        console.error('[fetchPosts] Error with publishedAt query:', error)
+      }
+
       try {
         const snapshot = await postsQuery.orderBy('createdAt', 'desc').get()
         posts = snapshot.docs.map((doc) => {
@@ -178,7 +255,21 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
           const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
           return serialized as Post
         })
-      } catch {
+        queryMethod = 'createdAt desc'
+      } catch (error2) {
+        queryError = error2 instanceof Error ? error2 : new Error(String(error2))
+        const errorCode2 = (error2 as { code?: string })?.code
+
+        if (errorCode2 === 'failed-precondition') {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(
+              '[fetchPosts] Missing index for _status + createdAt. Fetching without orderBy.',
+            )
+          }
+        } else {
+          console.error('[fetchPosts] Error with createdAt query:', error2)
+        }
+
         // No orderBy - fetch all and sort in memory
         const snapshot = await postsQuery.get()
         posts = snapshot.docs.map((doc) => {
@@ -187,7 +278,27 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
           return serialized as Post
         })
         posts = sortByDateDesc(posts)
+        queryMethod = 'no orderBy (in-memory sort)'
       }
+    }
+
+    // Validate and filter posts
+    const initialCount = posts.length
+    posts = validateAndFilterPosts(posts)
+    const validCount = posts.length
+    const filteredCount = initialCount - validCount
+
+    if (process.env.NODE_ENV !== 'production') {
+      const duration = Date.now() - startTime
+      console.log('[fetchPosts] Query completed:', {
+        ...queryDetails,
+        queryMethod,
+        totalFetched: initialCount,
+        validPosts: validCount,
+        filteredOut: filteredCount,
+        duration: `${duration}ms`,
+        error: queryError ? queryError.message : null,
+      })
     }
 
     // Populate author data for all posts
@@ -195,28 +306,39 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
       new Set(posts.flatMap((post) => post.authors || []).filter(Boolean)),
     )
     if (allAuthorIds.length > 0) {
-      const authors = await fetchUsersByIds(allAuthorIds)
-      const authorMap = new Map(authors.map((author) => [author.id, author]))
+      try {
+        const authors = await fetchUsersByIds(allAuthorIds)
+        const authorMap = new Map(authors.map((author) => [author.id, author]))
 
-      // Add authorData to each post
-      posts = posts.map((post) => ({
-        ...post,
-        authorData: (post.authors || [])
-          .map((authorId) => {
-            const author = authorMap.get(authorId)
-            return author
-              ? { id: author.id, name: author.name || '', email: author.email || '' }
-              : null
-          })
-          .filter(
-            (author): author is { id: string; name: string; email: string } => author !== null,
-          ),
-      }))
+        // Add authorData to each post
+        posts = posts.map((post) => ({
+          ...post,
+          authorData: (post.authors || [])
+            .map((authorId) => {
+              const author = authorMap.get(authorId)
+              return author
+                ? { id: author.id, name: author.name || '', email: author.email || '' }
+                : null
+            })
+            .filter(
+              (author): author is { id: string; name: string; email: string } => author !== null,
+            ),
+        }))
+      } catch (error) {
+        console.error('[fetchPosts] Error populating author data:', error)
+        // Continue without author data rather than failing
+      }
     }
 
     return posts
   } catch (error) {
-    console.error('[fetchPosts] Error fetching posts:', error)
+    const duration = Date.now() - startTime
+    console.error('[fetchPosts] Fatal error fetching posts:', {
+      ...queryDetails,
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      duration: `${duration}ms`,
+    })
     return []
   }
 }

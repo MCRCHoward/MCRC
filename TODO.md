@@ -4,6 +4,50 @@ This document tracks all incomplete features, placeholders, and missing implemen
 
 ## High Priority
 
+### Blog Fetching Diagnostics and Optimization
+- **Status**: ✅ **COMPLETED**
+- **Description**: Comprehensive diagnosis and optimization of blog post fetching from Firestore.
+- **Implementation Details**:
+  - ✅ **Enhanced Error Logging**: Added detailed error logging to `fetchPosts` with query details, result counts, and validation. Logs distinguish between missing indexes, missing data, permission errors, and network/timeout errors.
+  - ✅ **Data Structure Validation**: Added `validatePostStructure` function to check required fields (id, slug, _status, title). Invalid posts are filtered out with warning logs.
+  - ✅ **Firestore Indexes Documentation**: Created `firestore.indexes.json` documenting all required composite indexes for blog queries:
+    - `_status + publishedAt` (descending)
+    - `_status + createdAt` (descending)
+    - `_status + featured + publishedAt` (descending)
+    - `_status + categories + publishedAt` (descending)
+    - `slug + _status`
+    - `_status + categories` (array-contains-any)
+  - ✅ **Removed Duplicate Code**: Removed duplicate `fetchPosts`, `fetchFeaturedPost`, `fetchPostBySlug`, `fetchRelatedPosts`, and `fetchCategories` functions from `firebase-api.ts`. All blog functions now use `firebase-api-blog.ts` with re-exports for backward compatibility.
+  - ✅ **Admin SDK Verification**: Added `verifyAdminSDKInitialization()` and `healthCheckAdminSDK()` functions to verify Admin SDK initialization and environment variables. Logs diagnostic information in development mode.
+  - ✅ **Blog Page Error Handling**: Enhanced `blog/page.tsx` with detailed error logging, Admin SDK verification, and warnings for empty results. Added validation for posts missing required fields.
+  - ✅ **Diagnostic Utilities**: Created `src/lib/blog-diagnostics.ts` with comprehensive diagnostic functions:
+    - `validatePostStructure()` - Validates post data structure
+    - `testAdminSDKConnection()` - Tests Admin SDK connection
+    - `diagnoseBlogFetching()` - Comprehensive diagnostic for blog fetching
+    - `checkFirestoreIndexes()` - Tests if required indexes work
+- **Files Modified**:
+  - `src/lib/firebase-api-blog.ts` - Enhanced error logging, validation, and query optimization
+  - `src/lib/firebase-api.ts` - Removed duplicates, added re-exports
+  - `src/lib/firebase-admin.ts` - Added initialization verification
+  - `src/app/(frontend)/(default)/blog/page.tsx` - Enhanced error handling and logging
+  - `src/lib/blog-diagnostics.ts` - New diagnostic utility (created)
+  - `firestore.indexes.json` - New index documentation (created)
+- **Troubleshooting Guide**:
+  - If no posts appear on `/blog`:
+    1. Check Firestore console for posts with `_status="published"`
+    2. Verify required indexes exist (see `firestore.indexes.json`)
+    3. Check Admin SDK environment variables are set correctly
+    4. Review server logs for detailed error messages
+    5. Use `diagnoseBlogFetching()` function in development mode
+  - Common issues:
+    - Missing Firestore indexes: Deploy indexes using `firebase deploy --only firestore:indexes`
+    - Posts missing required fields: Check posts have `id`, `slug`, `_status`, and `title`
+    - Admin SDK initialization failure: Verify `FIREBASE_ADMIN_*` environment variables
+- **Action Required**:
+  - Deploy Firestore indexes: `firebase deploy --only firestore:indexes` (if not already deployed)
+  - Monitor production logs for query performance and errors
+  - Review and fix any posts missing required fields
+
 ### Dashboard Features (CMS)
 
 #### Event Editing Form
