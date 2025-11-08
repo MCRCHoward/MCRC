@@ -18,36 +18,48 @@ export const runtime = 'nodejs'
 async function fetchBlogPosts(): Promise<Post[]> {
   try {
     const postsRef = adminDb.collection('posts')
-    const snapshot = await postsRef.orderBy('updatedAt', 'desc').limit(20).get()
+    // Fetch all posts and filter out deleted ones in memory
+    // (Firestore doesn't support != operator with orderBy)
+    const snapshot = await postsRef.orderBy('updatedAt', 'desc').limit(50).get()
 
     if (snapshot.empty) {
       return []
     }
 
-    return snapshot.docs.map((docSnapshot) => {
-      const data = docSnapshot.data()
+    // Filter out soft-deleted posts and limit to 20
+    const posts = snapshot.docs
+      .map((docSnapshot) => {
+        const data = docSnapshot.data()
 
-      // Helper to convert Firestore Timestamp to ISO string
-      const toISOString = (value: unknown): string | undefined => {
-        if (!value) return undefined
-        // Firestore Timestamp has toDate() method
-        if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-          return value.toDate().toISOString()
+        // Helper to convert Firestore Timestamp to ISO string
+        const toISOString = (value: unknown): string | undefined => {
+          if (!value) return undefined
+          // Firestore Timestamp has toDate() method
+          if (
+            typeof value === 'object' &&
+            'toDate' in value &&
+            typeof value.toDate === 'function'
+          ) {
+            return value.toDate().toISOString()
+          }
+          // Already a string
+          if (typeof value === 'string') return value
+          return undefined
         }
-        // Already a string
-        if (typeof value === 'string') return value
-        return undefined
-      }
 
-      return {
-        id: docSnapshot.id,
-        ...data,
-        // Ensure timestamps are strings
-        createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
-        updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
-        publishedAt: toISOString(data.publishedAt),
-      } as Post
-    })
+        return {
+          id: docSnapshot.id,
+          ...data,
+          // Ensure timestamps are strings
+          createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
+          updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
+          publishedAt: toISOString(data.publishedAt),
+        } as Post
+      })
+      .filter((post) => post._status !== 'deleted')
+      .slice(0, 20)
+
+    return posts
   } catch (error) {
     console.error('[fetchBlogPosts] Error:', error)
     return []

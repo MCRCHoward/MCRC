@@ -13,10 +13,18 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import type { User as UserType } from '@/types'
+
+/**
+ * Minimal author type - only includes fields needed for author selection
+ */
+type AuthorLike = {
+  id: string
+  name?: string | null
+  email?: string | null
+}
 
 interface AuthorSelectProps {
-  authors: UserType[]
+  authors: AuthorLike[]
   selectedAuthorIds: string[]
   onSelectionChange: (authorIds: string[]) => void
   disabled?: boolean
@@ -107,7 +115,7 @@ export function AuthorChips({
   selectedAuthorIds,
   onRemove,
 }: {
-  authors: UserType[]
+  authors: AuthorLike[]
   selectedAuthorIds: string[]
   onRemove?: (authorId: string) => void
 }) {

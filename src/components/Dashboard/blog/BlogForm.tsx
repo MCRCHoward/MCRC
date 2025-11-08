@@ -26,6 +26,7 @@ import { FileInput } from '@/components/ui/file-inputs'
 import { BlogEditor } from './BlogEditor'
 import { createPost } from '@/app/(frontend)/(cms)/dashboard/blog/firebase-actions'
 import type { PostInput } from '@/types'
+import { AuthorChips, AuthorSelect } from '@/components/ui/author-select'
 
 type CategoryLike = { id: string; name?: string | null; slug?: string | null }
 type UserLike = { id: string; name?: string | null; email?: string | null }

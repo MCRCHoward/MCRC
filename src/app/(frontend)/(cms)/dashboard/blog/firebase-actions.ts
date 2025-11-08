@@ -250,6 +250,10 @@ export async function updatePost(id: string, data: PostInput) {
   }
 }
 
+/**
+ * Soft deletes a post by setting its _status to 'deleted'
+ * The post will appear in the trash and can be restored later
+ */
 export async function deletePost(id: string) {
   console.log('[deletePost] START', { id })
 
@@ -258,16 +262,99 @@ export async function deletePost(id: string) {
   try {
     await requireAuth() // Ensure user is authenticated
 
-    // Use Admin SDK to delete post (bypasses Firestore rules)
-    // Authentication is enforced via requireAuth() above
-    await adminDb.doc(`posts/${id}`).delete()
-    console.log('[deletePost] OK', { id })
+    const postRef = adminDb.doc(`posts/${id}`)
+    const postDoc = await postRef.get()
+
+    if (!postDoc.exists) {
+      throw new Error('Post not found')
+    }
+
+    const postData = postDoc.data()
+    const currentStatus = postData?._status as string | undefined
+
+    // Store previous status before soft deleting (for restoration)
+    const updateData: Record<string, unknown> = {
+      _status: 'deleted',
+      _previousStatus: currentStatus || 'published', // Store previous status for restoration
+      updatedAt: FieldValue.serverTimestamp(),
+    }
+
+    // Soft delete: set _status to 'deleted' instead of actually deleting
+    await postRef.update(updateData)
+    console.log('[deletePost] OK (soft delete)', { id, previousStatus: currentStatus })
 
     revalidatePath('/dashboard/blog')
+    revalidatePath('/dashboard/blog/trash')
     revalidateTag('blog')
   } catch (error) {
     console.error('[deletePost] FAILED:', error)
     throw new Error(`Failed to delete post ${id}: ${error}`)
+  }
+}
+
+/**
+ * Restores a soft-deleted post by changing its _status back to 'published'
+ * If the post was previously a draft, it will be restored as 'draft'
+ */
+export async function restorePost(id: string) {
+  console.log('[restorePost] START', { id })
+
+  if (!id) throw new Error('Missing blog post id')
+
+  try {
+    await requireAuth() // Ensure user is authenticated
+
+    const postRef = adminDb.doc(`posts/${id}`)
+    const postDoc = await postRef.get()
+
+    if (!postDoc.exists) {
+      throw new Error('Post not found')
+    }
+
+    const postData = postDoc.data()
+    const previousStatus = postData?._previousStatus as string | undefined
+
+    // Restore to previous status if available, otherwise default to 'published'
+    const restoredStatus = previousStatus === 'draft' ? 'draft' : 'published'
+
+    await postRef.update({
+      _status: restoredStatus,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+    console.log('[restorePost] OK', { id, restoredStatus })
+
+    revalidatePath('/dashboard/blog')
+    revalidatePath('/dashboard/blog/trash')
+    revalidateTag('blog')
+    return { id, status: restoredStatus }
+  } catch (error) {
+    console.error('[restorePost] FAILED:', error)
+    throw new Error(`Failed to restore post ${id}: ${error}`)
+  }
+}
+
+/**
+ * Permanently deletes a post from Firestore
+ * This action cannot be undone
+ */
+export async function permanentlyDeletePost(id: string) {
+  console.log('[permanentlyDeletePost] START', { id })
+
+  if (!id) throw new Error('Missing blog post id')
+
+  try {
+    await requireAuth() // Ensure user is authenticated
+
+    // Permanently delete the post document
+    await adminDb.doc(`posts/${id}`).delete()
+    console.log('[permanentlyDeletePost] OK', { id })
+
+    revalidatePath('/dashboard/blog')
+    revalidatePath('/dashboard/blog/trash')
+    revalidateTag('blog')
+  } catch (error) {
+    console.error('[permanentlyDeletePost] FAILED:', error)
+    throw new Error(`Failed to permanently delete post ${id}: ${error}`)
   }
 }
 
@@ -332,6 +419,7 @@ export async function createPostFromForm(fd: FormData) {
       heroBriefSummary?: string
       excerpt?: string
       categoryIds?: Array<string>
+      authorIds?: Array<string>
     }
     console.log('[createPostFromForm] Parsed data keys:', Object.keys(data))
 

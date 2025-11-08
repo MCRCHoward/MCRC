@@ -1,9 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin'
 import type { Post } from '@/types'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { TrashPageClient } from './TrashPageClient'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -71,43 +68,7 @@ export default async function BlogTrashPage() {
         </p>
       </div>
 
-      {deletedPosts.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground">No deleted posts found.</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Posts moved to trash will appear here.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-3">
-          {deletedPosts.map((post) => (
-            <Card key={post.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{post.title ?? '(untitled)'}</CardTitle>
-                  <Badge variant="secondary">Deleted</Badge>
-                </div>
-                <CardDescription>
-                  {post.slug ? `/${post.slug}` : 'No slug'} &middot; Deleted{' '}
-                  {post.updatedAt ? new Date(post.updatedAt).toLocaleDateString() : 'recently'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Button variant="outline" asChild>
-                    <Link href={`/dashboard/blog/${post.id}/edit`}>Restore</Link>
-                  </Button>
-                  <Button variant="destructive" disabled>
-                    Permanently Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <TrashPageClient deletedPosts={deletedPosts} />
     </div>
   )
 }

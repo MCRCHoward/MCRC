@@ -18,15 +18,13 @@ This document tracks all incomplete features, placeholders, and missing implemen
 
 #### Blog Trash Management
 - **File**: `src/app/(frontend)/(cms)/dashboard/blog/trash/page.tsx`
-- **Line**: 99-104
-- **Status**: Partially implemented
+- **Status**: ✅ **COMPLETED**
 - **Description**: 
-  - "Restore" button links to edit page but doesn't actually restore the post
-  - "Permanently Delete" button is disabled
-- **Action Required**:
-  - Implement `restorePost(id: string)` server action in `src/app/(frontend)/(cms)/dashboard/blog/firebase-actions.ts`
-  - Implement `permanentlyDeletePost(id: string)` server action
-  - Update trash page to use these actions with proper error handling
+  - ✅ Updated `deletePost()` to perform soft delete (sets `_status` to 'deleted' and stores `_previousStatus`)
+  - ✅ Implemented `restorePost(id: string)` server action to restore posts to their previous status
+  - ✅ Implemented `permanentlyDeletePost(id: string)` server action for permanent deletion
+  - ✅ Created `TrashPageClient` component with proper error handling, loading states, and confirmation dialogs
+  - ✅ Updated blog list page to exclude soft-deleted posts
 
 ### Page Block Rendering
 
