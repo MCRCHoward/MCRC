@@ -13,6 +13,19 @@ import {
 import { Loader2 } from 'lucide-react'
 import type { UseFormReturn } from 'react-hook-form'
 
+/**
+ * Google Maps Places Autocomplete Integration
+ *
+ * NOTE: This component uses the legacy `google.maps.places.Autocomplete` API.
+ * Google recommends migrating to `google.maps.places.PlaceAutocompleteElement` (Places API New),
+ * but the legacy API will continue to work and receive bug fixes.
+ *
+ * Migration Guide: https://developers.google.com/maps/documentation/javascript/places-migration-overview
+ *
+ * If you see errors about "legacy API not enabled", ensure the Places API is enabled
+ * in Google Cloud Console: https://console.cloud.google.com/apis/library/places-backend.googleapis.com
+ */
+
 // Extend Window interface for Google Maps types
 declare global {
   interface Window {
@@ -52,7 +65,7 @@ type GooglePlacesAutocomplete = {
   }
 }
 
-interface AddressAutocompleteProps {
+interface completeProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<any>
   streetAddressFieldName: string
@@ -124,7 +137,7 @@ export function AddressAutocomplete({
   streetAddressDescription,
   disabled = false,
   className,
-}: AddressAutocompleteProps) {
+}: completeProps) {
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = React.useState(false)
   const [isInitializing, setIsInitializing] = React.useState(false)
   const autocompleteRef = React.useRef<GooglePlacesAutocomplete | null>(null)
@@ -198,7 +211,7 @@ export function AddressAutocomplete({
       autocompleteRef.current = autocomplete
       setIsInitializing(false)
     } catch (error) {
-      console.error('[AddressAutocomplete] Error initializing Google Places:', error)
+      console.error('[complete] Error initializing Google Places:', error)
       setIsInitializing(false)
     }
 

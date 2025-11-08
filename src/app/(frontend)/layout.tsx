@@ -25,9 +25,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         {googleMapsApiKey && (
           <Script
-            src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`}
+            src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&loading=async`}
             strategy="lazyOnload"
             id="google-maps-script"
+            // Note: Next.js Script component handles async loading via strategy="lazyOnload"
+            // The &loading=async parameter is a Google Maps API parameter for optimal loading
           />
         )}
         <Providers>

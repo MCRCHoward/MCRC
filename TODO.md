@@ -447,13 +447,46 @@ This document tracks all incomplete features, placeholders, and missing implemen
   - ⏳ Add author profile pages if needed (optional future enhancement)
 
 #### Firebase Email/Password Login Improvements
-- **Status**: Basic implementation exists
-- **Description**: Login works but needs better error handling and loading states.
+- **Status**: ✅ **COMPLETED**
+- **Description**: Login functionality has been enhanced with improved error handling, loading states, password reset, and sign-out functionality.
+- **Implementation Details**:
+  - ✅ **Friendly Error Messages**: Created `getFriendlyErrorMessage()` function that maps Firebase Auth error codes to user-friendly messages:
+    - `auth/user-not-found`: "No account found with this email address..."
+    - `auth/wrong-password`: "Incorrect password. Please try again or reset your password."
+    - `auth/invalid-credential`: "Invalid email or password..."
+    - `auth/too-many-requests`: "Too many failed login attempts..."
+    - `auth/network-request-failed`: "Network error. Please check your internet connection..."
+    - And many more error codes with helpful messages
+  - ✅ **Improved Loading States**: 
+    - Added separate loading states for email/password login (`isSubmitting`) and Google sign-in (`isGoogleSigningIn`)
+    - Added loading spinner (Loader2) to submit buttons with "Signing in..." text
+    - Disabled all form inputs (email, password, remember me checkbox) during submission
+    - Added loading spinner to Google sign-in button
+    - Prevents multiple simultaneous login attempts
+  - ✅ **Sign-Out Button**: 
+    - Sign-out functionality already exists in `nav-user.tsx` component
+    - Calls `firebase.auth().signOut()` to sign out from Firebase Auth
+    - Calls `/api/session` (DELETE) to clear server session cookie
+    - Enhanced error handling to gracefully handle partial failures
+    - Shows success/error toast notifications
+    - Redirects to login page after successful logout
+  - ✅ **Password Reset**: 
+    - Implemented password reset via `sendPasswordResetEmail` from Firebase Auth
+    - Added "Forgot password?" button that expands to show password reset UI
+    - Validates email address before sending reset email
+    - Shows loading state with spinner during password reset request
+    - Displays success message when reset email is sent
+    - Handles errors gracefully with friendly error messages
+    - Includes cancel option to return to login form
+- **Files Modified**:
+  - `src/components/auth/LoginForm.tsx` - Enhanced with error handling, loading states, and password reset
+  - `src/components/Dashboard/nav-user.tsx` - Improved sign-out error handling
+  - `src/components/Forms/MediationForm.tsx` - Removed unused FormDescription import
 - **Action Required**:
-  - Add friendly error messages
-  - Improve loading states
-  - Add sign-out button that calls `/api/session` (DELETE) and `firebase.auth().signOut()`
-  - Add password reset via `sendPasswordResetEmail`
+  - ✅ ~~Add friendly error messages~~ (Completed)
+  - ✅ ~~Improve loading states~~ (Completed)
+  - ✅ ~~Add sign-out button that calls `/api/session` (DELETE) and `firebase.auth().signOut()`~~ (Already existed, improved error handling)
+  - ✅ ~~Add password reset via `sendPasswordResetEmail`~~ (Completed)
 
 ### Infrastructure
 

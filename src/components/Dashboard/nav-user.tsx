@@ -51,14 +51,22 @@ export function NavUser({
       await signOut(auth)
 
       // Clear server session cookie
-      await fetch('/api/session', { method: 'DELETE' })
+      const response = await fetch('/api/session', { method: 'DELETE' })
+
+      if (!response.ok) {
+        // Even if session deletion fails, we've signed out from Firebase, so continue
+        console.warn('Failed to clear server session, but user is signed out from Firebase')
+      }
 
       toast.success('Logged out successfully')
       router.push('/login')
       router.refresh()
     } catch (error) {
       console.error('Logout error:', error)
-      toast.error('Failed to log out. Please try again.')
+      // Try to redirect anyway, as Firebase sign-out might have succeeded
+      toast.error('An error occurred during logout. Redirecting to login...')
+      router.push('/login')
+      router.refresh()
     }
   }
 
