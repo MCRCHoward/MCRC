@@ -192,7 +192,7 @@ export function GroupFacilitationInquiryForm() {
       if (form.formState.isSubmitSuccessful && !error) {
         clearSavedData() // Clear auto-saved data on successful submission
         toast.success(
-          'Thank you! Your facilitation inquiry was submitted. We'll follow up shortly.',
+          "Thank you! Your facilitation inquiry was submitted. We'll follow up shortly.",
         )
         setCurrentStep(TOTAL_STEPS - 1)
       }
@@ -555,7 +555,7 @@ export function GroupFacilitationInquiryForm() {
             </CardHeader>
             <CardContent>
               <p className="text-green-600 font-semibold">
-                Thank you! Your facilitation inquiry was submitted. We’ll follow up shortly.
+                Thank you! Your facilitation inquiry was submitted. We&apos;ll follow up shortly.
               </p>
             </CardContent>
           </Card>
