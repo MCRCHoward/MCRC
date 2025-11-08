@@ -1,7 +1,7 @@
 import BlogForm from '@/components/Dashboard/blog/BlogForm'
 import { adminDb } from '@/lib/firebase-admin'
 import { fetchAuthorUsers } from '@/lib/firebase-api-users'
-import type { Category, User } from '@/types'
+import type { Category } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0

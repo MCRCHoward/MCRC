@@ -15,7 +15,7 @@ import {
 } from '@/utilities/phoneUtils'
 import { useFormAutoSave } from '@/hooks/useFormAutoSave'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 
 // shadcn/ui
 import { Button } from '@/components/ui/button'

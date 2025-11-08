@@ -25,8 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useFormAutoSave } from '@/hooks/useFormAutoSave'
 
 // Form validation schema
