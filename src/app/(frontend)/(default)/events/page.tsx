@@ -1,4 +1,3 @@
-import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { fetchPublishedEvents, fetchEventTypeBadges } from '@/lib/firebase-api-events'
 import { EventsPageClient } from '@/components/clients/EventsPageClient'
@@ -22,9 +21,5 @@ export const metadata: Metadata = {
 export default async function EventsPage() {
   const [events, badges] = await Promise.all([fetchPublishedEvents(), fetchEventTypeBadges()])
 
-  return (
-    <Suspense fallback={<div className="container mx-auto py-16">Loading events…</div>}>
-      <EventsPageClient events={events} badges={badges} />
-    </Suspense>
-  )
+  return <EventsPageClient events={events} badges={badges} />
 }

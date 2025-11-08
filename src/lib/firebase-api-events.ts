@@ -85,6 +85,12 @@ function mapFirebaseEventToEvent(
           alt: data.title || 'Event image',
         } as { url: string; alt: string })
       : undefined,
+    secondaryImage: data.secondaryImageUrl
+      ? ({
+          url: data.secondaryImageUrl,
+          alt: `${data.title || 'Event'} - secondary image`,
+        } as { url: string; alt: string })
+      : undefined,
     meta: {
       slug: data.slug || doc.id,
       status: data.status === 'published' ? 'published' : 'draft',
