@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
+import { Loader2 } from 'lucide-react'
 
 import { createEvent } from '@/app/(frontend)/(cms)/dashboard/events/firebase-actions'
 
@@ -84,6 +86,44 @@ const schema = baseSchema
 
 type FormValues = z.input<typeof baseSchema>
 
+// Extend Window interface for Google Maps types
+declare global {
+  interface Window {
+    google: {
+      maps: {
+        places: {
+          Autocomplete: new (
+            input: HTMLInputElement,
+            options?: { types?: string[] },
+          ) => {
+            addListener: (event: string, callback: () => void) => void
+            getPlace: () => {
+              address_components?: Array<{
+                long_name: string
+                short_name: string
+                types: string[]
+              }>
+              formatted_address?: string
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+type GooglePlacesAutocomplete = {
+  addListener: (event: string, callback: () => void) => void
+  getPlace: () => {
+    address_components?: Array<{
+      long_name: string
+      short_name: string
+      types: string[]
+    }>
+    formatted_address?: string
+  }
+}
+
 async function uploadEventImage(file: File): Promise<string | undefined> {
   if (!file) return undefined
   const fd = new FormData()
@@ -101,6 +141,11 @@ async function uploadEventImage(file: File): Promise<string | undefined> {
 
 export default function NewEventPage() {
   const router = useRouter()
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false)
+  const [isInitializingAddress, setIsInitializingAddress] = useState(false)
+  const addressAutocompleteRef = useRef<GooglePlacesAutocomplete | null>(null)
+  const addressInputRef = useRef<HTMLInputElement | null>(null)
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -182,6 +227,106 @@ export default function NewEventPage() {
 
   const isOnline = form.watch('isOnline')
   const isFree = form.watch('isFree')
+
+  // Check if Google Maps is loaded
+  useEffect(() => {
+    const checkGoogleMaps = () => {
+      if (typeof window !== 'undefined' && window.google?.maps?.places) {
+        setIsGoogleMapsLoaded(true)
+        return true
+      }
+      return false
+    }
+
+    if (checkGoogleMaps()) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      if (checkGoogleMaps()) {
+        clearInterval(interval)
+      }
+    }, 100)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Initialize autocomplete when Google Maps is loaded and addressLine1 field is available
+  useEffect(() => {
+    if (!isGoogleMapsLoaded || !addressInputRef.current || isOnline) {
+      return
+    }
+
+    if (addressAutocompleteRef.current) {
+      return // Already initialized
+    }
+
+    setIsInitializingAddress(true)
+
+    try {
+      const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+        types: ['address'], // Restrict to addresses only
+      })
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace()
+
+        if (!place.address_components) {
+          setIsInitializingAddress(false)
+          return
+        }
+
+        // Parse address components
+        let streetNumber = ''
+        let streetName = ''
+        let city = ''
+        let state = ''
+        let postalCode = ''
+        let country = ''
+
+        for (const component of place.address_components) {
+          const types = component.types
+
+          if (types.includes('street_number')) {
+            streetNumber = component.long_name
+          } else if (types.includes('route')) {
+            streetName = component.long_name
+          } else if (types.includes('locality')) {
+            city = component.long_name
+          } else if (types.includes('administrative_area_level_1')) {
+            state = component.short_name // Use short name for state (e.g., "MD")
+          } else if (types.includes('postal_code')) {
+            postalCode = component.long_name
+          } else if (types.includes('country')) {
+            country = component.long_name
+          }
+        }
+
+        // Set form values
+        const addressLine1 = [streetNumber, streetName].filter(Boolean).join(' ')
+
+        form.setValue('addressLine1', addressLine1, { shouldValidate: true })
+        form.setValue('city', city, { shouldValidate: true })
+        form.setValue('state', state, { shouldValidate: true })
+        form.setValue('postalCode', postalCode, { shouldValidate: true })
+        form.setValue('country', country, { shouldValidate: true })
+
+        setIsInitializingAddress(false)
+      })
+
+      addressAutocompleteRef.current = autocomplete
+      setIsInitializingAddress(false)
+    } catch (error) {
+      console.error('[NewEventPage] Error initializing Google Places:', error)
+      setIsInitializingAddress(false)
+    }
+
+    return () => {
+      if (addressAutocompleteRef.current) {
+        addressAutocompleteRef.current = null
+      }
+    }
+  }, [isGoogleMapsLoaded, isOnline, form])
 
   return (
     <div className="container max-w-4xl py-6">
@@ -383,9 +528,40 @@ export default function NewEventPage() {
                     name="addressLine1"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address line 1</FormLabel>
+                        <FormLabel>
+                          Address line 1
+                          {isInitializingAddress && (
+                            <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="Address line 1" {...field} />
+                          <div className="relative">
+                            <Input
+                              ref={(e) => {
+                                addressInputRef.current = e
+                                if (typeof field.ref === 'function') {
+                                  field.ref(e)
+                                }
+                              }}
+                              placeholder="Start typing your address..."
+                              aria-label="Address line 1 with autocomplete"
+                              disabled={!isGoogleMapsLoaded}
+                              value={field.value || ''}
+                              onChange={(e) => {
+                                field.onChange(e)
+                                form.setValue('addressLine1', e.target.value, {
+                                  shouldValidate: true,
+                                })
+                              }}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
+                            {!isGoogleMapsLoaded && (
+                              <div className="absolute inset-0 flex items-center justify-end pr-3 pointer-events-none">
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>

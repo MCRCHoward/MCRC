@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { AddressAutocomplete } from '@/components/Forms/AddressAutocomplete'
 
 // Define Zod schemas for each step of the form
 const stepOneSchema = z.object({
@@ -243,60 +244,19 @@ export function MediationForm() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={control}
-                    name="streetAddress"
-                    render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Street Address *</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Our services are free for people who live or work in Howard County.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City *</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={control}
-                    name="state"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State *</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={control}
-                    name="zipCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Zip Code *</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                  <AddressAutocomplete
+                    form={form}
+                    streetAddressFieldName="streetAddress"
+                    cityFieldName="city"
+                    stateFieldName="state"
+                    zipCodeFieldName="zipCode"
+                    streetAddressLabel="Street Address"
+                    cityLabel="City"
+                    stateLabel="State"
+                    zipCodeLabel="Zip Code"
+                    streetAddressDescription="Our services are free for people who live or work in Howard County. Start typing your address for autocomplete suggestions."
+                    disabled={form.formState.isSubmitting}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
                   />
                   <FormField
                     control={control}

@@ -15,6 +15,7 @@ import { handlePhoneInputChange, handlePhoneKeyPress } from '@/utilities/phoneUt
 import { useFormAutoSave } from '@/hooks/useFormAutoSave'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AddressAutocomplete } from '@/components/Forms/AddressAutocomplete'
 
 // --- shadcn/ui ---
 import { Button } from '@/components/ui/button'
@@ -401,80 +402,19 @@ export function MediationSelfReferralForm() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="streetAddress"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Street Address *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="1234 Main St"
-                        aria-label="Street address"
-                        disabled={isSubmitting}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Our mediation process is free for people who live or work in Howard County.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Columbia"
-                        aria-label="City"
-                        disabled={isSubmitting}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>State *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="MD"
-                        aria-label="State"
-                        disabled={isSubmitting}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="zipCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zip Code *</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="21044"
-                        aria-label="Zip code"
-                        disabled={isSubmitting}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <AddressAutocomplete
+                form={form}
+                streetAddressFieldName="streetAddress"
+                cityFieldName="city"
+                stateFieldName="state"
+                zipCodeFieldName="zipCode"
+                streetAddressLabel="Street Address"
+                cityLabel="City"
+                stateLabel="State"
+                zipCodeLabel="Zip Code"
+                streetAddressDescription="Our mediation process is free for people who live or work in Howard County. Start typing your address for autocomplete suggestions."
+                disabled={isSubmitting}
+                className="grid grid-cols-1 md:grid-cols-2 gap-6"
               />
               <FormField
                 control={form.control}
