@@ -9,7 +9,7 @@ export interface Post {
   authors: string[] // User IDs
   authorData?: Array<{ id: string; name: string; email: string }> // Populated author information
   categories: string[] // Category IDs
-  _status: 'draft' | 'published'
+  _status: 'draft' | 'published' | 'deleted'
   publishedAt?: string
   createdAt: string
   updatedAt: string
@@ -40,7 +40,7 @@ export interface PostInput {
   metaImage?: string
   authors: string[]
   categories: string[]
-  _status: 'draft' | 'published'
+  _status: 'draft' | 'published' | 'deleted'
   publishedAt?: string
   title?: string
   heroSubHeader?: string
