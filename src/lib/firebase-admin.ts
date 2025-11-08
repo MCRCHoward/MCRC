@@ -145,7 +145,7 @@ export async function healthCheckAdminSDK(): Promise<{
 
     // Try a simple query to verify connection
     const testRef = adminDb.collection('posts').limit(1)
-    const testSnapshot = await testRef.get()
+    await testRef.get()
 
     return {
       healthy: true,

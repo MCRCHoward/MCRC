@@ -196,8 +196,6 @@ export default async function BlogPage() {
       })
     }
 
-    const duration = Date.now() - startTime
-
     // Validate fetched data
     const invalidPosts = posts.filter((post) => !validatePostData(post).valid)
     if (invalidPosts.length > 0 && process.env.NODE_ENV !== 'production') {
