@@ -1,6 +1,7 @@
 import { fetchFeaturedPost, fetchPosts, fetchCategories } from '@/lib/firebase-api-blog'
 import type { Post, Category } from '@/types'
 import { default as BlogPageClient } from '@/components/clients/BlogPageClient'
+import { verifyAdminSDKInitialization, healthCheckAdminSDK } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -99,6 +100,34 @@ function toUICategories(docs: Category[]): UIHelperCategory[] {
   return [{ label: 'All', value: 'all' }, ...cats]
 }
 
+/**
+ * Validates post data structure before transformation
+ */
+function validatePostData(post: Post): {
+  valid: boolean
+  errors: string[]
+} {
+  const errors: string[] = []
+
+  if (!post.id || typeof post.id !== 'string') {
+    errors.push('Missing or invalid id')
+  }
+  if (!post.slug || typeof post.slug !== 'string') {
+    errors.push('Missing or invalid slug')
+  }
+  if (!post.title || typeof post.title !== 'string') {
+    errors.push('Missing or invalid title')
+  }
+  if (!post._status || typeof post._status !== 'string') {
+    errors.push('Missing or invalid _status')
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  }
+}
+
 export default async function BlogPage() {
   // Fetch everything on the server
   let featured = null,
@@ -106,51 +135,135 @@ export default async function BlogPage() {
     categories: Category[] = []
 
   const startTime = Date.now()
+  let initializationCheck: ReturnType<typeof verifyAdminSDKInitialization> | null = null
 
   try {
-    // Verify Admin SDK initialization in development
-    if (process.env.NODE_ENV !== 'production') {
-      const { verifyAdminSDKInitialization } = await import('@/lib/firebase-admin')
-      const initStatus = verifyAdminSDKInitialization()
-      if (!initStatus.initialized) {
-        console.error('[BlogPage] Admin SDK initialization failed:', initStatus.errors)
+    // Verify Admin SDK initialization (both dev and production)
+    initializationCheck = verifyAdminSDKInitialization()
+
+    if (!initializationCheck.initialized) {
+      const errorMessage = `Admin SDK initialization failed: ${initializationCheck.errors.join(', ')}`
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[BlogPage]', errorMessage)
+      } else {
+        // In production, log without exposing sensitive details
+        console.error('[BlogPage] Admin SDK initialization failed. Check environment variables.')
+      }
+      // Continue execution - let individual fetch functions handle errors
+    } else if (process.env.NODE_ENV !== 'production') {
+      // In development, run health check for diagnostics
+      const healthCheck = await healthCheckAdminSDK()
+      if (!healthCheck.healthy) {
+        console.warn('[BlogPage] Admin SDK health check failed:', healthCheck.error)
       }
     }
 
-    ;[featured, posts, categories] = await Promise.all([
+    // Fetch data with individual error handling
+    const fetchResults = await Promise.allSettled([
       fetchFeaturedPost(),
       fetchPosts(),
       fetchCategories(),
     ])
 
-    const duration = Date.now() - startTime
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[BlogPage] Data fetched:', {
-        featured: featured ? featured.title : 'none',
-        postsCount: posts.length,
-        categoriesCount: categories.length,
-        duration: `${duration}ms`,
+    // Process fetch results with detailed error logging
+    if (fetchResults[0].status === 'fulfilled') {
+      featured = fetchResults[0].value
+    } else {
+      const error = fetchResults[0].reason
+      console.error('[BlogPage] Error fetching featured post:', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
       })
     }
 
-    // Log warnings for empty results
-    if (posts.length === 0 && process.env.NODE_ENV !== 'production') {
-      console.warn('[BlogPage] No posts fetched. Possible issues:')
-      console.warn('  - No posts with _status="published" in Firestore')
-      console.warn('  - Missing Firestore indexes (check firestore.indexes.json)')
-      console.warn('  - Admin SDK connection issues')
-      console.warn('  - Posts missing required fields (id, slug, _status, title)')
+    if (fetchResults[1].status === 'fulfilled') {
+      posts = fetchResults[1].value
+    } else {
+      const error = fetchResults[1].reason
+      console.error('[BlogPage] Error fetching posts:', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      })
+    }
+
+    if (fetchResults[2].status === 'fulfilled') {
+      categories = fetchResults[2].value
+    } else {
+      const error = fetchResults[2].reason
+      console.error('[BlogPage] Error fetching categories:', {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      })
+    }
+
+    const duration = Date.now() - startTime
+
+    // Validate fetched data
+    const invalidPosts = posts.filter((post) => !validatePostData(post).valid)
+    if (invalidPosts.length > 0 && process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[BlogPage] Found invalid posts:',
+        invalidPosts.map((p) => ({
+          id: p.id,
+          errors: validatePostData(p).errors,
+        })),
+      )
+    }
+
+    // Log warnings for empty results with actionable guidance
+    if (posts.length === 0) {
+      const warningMessage = '[BlogPage] No posts fetched. Possible issues:'
+      const possibleIssues = [
+        'No posts with _status="published" in Firestore',
+        'Missing Firestore indexes (check firestore.indexes.json)',
+        'Admin SDK connection issues',
+        'Posts missing required fields (id, slug, _status, title)',
+      ]
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(warningMessage)
+        possibleIssues.forEach((issue) => console.warn(`  - ${issue}`))
+      } else {
+        // Production: log a single concise warning
+        console.warn('[BlogPage] No posts available. Check Firestore data and indexes.')
+      }
+    }
+
+    // Log warnings for missing categories
+    if (categories.length === 0 && process.env.NODE_ENV !== 'production') {
+      console.warn('[BlogPage] No categories fetched. This may affect post categorization.')
     }
   } catch (error) {
     const duration = Date.now() - startTime
-    console.error('[BlogPage] Error fetching blog data:', {
+    const errorDetails = {
       error: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
+      errorStack:
+        process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined,
       duration: `${duration}ms`,
       postsFetched: posts.length,
       categoriesFetched: categories.length,
-    })
+      adminSDKStatus: initializationCheck
+        ? {
+            initialized: initializationCheck.initialized,
+            hasProjectId: initializationCheck.hasProjectId,
+            hasClientEmail: initializationCheck.hasClientEmail,
+            hasPrivateKey: initializationCheck.hasPrivateKey,
+            errorCount: initializationCheck.errors.length,
+          }
+        : 'not checked',
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[BlogPage] Fatal error fetching blog data:', errorDetails)
+    } else {
+      // Production: log without stack traces
+      console.error('[BlogPage] Error fetching blog data:', {
+        error: error instanceof Error ? error.message : String(error),
+        duration: `${duration}ms`,
+        postsFetched: posts.length,
+        categoriesFetched: categories.length,
+      })
+    }
   }
 
   // Create a category map for efficient lookups

@@ -49,6 +49,7 @@ export const adminAuth = getAuth(adminApp)
 /**
  * Verifies Admin SDK initialization and environment variables
  * Logs diagnostic information in development mode
+ * Provides safe error messages in production without exposing sensitive data
  */
 export function verifyAdminSDKInitialization(): {
   initialized: boolean
@@ -57,12 +58,15 @@ export function verifyAdminSDKInitialization(): {
   hasPrivateKey: boolean
   projectId?: string
   errors: string[]
+  warnings: string[]
 } {
   const errors: string[] = []
+  const warnings: string[] = []
   const hasProjectId = Boolean(process.env.FIREBASE_ADMIN_PROJECT_ID)
   const hasClientEmail = Boolean(process.env.FIREBASE_ADMIN_CLIENT_EMAIL)
   const hasPrivateKey = Boolean(process.env.FIREBASE_ADMIN_PRIVATE_KEY)
 
+  // Check required environment variables
   if (!hasProjectId) {
     errors.push('FIREBASE_ADMIN_PROJECT_ID is missing')
   }
@@ -73,17 +77,30 @@ export function verifyAdminSDKInitialization(): {
     errors.push('FIREBASE_ADMIN_PRIVATE_KEY is missing')
   }
 
-  const initialized = adminApp !== null && errors.length === 0
+  // Check optional but recommended variables
+  if (
+    !process.env.FIREBASE_ADMIN_STORAGE_BUCKET &&
+    !process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+  ) {
+    warnings.push('Storage bucket not explicitly set (will use default)')
+  }
 
-  // Log diagnostic info in development only
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[Admin SDK] Initialization status:', {
-      initialized,
-      hasProjectId,
-      hasClientEmail,
-      hasPrivateKey: hasPrivateKey ? '***' : false,
-      projectId: adminApp.options.projectId,
-      errors: errors.length > 0 ? errors : 'none',
+  // Verify Admin SDK app is initialized
+  let appInitialized = false
+  try {
+    appInitialized = adminApp !== null && Boolean(adminApp.options.projectId)
+  } catch {
+    appInitialized = false
+  }
+
+  const initialized = appInitialized && errors.length === 0
+
+  // Log errors in production if initialization failed
+  if (errors.length > 0 && process.env.NODE_ENV === 'production') {
+    // In production, log errors without sensitive details
+    console.error('[Admin SDK] Initialization failed:', {
+      errorCount: errors.length,
+      missingVariables: errors.map((e) => e.split(' ')[0]), // Just variable names
     })
   }
 
@@ -94,11 +111,13 @@ export function verifyAdminSDKInitialization(): {
     hasPrivateKey,
     projectId: adminApp.options.projectId,
     errors,
+    warnings,
   }
 }
 
 /**
  * Health check function to test Admin SDK connection
+ * Verifies both initialization and ability to query Firestore
  */
 export async function healthCheckAdminSDK(): Promise<{
   healthy: boolean
@@ -106,26 +125,46 @@ export async function healthCheckAdminSDK(): Promise<{
   details?: {
     projectId: string
     canQuery: boolean
+    initializationStatus: ReturnType<typeof verifyAdminSDKInitialization>
   }
 }> {
   try {
-    verifyAdminSDKInitialization()
+    const initStatus = verifyAdminSDKInitialization()
+
+    if (!initStatus.initialized) {
+      return {
+        healthy: false,
+        error: `Admin SDK not initialized: ${initStatus.errors.join(', ')}`,
+        details: {
+          projectId: initStatus.projectId || 'unknown',
+          canQuery: false,
+          initializationStatus: initStatus,
+        },
+      }
+    }
 
     // Try a simple query to verify connection
     const testRef = adminDb.collection('posts').limit(1)
-    await testRef.get()
+    const testSnapshot = await testRef.get()
 
     return {
       healthy: true,
       details: {
         projectId: adminApp.options.projectId || 'unknown',
         canQuery: true,
+        initializationStatus: initStatus,
       },
     }
   } catch (error) {
+    const initStatus = verifyAdminSDKInitialization()
     return {
       healthy: false,
       error: error instanceof Error ? error.message : String(error),
+      details: {
+        projectId: initStatus.projectId || 'unknown',
+        canQuery: false,
+        initializationStatus: initStatus,
+      },
     }
   }
 }
@@ -166,11 +205,6 @@ export const adminStorage = getStorage(adminApp)
  * 3. Ensure Storage is enabled in Firebase Console
  */
 export const getStorageBucket = () => {
-  // Log the bucket name being used for debugging (don't log in production)
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[getStorageBucket] Using bucket:', finalBucketName)
-  }
-
   const bucket = adminStorage.bucket(finalBucketName)
 
   return bucket

@@ -45,29 +45,45 @@ function timestampToISOString(value: unknown): string | undefined {
   if (typeof value === 'object' && value !== null && 'toDate' in value) {
     const toDate = (value as { toDate: () => Date }).toDate
     if (typeof toDate === 'function') {
-      return toDate().toISOString()
+      try {
+        return toDate().toISOString()
+      } catch {
+        return undefined
+      }
     }
   }
 
   // Raw Firestore Timestamp format: {_seconds: number, _nanoseconds: number}
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    '_seconds' in value &&
-    '_nanoseconds' in value
-  ) {
-    const seconds = (value as { _seconds: number })._seconds
-    const nanoseconds = (value as { _nanoseconds: number })._nanoseconds
-    if (typeof seconds === 'number') {
-      // Convert seconds + nanoseconds to milliseconds
-      const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
-      return new Date(milliseconds).toISOString()
+  // Must verify both properties exist AND are actually numbers (not undefined)
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>
+    const seconds = obj._seconds
+    const nanoseconds = obj._nanoseconds
+
+    // Both must be defined and be numbers
+    if (
+      typeof seconds === 'number' &&
+      typeof nanoseconds === 'number' &&
+      !Number.isNaN(seconds) &&
+      !Number.isNaN(nanoseconds)
+    ) {
+      try {
+        // Convert seconds + nanoseconds to milliseconds
+        const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
+        return new Date(milliseconds).toISOString()
+      } catch {
+        return undefined
+      }
     }
   }
 
   // Already a Date object
   if (value instanceof Date) {
-    return value.toISOString()
+    try {
+      return value.toISOString()
+    } catch {
+      return undefined
+    }
   }
 
   // Already a string
@@ -94,19 +110,36 @@ function serializeFirebaseData<T>(data: T): T {
 
   // Handle objects
   if (typeof data === 'object') {
-    // Check if it's a Firebase Timestamp (Admin SDK with toDate() or raw format)
+    const obj = data as Record<string, unknown>
+
+    // Check if it's a Firebase Admin SDK Timestamp (has toDate method)
+    if ('toDate' in obj && typeof obj.toDate === 'function') {
+      const timestamp = timestampToISOString(data)
+      return (timestamp ?? undefined) as unknown as T
+    }
+
+    // Check if it's a raw Firestore Timestamp format
+    // Must verify both _seconds and _nanoseconds exist AND are numbers (not undefined)
+    const seconds = obj._seconds
+    const nanoseconds = obj._nanoseconds
     if (
-      ('toDate' in data && typeof (data as { toDate?: () => Date }).toDate === 'function') ||
-      ('_seconds' in data && '_nanoseconds' in data)
+      typeof seconds === 'number' &&
+      typeof nanoseconds === 'number' &&
+      !Number.isNaN(seconds) &&
+      !Number.isNaN(nanoseconds)
     ) {
       const timestamp = timestampToISOString(data)
-      return timestamp as unknown as T
+      return (timestamp ?? undefined) as unknown as T
     }
 
     // Regular object - serialize all properties
+    // Skip undefined/null values to avoid serialization issues
     const serialized = {} as T
     for (const [key, value] of Object.entries(data)) {
-      ;(serialized as Record<string, unknown>)[key] = serializeFirebaseData(value)
+      // Skip undefined values to avoid issues with optional timestamp fields
+      if (value !== undefined) {
+        ;(serialized as Record<string, unknown>)[key] = serializeFirebaseData(value)
+      }
     }
     return serialized
   }
@@ -117,11 +150,13 @@ function serializeFirebaseData<T>(data: T): T {
 
 /**
  * Sorts posts by date descending (newest first)
+ * Uses createdAt field (publishedAt doesn't exist in Firestore structure)
  */
-function sortByDateDesc<T extends { createdAt?: unknown; publishedAt?: unknown }>(rows: T[]): T[] {
+function sortByDateDesc<T extends { createdAt?: unknown; updatedAt?: unknown }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => {
-    const aTs = getTimestamp(a.publishedAt ?? a.createdAt)
-    const bTs = getTimestamp(b.publishedAt ?? b.createdAt)
+    // Use createdAt as primary, fallback to updatedAt if createdAt is missing
+    const aTs = getTimestamp(a.createdAt ?? a.updatedAt)
+    const bTs = getTimestamp(b.createdAt ?? b.updatedAt)
     return bTs - aTs
   })
 }
@@ -169,9 +204,10 @@ function validateAndFilterPosts(posts: Post[]): Post[] {
  * Fetches published posts from Firebase. Can optionally filter by category.
  *
  * Required Firestore indexes:
- * - Collection: posts, Fields: _status (Ascending), publishedAt (Descending)
  * - Collection: posts, Fields: _status (Ascending), createdAt (Descending)
- * - Collection: posts, Fields: _status (Ascending), categories (Arrays), publishedAt (Descending)
+ * - Collection: posts, Fields: _status (Ascending), categories (Arrays), createdAt (Descending)
+ *
+ * Note: Firestore structure uses `createdAt` (not `publishedAt`) for date ordering.
  *
  * @param categorySlug - The slug of the category to filter by.
  */
@@ -198,9 +234,6 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
           .get()
 
         if (categorySnapshot.empty) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('[fetchPosts] Category not found:', categorySlug)
-          }
           return []
         }
 
@@ -220,57 +253,41 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
       }
     }
 
-    // Try to order by publishedAt first, fallback to createdAt, then no order
+    // Try to order by createdAt (primary field in Firestore structure)
     let posts: Post[]
-    let queryMethod = 'unknown'
-    let queryError: Error | null = null
 
     try {
-      const snapshot = await postsQuery.orderBy('publishedAt', 'desc').get()
+      const snapshot = await postsQuery.orderBy('createdAt', 'desc').get()
       posts = snapshot.docs.map((doc) => {
         const rawData = doc.data()
         const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
         return serialized as Post
       })
-      queryMethod = 'publishedAt desc'
     } catch (error) {
-      queryError = error instanceof Error ? error : new Error(String(error))
       const errorCode = (error as { code?: string })?.code
 
-      // Check if it's a missing index error
+      // Check if it's a missing index error (this is expected and handled gracefully)
       if (errorCode === 'failed-precondition') {
+        // Extract the index creation URL from the error message if available
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const indexUrlMatch = errorMessage.match(/https:\/\/console\.firebase\.google\.com[^\s]+/)
+        const indexUrl = indexUrlMatch ? indexUrlMatch[0] : null
+
         if (process.env.NODE_ENV !== 'production') {
           console.warn(
-            '[fetchPosts] Missing index for _status + publishedAt. Falling back to createdAt.',
+            '[fetchPosts] Missing Firestore index for _status + createdAt. Falling back to in-memory sorting.',
           )
+          if (indexUrl) {
+            console.warn(`[fetchPosts] Create the index here: ${indexUrl}`)
+          }
         }
       } else {
-        console.error('[fetchPosts] Error with publishedAt query:', error)
+        // Only log as error if it's not a missing index (unexpected error)
+        console.error('[fetchPosts] Unexpected error with createdAt query:', error)
       }
 
+      // Fallback: No orderBy - fetch all and sort in memory
       try {
-        const snapshot = await postsQuery.orderBy('createdAt', 'desc').get()
-        posts = snapshot.docs.map((doc) => {
-          const rawData = doc.data()
-          const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-          return serialized as Post
-        })
-        queryMethod = 'createdAt desc'
-      } catch (error2) {
-        queryError = error2 instanceof Error ? error2 : new Error(String(error2))
-        const errorCode2 = (error2 as { code?: string })?.code
-
-        if (errorCode2 === 'failed-precondition') {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn(
-              '[fetchPosts] Missing index for _status + createdAt. Fetching without orderBy.',
-            )
-          }
-        } else {
-          console.error('[fetchPosts] Error with createdAt query:', error2)
-        }
-
-        // No orderBy - fetch all and sort in memory
         const snapshot = await postsQuery.get()
         posts = snapshot.docs.map((doc) => {
           const rawData = doc.data()
@@ -278,28 +295,15 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
           return serialized as Post
         })
         posts = sortByDateDesc(posts)
-        queryMethod = 'no orderBy (in-memory sort)'
+      } catch (fallbackError) {
+        // If even the fallback fails, this is a real error
+        console.error('[fetchPosts] Fatal error: Even fallback query failed:', fallbackError)
+        return []
       }
     }
 
     // Validate and filter posts
-    const initialCount = posts.length
     posts = validateAndFilterPosts(posts)
-    const validCount = posts.length
-    const filteredCount = initialCount - validCount
-
-    if (process.env.NODE_ENV !== 'production') {
-      const duration = Date.now() - startTime
-      console.log('[fetchPosts] Query completed:', {
-        ...queryDetails,
-        queryMethod,
-        totalFetched: initialCount,
-        validPosts: validCount,
-        filteredOut: filteredCount,
-        duration: `${duration}ms`,
-        error: queryError ? queryError.message : null,
-      })
-    }
 
     // Populate author data for all posts
     const allAuthorIds = Array.from(
@@ -372,6 +376,8 @@ async function populateAuthorData(post: Post): Promise<Post> {
 /**
  * Fetches the featured published post. Prioritizes posts where featured=true.
  * If no featured post exists, falls back to the most recent published post.
+ *
+ * Note: Firestore structure uses `createdAt` (not `publishedAt`) for date ordering.
  */
 export async function fetchFeaturedPost(): Promise<Post | null> {
   try {
@@ -380,13 +386,13 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
 
     let post: Post | null = null
 
-    // Primary: featured=true, published, newest by publishedAt
+    // Primary: featured=true, published, newest by createdAt
     try {
       const snapshot = await adminDb
         .collection('posts')
         .where('_status', '==', 'published')
         .where('featured', '==', true)
-        .orderBy('publishedAt', 'desc')
+        .orderBy('createdAt', 'desc')
         .limit(1)
         .get()
 
@@ -399,13 +405,12 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
         }
       }
     } catch {
-      // Fallback: try with createdAt
+      // Fallback: any featured (no orderBy)
       try {
         const snapshot = await adminDb
           .collection('posts')
           .where('_status', '==', 'published')
           .where('featured', '==', true)
-          .orderBy('createdAt', 'desc')
           .limit(1)
           .get()
 
@@ -417,23 +422,8 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
             post = serialized as Post
           }
         }
-      } catch {
-        // Fallback: any featured (no orderBy)
-        const snapshot = await adminDb
-          .collection('posts')
-          .where('_status', '==', 'published')
-          .where('featured', '==', true)
-          .limit(1)
-          .get()
-
-        if (!snapshot.empty) {
-          const doc = snapshot.docs[0]
-          if (doc) {
-            const rawData = doc.data()
-            const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-            post = serialized as Post
-          }
-        }
+      } catch (error) {
+        console.error('[fetchFeaturedPost] Error fetching featured post (no orderBy):', error)
       }
     }
 
@@ -443,7 +433,7 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
         const snapshot = await adminDb
           .collection('posts')
           .where('_status', '==', 'published')
-          .orderBy('publishedAt', 'desc')
+          .orderBy('createdAt', 'desc')
           .limit(1)
           .get()
 
