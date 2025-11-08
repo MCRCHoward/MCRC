@@ -103,7 +103,11 @@ export function BlogPostCard({ post }: BlogPostCardProps) {
       <CardFooter className="mt-auto flex items-center justify-between px-0 pt-4">
         <div className="flex items-center gap-2">
           <UserIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          <span className="text-sm">MCRC Staff</span>
+          <span className="text-sm">
+            {post.authorData && post.authorData.length > 0
+              ? post.authorData.map((author) => author.name || author.email || 'Unknown').join(', ')
+              : 'MCRC Staff'}
+          </span>
         </div>
         {displayDate && (
           <div className="flex items-center gap-1 text-sm text-muted-foreground">

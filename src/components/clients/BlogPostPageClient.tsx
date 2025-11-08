@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock } from 'lucide-react'
+import { Clock, User as UserIcon } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -156,6 +156,19 @@ export function BlogPostPageClient({ post, categories }: BlogPostPageClientProps
                     Published Date
                   </p>
                   <p className="text-lg font-medium">{displayDate}</p>
+                </div>
+              )}
+              {post.authorData && post.authorData.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Author{post.authorData.length > 1 ? 's' : ''}
+                  </p>
+                  <div className="flex items-center gap-2 text-lg font-medium">
+                    <UserIcon className="h-4 w-4" />
+                    <span>
+                      {post.authorData.map((author) => author.name || author.email || 'Unknown').join(', ')}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

@@ -28,6 +28,7 @@ import { createPost } from '@/app/(frontend)/(cms)/dashboard/blog/firebase-actio
 import type { PostInput } from '@/types'
 
 type CategoryLike = { id: string; name?: string | null; slug?: string | null }
+type UserLike = { id: string; name?: string | null; email?: string | null }
 
 const BlogFormSchema = z.object({
   // Hero Section
@@ -38,6 +39,7 @@ const BlogFormSchema = z.object({
 
   // Blog Post Outline
   categoryIds: z.array(z.string()).min(1, 'Please select at least one category'),
+  authorIds: z.array(z.string()).optional(),
   featured: z.boolean(),
 
   // Main Content
@@ -48,9 +50,10 @@ type BlogFormValues = z.infer<typeof BlogFormSchema>
 
 interface BlogFormProps {
   categories: CategoryLike[]
+  authors: UserLike[]
 }
 
-export default function BlogForm({ categories }: BlogFormProps) {
+export default function BlogForm({ categories, authors }: BlogFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -62,6 +65,7 @@ export default function BlogForm({ categories }: BlogFormProps) {
       heroBriefSummary: '',
       heroImageFile: undefined,
       categoryIds: [],
+      authorIds: [],
       featured: false,
       contentHtml: '',
     },
@@ -140,7 +144,7 @@ export default function BlogForm({ categories }: BlogFormProps) {
         const postData: PostInput = {
           slug: slugify(values.title, { lower: true, strict: true, trim: true }),
           excerpt: values.heroBriefSummary?.slice(0, 150) ?? '',
-          authors: [], // Will be automatically populated with current user in createPost()
+          authors: values.authorIds || [], // Selected authors (current user will be auto-added in createPost)
           categories: values.categoryIds,
           contentHtml: values.contentHtml,
           heroImage: heroImageUrl,
@@ -309,6 +313,41 @@ export default function BlogForm({ categories }: BlogFormProps) {
                         })}
                       </div>
                       <FormDescription>Select at least one category</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="authorIds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Authors</FormLabel>
+                      <FormControl>
+                        <AuthorSelect
+                          authors={authors}
+                          selectedAuthorIds={field.value || []}
+                          onSelectionChange={(ids) => {
+                            field.onChange(ids)
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Select one or more authors. You will be automatically added as an author.
+                      </FormDescription>
+                      {field.value && field.value.length > 0 && (
+                        <div className="mt-2">
+                          <AuthorChips
+                            authors={authors}
+                            selectedAuthorIds={field.value}
+                            onRemove={(authorId) => {
+                              const newIds = (field.value || []).filter((id) => id !== authorId)
+                              field.onChange(newIds)
+                            }}
+                          />
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

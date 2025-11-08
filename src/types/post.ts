@@ -7,6 +7,7 @@ export interface Post {
   heroImage?: string
   metaImage?: string
   authors: string[] // User IDs
+  authorData?: Array<{ id: string; name: string; email: string }> // Populated author information
   categories: string[] // Category IDs
   _status: 'draft' | 'published'
   publishedAt?: string

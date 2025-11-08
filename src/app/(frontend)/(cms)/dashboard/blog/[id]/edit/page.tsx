@@ -2,7 +2,8 @@ import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { fetchPostById } from '@/lib/firebase-api-blog'
 import { adminDb } from '@/lib/firebase-admin'
-import type { Post, Category } from '@/types'
+import { fetchAuthorUsers } from '@/lib/firebase-api-users'
+import type { Post, Category, User } from '@/types'
 import PostForm from './PostForm'
 
 type RouteParams = Promise<{ id: string }>
@@ -47,12 +48,17 @@ async function fetchCategories(): Promise<Category[]> {
 export default async function EditPostPage({ params }: { params: RouteParams }) {
   const { id } = await params
 
-  // Fetch post and categories data
+  // Fetch post, categories, and authors data
   let post: Post | null = null
   let categories: Category[] = []
+  let authors: User[] = []
 
   try {
-    ;[post, categories] = await Promise.all([fetchPostById(id), fetchCategories()])
+    ;[post, categories, authors] = await Promise.all([
+      fetchPostById(id),
+      fetchCategories(),
+      fetchAuthorUsers(),
+    ])
   } catch (error) {
     console.error('Error fetching post data:', error)
   }
@@ -62,11 +68,12 @@ export default async function EditPostPage({ params }: { params: RouteParams }) 
   }
 
   // Convert Firebase types to form-compatible types
-  const postLike: PostLike = {
+  const postLike: PostLike & { authors?: string[] } = {
     id: post.id,
     title: post.title,
     excerpt: post.excerpt,
     categories: post.categories || [],
+    authors: post.authors || [],
     sections: post.sections || undefined,
     contentHtml: post.contentHtml,
     heroImage: post.heroImage,
@@ -78,9 +85,16 @@ export default async function EditPostPage({ params }: { params: RouteParams }) 
     slug: cat.slug,
   }))
 
+  const authorLikes: Array<{ id: string; name?: string | null; email?: string | null }> =
+    authors.map((author) => ({
+      id: author.id,
+      name: author.name,
+      email: author.email,
+    }))
+
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <PostForm mode="edit" post={postLike} categories={categoryLikes} />
+      <PostForm mode="edit" post={postLike} categories={categoryLikes} authors={authorLikes} />
     </Suspense>
   )
 }

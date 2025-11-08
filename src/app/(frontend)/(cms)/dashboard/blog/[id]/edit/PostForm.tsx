@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FileInput } from '@/components/ui/file-inputs'
 import { Editor } from '@/components/editor/editor'
+import { AuthorSelect, AuthorChips } from '@/components/ui/author-select'
 
 type CategoryLike = { id: string | number; title?: string | null; slug?: string | null }
 type PostSectionLike = { title?: string | null; contentHtml?: string | null }
@@ -39,10 +40,13 @@ type PostLike = {
   heroImage?: MediaLike
 }
 
+type UserLike = { id: string; name?: string | null; email?: string | null }
+
 export type PostFormProps = {
   mode: 'new' | 'edit'
   post?: PostLike | null // ← no more `any`
   categories: CategoryLike[]
+  authors?: UserLike[]
 }
 
 const SectionSchema = z.object({
@@ -55,6 +59,7 @@ const FormSchema = z.object({
   title: z.string().min(2, 'Please enter a title'),
   excerpt: z.string().optional(),
   categoryIds: z.array(z.string()).optional(),
+  authorIds: z.array(z.string()).optional(),
   heroImageFile: z.custom<File>().optional(),
   section1: SectionSchema.optional(),
   section2: SectionSchema.optional(),
@@ -77,7 +82,7 @@ function asString(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback
 }
 
-export default function PostForm({ mode, post, categories }: PostFormProps) {
+export default function PostForm({ mode, post, categories, authors = [] }: PostFormProps) {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const totalSteps = 5
@@ -93,10 +98,17 @@ export default function PostForm({ mode, post, categories }: PostFormProps) {
     return arr.map((c) => (typeof c === 'object' && c ? String(c.id) : String(c))).filter(Boolean)
   }, [post])
 
+  // Get default author IDs from post
+  const defaultAuthorIds: string[] = useMemo(() => {
+    if (!post || !('authors' in post) || !Array.isArray(post.authors)) return []
+    return post.authors.map((id) => String(id)).filter(Boolean)
+  }, [post])
+
   const defaultValues: FormValues = {
     title: asString(post?.title),
     excerpt: asString(post?.excerpt),
     categoryIds: defaultCategoryIds,
+    authorIds: defaultAuthorIds,
     heroImageFile: undefined,
     section1: {
       title: asString(post?.sections?.[0]?.title),
@@ -140,6 +152,7 @@ export default function PostForm({ mode, post, categories }: PostFormProps) {
         title: values.title,
         excerpt: values.excerpt,
         categoryIds: values.categoryIds ?? [],
+        authorIds: values.authorIds ?? [],
         sections: [
           values.section1?.title || values.section1?.content ? values.section1 : null,
           values.section2?.title || values.section2?.content ? values.section2 : null,
@@ -288,6 +301,44 @@ export default function PostForm({ mode, post, categories }: PostFormProps) {
                       </FormItem>
                     )}
                   />
+
+                  {/* Authors */}
+                  {authors.length > 0 && (
+                    <FormField
+                      control={form.control}
+                      name="authorIds"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Authors</FormLabel>
+                          <FormControl>
+                            <AuthorSelect
+                              authors={authors}
+                              selectedAuthorIds={field.value || []}
+                              onSelectionChange={(ids) => {
+                                field.onChange(ids)
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Select one or more authors. You will be automatically added as an author.
+                          </FormDescription>
+                          {field.value && field.value.length > 0 && (
+                            <div className="mt-2">
+                              <AuthorChips
+                                authors={authors}
+                                selectedAuthorIds={field.value}
+                                onRemove={(authorId) => {
+                                  const newIds = (field.value || []).filter((id) => id !== authorId)
+                                  field.onChange(newIds)
+                                }}
+                              />
+                            </div>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
 
                   {/* Hero image (single file) */}
                   <FormField

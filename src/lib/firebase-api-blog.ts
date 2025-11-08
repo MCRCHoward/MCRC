@@ -9,6 +9,7 @@
  * Client SDK (firebase/firestore) should only be used in client components ('use client')
  */
 import type { Post, Category } from '@/types'
+import { fetchUsersByIds } from './firebase-api-users'
 
 // ====================================================================
 //                          BLOG API CALLS
@@ -161,9 +162,10 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
     }
 
     // Try to order by publishedAt first, fallback to createdAt, then no order
+    let posts: Post[]
     try {
       const snapshot = await postsQuery.orderBy('publishedAt', 'desc').get()
-      return snapshot.docs.map((doc) => {
+      posts = snapshot.docs.map((doc) => {
         const rawData = doc.data()
         const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
         return serialized as Post
@@ -171,7 +173,7 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
     } catch {
       try {
         const snapshot = await postsQuery.orderBy('createdAt', 'desc').get()
-        return snapshot.docs.map((doc) => {
+        posts = snapshot.docs.map((doc) => {
           const rawData = doc.data()
           const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
           return serialized as Post
@@ -179,17 +181,69 @@ export async function fetchPosts(categorySlug?: string): Promise<Post[]> {
       } catch {
         // No orderBy - fetch all and sort in memory
         const snapshot = await postsQuery.get()
-        const posts = snapshot.docs.map((doc) => {
+        posts = snapshot.docs.map((doc) => {
           const rawData = doc.data()
           const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
           return serialized as Post
         })
-        return sortByDateDesc(posts)
+        posts = sortByDateDesc(posts)
       }
     }
+
+    // Populate author data for all posts
+    const allAuthorIds = Array.from(
+      new Set(posts.flatMap((post) => post.authors || []).filter(Boolean)),
+    )
+    if (allAuthorIds.length > 0) {
+      const authors = await fetchUsersByIds(allAuthorIds)
+      const authorMap = new Map(authors.map((author) => [author.id, author]))
+
+      // Add authorData to each post
+      posts = posts.map((post) => ({
+        ...post,
+        authorData: (post.authors || [])
+          .map((authorId) => {
+            const author = authorMap.get(authorId)
+            return author
+              ? { id: author.id, name: author.name || '', email: author.email || '' }
+              : null
+          })
+          .filter(
+            (author): author is { id: string; name: string; email: string } => author !== null,
+          ),
+      }))
+    }
+
+    return posts
   } catch (error) {
     console.error('[fetchPosts] Error fetching posts:', error)
     return []
+  }
+}
+
+/**
+ * Helper function to populate author data for a post
+ */
+async function populateAuthorData(post: Post): Promise<Post> {
+  if (!post.authors || post.authors.length === 0) {
+    return post
+  }
+
+  try {
+    const authors = await fetchUsersByIds(post.authors)
+    const authorData = authors.map((author) => ({
+      id: author.id,
+      name: author.name || '',
+      email: author.email || '',
+    }))
+
+    return {
+      ...post,
+      authorData,
+    }
+  } catch (error) {
+    console.error('[populateAuthorData] Error populating author data:', error)
+    return post
   }
 }
 
@@ -201,6 +255,8 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
   try {
     // Use Admin SDK for server-side operations (bypasses Firestore rules)
     const { adminDb } = await import('./firebase-admin')
+
+    let post: Post | null = null
 
     // Primary: featured=true, published, newest by publishedAt
     try {
@@ -217,7 +273,7 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
         if (doc) {
           const rawData = doc.data()
           const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-          return serialized as Post
+          post = serialized as Post
         }
       }
     } catch {
@@ -236,7 +292,7 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
           if (doc) {
             const rawData = doc.data()
             const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-            return serialized as Post
+            post = serialized as Post
           }
         }
       } catch {
@@ -253,48 +309,53 @@ export async function fetchFeaturedPost(): Promise<Post | null> {
           if (doc) {
             const rawData = doc.data()
             const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-            return serialized as Post
+            post = serialized as Post
           }
         }
       }
     }
 
     // Fallback: most recent published post
-    try {
-      const snapshot = await adminDb
-        .collection('posts')
-        .where('_status', '==', 'published')
-        .orderBy('publishedAt', 'desc')
-        .limit(1)
-        .get()
+    if (!post) {
+      try {
+        const snapshot = await adminDb
+          .collection('posts')
+          .where('_status', '==', 'published')
+          .orderBy('publishedAt', 'desc')
+          .limit(1)
+          .get()
 
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0]
-        if (doc) {
-          const rawData = doc.data()
-          const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-          return serialized as Post
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0]
+          if (doc) {
+            const rawData = doc.data()
+            const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+            post = serialized as Post
+          }
         }
-      }
-    } catch {
-      // Final fallback: any published post (no orderBy)
-      const snapshot = await adminDb
-        .collection('posts')
-        .where('_status', '==', 'published')
-        .limit(1)
-        .get()
+      } catch {
+        // Final fallback: any published post (no orderBy)
+        const snapshot = await adminDb
+          .collection('posts')
+          .where('_status', '==', 'published')
+          .limit(1)
+          .get()
 
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0]
-        if (doc) {
-          const rawData = doc.data()
-          const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-          return serialized as Post
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0]
+          if (doc) {
+            const rawData = doc.data()
+            const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
+            post = serialized as Post
+          }
         }
       }
     }
 
-    return null
+    if (!post) return null
+
+    // Populate author data
+    return await populateAuthorData(post)
   } catch (error) {
     console.error('[fetchFeaturedPost] Error fetching featured post:', error)
     return null
@@ -354,7 +415,10 @@ export async function fetchPostBySlug(slug: string): Promise<Post | null> {
 
     const rawData = doc.data()
     const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
-    return serialized as Post
+    const post = serialized as Post
+
+    // Populate author data
+    return await populateAuthorData(post)
   } catch (error) {
     console.error('[fetchPostBySlug] Error fetching post by slug:', error)
     return null
@@ -376,7 +440,10 @@ export async function fetchPostById(id: string): Promise<Post | null> {
     const rawData = postDoc.data()
     if (!rawData) return null
     const serialized = serializeFirebaseData({ id: postDoc.id, ...rawData })
-    return serialized as Post
+    const post = serialized as Post
+
+    // Populate author data
+    return await populateAuthorData(post)
   } catch (error) {
     console.error('[fetchPostById] Error fetching post by id:', error)
     return null
@@ -404,7 +471,7 @@ export async function fetchRelatedPosts(
       .get()
 
     // Filter out the current post and limit to 3
-    const posts = snapshot.docs
+    let posts = snapshot.docs
       .map((doc) => {
         const rawData = doc.data()
         const serialized = serializeFirebaseData({ id: doc.id, ...rawData })
@@ -412,6 +479,29 @@ export async function fetchRelatedPosts(
       })
       .filter((post) => post.id !== currentPostId)
       .slice(0, 3)
+
+    // Populate author data for all related posts
+    const allAuthorIds = Array.from(
+      new Set(posts.flatMap((post) => post.authors || []).filter(Boolean)),
+    )
+    if (allAuthorIds.length > 0) {
+      const authors = await fetchUsersByIds(allAuthorIds)
+      const authorMap = new Map(authors.map((author) => [author.id, author]))
+
+      posts = posts.map((post) => ({
+        ...post,
+        authorData: (post.authors || [])
+          .map((authorId) => {
+            const author = authorMap.get(authorId)
+            return author
+              ? { id: author.id, name: author.name || '', email: author.email || '' }
+              : null
+          })
+          .filter(
+            (author): author is { id: string; name: string; email: string } => author !== null,
+          ),
+      }))
+    }
 
     return posts
   } catch (error) {

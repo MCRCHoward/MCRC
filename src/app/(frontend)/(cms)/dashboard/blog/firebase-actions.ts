@@ -379,7 +379,7 @@ export async function createPostFromForm(fd: FormData) {
     const postData: PostInput = {
       title: data.title || '',
       excerpt: data.excerpt,
-      authors: [], // Will be automatically populated with current user in createPost()
+      authors: data.authorIds ?? [], // Selected authors (current user will be auto-added in createPost)
       categories: data.categoryIds ?? [],
       contentHtml: combinedHTML || '',
       sections,
@@ -411,6 +411,7 @@ export async function updatePostFromForm(id: string, fd: FormData) {
       title?: string
       excerpt?: string
       categoryIds?: Array<string>
+      authorIds?: Array<string>
     }
     console.log('[updatePostFromForm] Parsed data keys:', Object.keys(data))
 
@@ -457,6 +458,7 @@ export async function updatePostFromForm(id: string, fd: FormData) {
     const updateData: Partial<PostInput> = {
       title: data.title,
       excerpt: data.excerpt,
+      authors: data.authorIds, // Update authors if provided
       categories: data.categoryIds ?? [],
       sections,
       _status: 'published',

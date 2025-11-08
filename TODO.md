@@ -51,6 +51,7 @@ This document tracks all incomplete features, placeholders, and missing implemen
 ### Form Optimizations
 
 #### Phone Number Input Validation
+
 - **Files**:
   - `src/Forms/formDisplay/selfReferralForm.tsx` (lines 257-272, 574-586, 630-641)
   - `src/Forms/formDisplay/restorativeProgramReferralForm.tsx` (phone fields)
@@ -171,12 +172,14 @@ This document tracks all incomplete features, placeholders, and missing implemen
 ### Authentication & User Management
 
 #### Authors for Blog Posts
-- **Status**: Partially implemented
+- **Status**: ✅ COMPLETED
 - **Description**: Authors field exists but needs proper Firestore schema and dashboard UI improvements.
 - **Action Required**:
-  - Enhance Firestore schema for author relationships
-  - Improve dashboard UI for author selection/management
-  - Add author profile pages if needed
+  - ✅ Enhanced Firestore schema for author relationships (authorData populated on fetch)
+  - ✅ Improved dashboard UI for author selection/management (AuthorSelect component with multi-select)
+  - ✅ Updated all blog post fetch functions to populate author data
+  - ✅ Updated BlogPostCard and BlogPostPageClient to display actual author names
+  - ⏳ Add author profile pages if needed (optional future enhancement)
 
 #### Firebase Email/Password Login Improvements
 - **Status**: Basic implementation exists
@@ -213,7 +216,7 @@ This document tracks all incomplete features, placeholders, and missing implemen
 - **Action Required**:
   - Point forms to `forms/<formId>/submissions`
   - Verify rules allow `create` for signed-in users
-  - Remove font choice from blog/new if not needed
+  - Remove font choice from blog/new 
 
 #### Legacy RichText Rendering
 - **Status**: May need migration

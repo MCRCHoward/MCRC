@@ -1,6 +1,7 @@
 import BlogForm from '@/components/Dashboard/blog/BlogForm'
 import { adminDb } from '@/lib/firebase-admin'
-import type { Category } from '@/types'
+import { fetchAuthorUsers } from '@/lib/firebase-api-users'
+import type { Category, User } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -39,7 +40,7 @@ async function fetchCategories(): Promise<Category[]> {
 }
 
 export default async function NewBlogPage() {
-  const categories = await fetchCategories()
+  const [categories, authors] = await Promise.all([fetchCategories(), fetchAuthorUsers()])
 
-  return <BlogForm categories={categories} />
+  return <BlogForm categories={categories} authors={authors} />
 }
