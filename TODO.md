@@ -48,6 +48,175 @@ This document tracks all incomplete features, placeholders, and missing implemen
   - Monitor production logs for query performance and errors
   - Review and fix any posts missing required fields
 
+# Blog Fetching Diagnosis and Optimization Plan
+
+## Problem Analysis
+
+The `/blog` page returns empty posts array on live site. Multiple potential issues identified:
+
+1. **Duplicate fetchPosts implementations** - Two different versions exist
+2. **Silent query failures** - Errors caught but not logged with details
+3. **Missing Firestore indexes** - Composite indexes may not exist for queries
+4. **Data filtering issues** - Posts without slugs are filtered out
+5. **Status field validation** - Posts must have `_status === 'published'`
+6. **Environment variable verification** - Admin SDK initialization in production
+
+## Implementation Steps
+
+### Phase 1: Enhanced Error Logging and Diagnostics
+
+**File: `src/lib/firebase-api-blog.ts`**
+
+- Add detailed error logging with query details
+- Log query results (count, sample data)
+- Add validation for required fields (`_status`, `slug`)
+- Log Admin SDK initialization status
+- Add try-catch around specific query operations with detailed error messages
+
+**File: `src/app/(frontend)/(default)/blog/page.tsx`**
+
+- Add error boundary logging
+- Log fetched data counts before transformation
+- Add validation for post data structure
+- Log transformation failures
+
+### Phase 2: Query Optimization and Index Verification
+
+**File: `src/lib/firebase-api-blog.ts`**
+
+- Verify Firestore composite indexes exist for:
+- `_status == 'published'` + `orderBy('publishedAt')`
+- `_status == 'published'` + `orderBy('createdAt')`
+- `_status == 'published'` + `featured == true` + `orderBy('publishedAt')`
+- `slug == X` + `_status == 'published'`
+- Add index error detection and fallback strategies
+- Create `firestore.indexes.json` file documenting required indexes
+- Add comments about index requirements
+
+**File: `src/lib/firebase-api-blog.ts` - fetchPosts function**
+
+- Improve error handling to distinguish between:
+- Missing indexes (failed-precondition errors)
+- Missing data (empty results)
+- Permission errors
+- Network/timeout errors
+- Add query result validation before returning
+
+### Phase 3: Data Structure Validation
+
+**File: `src/lib/firebase-api-blog.ts`**
+
+- Add validation function to check post structure
+- Ensure all posts have required fields: `id`, `slug`, `_status`, `title`
+- Filter out invalid posts with warning logs
+- Add type guards for Post data
+
+**File: `src/app/(frontend)/(default)/blog/page.tsx`**
+
+- Improve `toCardPostWithCategories` to handle missing data gracefully
+- Log posts filtered out due to missing slugs
+- Add fallback values for missing fields
+
+### Phase 4: Remove Duplicate Code
+
+**File: `src/lib/firebase-api.ts`**
+
+- Remove duplicate `fetchPosts`, `fetchFeaturedPost`, `fetchPostBySlug` functions
+- Update all imports to use `firebase-api-blog.ts` versions
+- Verify no other files depend on `firebase-api.ts` blog functions
+
+**Files to check for imports:**
+
+- `src/app/(frontend)/(default)/search/page.tsx`
+- `src/app/(frontend)/(default)/posts/page.tsx`
+- `src/app/(frontend)/(default)/posts/page/[pageNumber]/page.tsx`
+- `src/app/(frontend)/(default)/posts/[slug]/page.tsx`
+- `src/app/(frontend)/(sitemaps)/posts-sitemap.xml/route.ts`
+
+### Phase 5: Environment and Admin SDK Verification
+
+**File: `src/lib/firebase-admin.ts`**
+
+- Add initialization logging (dev only)
+- Add error handling for missing environment variables
+- Verify Admin SDK is properly initialized before queries
+- Add health check function
+
+**File: `src/app/(frontend)/(default)/blog/page.tsx`**
+
+- Add Admin SDK initialization check
+- Log environment variable presence (without values)
+- Add fallback error messages for production
+
+### Phase 6: Query Strategy Improvements
+
+**File: `src/lib/firebase-api-blog.ts`**
+
+- Add query result caching strategy (optional, for performance)
+- Optimize author data fetching (batch operations)
+- Add query performance logging
+- Consider adding pagination support for large result sets
+
+**File: `src/lib/firebase-api-blog.ts` - fetchPosts**
+
+- Add query timeout handling
+- Add retry logic for transient failures
+- Improve fallback query strategy
+- Add query result size limits
+
+### Phase 7: Testing and Validation
+
+**Create diagnostic utility:**
+
+- Add `src/lib/blog-diagnostics.ts` with helper functions:
+- `diagnoseBlogFetching()` - comprehensive diagnostic
+- `validatePostStructure()` - validate post data
+- `checkFirestoreIndexes()` - verify index existence
+- `testAdminSDKConnection()` - verify Admin SDK works
+
+**File: `src/app/(frontend)/(default)/blog/page.tsx`**
+
+- Add diagnostic mode (dev only) that logs:
+- Total posts in Firestore
+- Posts by status
+- Posts missing required fields
+- Query execution times
+
+### Phase 8: Documentation and TODO Update
+
+**File: `TODO.md`**
+
+- Add section for blog fetching diagnostics
+- Document required Firestore indexes
+- Add troubleshooting guide
+- Update with findings and fixes
+
+**Create: `firestore.indexes.json`**
+
+- Document all required composite indexes
+- Include index creation commands
+- Add notes about query requirements
+
+## Key Files to Modify
+
+1. `src/lib/firebase-api-blog.ts` - Main fetching logic, error handling, validation
+2. `src/app/(frontend)/(default)/blog/page.tsx` - Page-level error handling, diagnostics
+3. `src/lib/firebase-api.ts` - Remove duplicate functions, update imports
+4. `src/lib/firebase-admin.ts` - Add initialization verification
+5. `TODO.md` - Document findings and solutions
+6. `firestore.indexes.json` - Document required indexes (new file)
+
+## Expected Outcomes
+
+1. Detailed error logs to identify root cause
+2. Validated data structure requirements
+3. Optimized query strategy with proper fallbacks
+4. Removed duplicate code
+5. Documentation for troubleshooting
+6. Required Firestore indexes documented
+7. Improved error messages for production debugging
+
+
 ### Dashboard Features (CMS)
 
 #### Event Editing Form
