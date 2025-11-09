@@ -208,7 +208,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor="email"
-          className="block text-sm/6 font-medium text-gray-900 dark:text-gray-100"
+          className="block text-sm/6 font-medium text-foreground"
         >
           Email address
         </label>
@@ -220,10 +220,12 @@ export function LoginForm() {
             autoComplete="email"
             disabled={isSubmitting || isGoogleSigningIn}
             {...form.register('email')}
-            className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
+            className="block w-full rounded-md bg-background px-3 py-1.5 text-base text-foreground outline outline-1 -outline-offset-1 outline-border placeholder:text-muted-foreground focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-ring sm:text-sm/6 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-card dark:outline-border dark:placeholder:text-muted-foreground dark:focus:outline-ring"
+            aria-invalid={form.formState.errors.email ? 'true' : 'false'}
+            aria-describedby={form.formState.errors.email ? 'email-error' : undefined}
           />
           {form.formState.errors.email && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+            <p id="email-error" className="mt-1 text-sm text-destructive" role="alert">
               {form.formState.errors.email.message}
             </p>
           )}
@@ -233,7 +235,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor="password"
-          className="block text-sm/6 font-medium text-gray-900 dark:text-gray-100"
+          className="block text-sm/6 font-medium text-foreground"
         >
           Password
         </label>
@@ -245,10 +247,12 @@ export function LoginForm() {
             autoComplete="current-password"
             disabled={isSubmitting || isGoogleSigningIn}
             {...form.register('password')}
-            className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
+            className="block w-full rounded-md bg-background px-3 py-1.5 text-base text-foreground outline outline-1 -outline-offset-1 outline-border placeholder:text-muted-foreground focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-ring sm:text-sm/6 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-card dark:outline-border dark:placeholder:text-muted-foreground dark:focus:outline-ring"
+            aria-invalid={form.formState.errors.password ? 'true' : 'false'}
+            aria-describedby={form.formState.errors.password ? 'password-error' : undefined}
           />
           {form.formState.errors.password && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+            <p id="password-error" className="mt-1 text-sm text-destructive" role="alert">
               {form.formState.errors.password.message}
             </p>
           )}
@@ -256,14 +260,14 @@ export function LoginForm() {
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-3 dark:bg-red-900/20" role="alert">
-          <p className="text-sm font-medium text-red-800 dark:text-red-200">{error}</p>
+        <div className="rounded-md bg-destructive/10 p-3 dark:bg-destructive/20" role="alert" aria-live="polite">
+          <p className="text-sm font-medium text-destructive-foreground">{error}</p>
         </div>
       )}
 
       {resetEmailSent && (
-        <div className="rounded-md bg-green-50 p-3 dark:bg-green-900/20" role="alert">
-          <p className="text-sm font-medium text-green-800 dark:text-green-200">
+        <div className="rounded-md bg-success/10 p-3 dark:bg-success/20" role="alert" aria-live="polite">
+          <p className="text-sm font-medium text-success-foreground">
             Password reset email sent! Please check your inbox and follow the instructions to reset
             your password.
           </p>
@@ -280,12 +284,14 @@ export function LoginForm() {
                 checked={form.watch('rememberMe')}
                 onChange={(e) => form.setValue('rememberMe', e.target.checked)}
                 disabled={isSubmitting || isGoogleSigningIn}
-                className="col-start-1 row-start-1 appearance-none rounded border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:checked:border-indigo-500 dark:checked:bg-indigo-500 dark:indeterminate:border-indigo-500 dark:indeterminate:bg-indigo-500 dark:focus-visible:outline-indigo-500 forced-colors:appearance-auto"
+                className="col-start-1 row-start-1 appearance-none rounded border border-input bg-background checked:border-primary checked:bg-primary indeterminate:border-primary indeterminate:bg-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:border-input disabled:bg-muted disabled:checked:bg-muted dark:border-border dark:bg-card dark:checked:border-primary dark:checked:bg-primary dark:indeterminate:border-primary dark:indeterminate:bg-primary dark:focus-visible:outline-ring forced-colors:appearance-auto"
+                aria-label="Remember me on this device"
               />
               <svg
                 fill="none"
                 viewBox="0 0 14 14"
-                className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-[:disabled]:stroke-gray-950/25"
+                className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-primary-foreground group-has-[:disabled]:stroke-muted-foreground"
+                aria-hidden="true"
               >
                 <path
                   d="M3 8L6 11L11 3.5"
@@ -304,7 +310,7 @@ export function LoginForm() {
               </svg>
             </div>
           </div>
-          <label htmlFor="remember-me" className="block text-sm/6 text-gray-900 dark:text-gray-300">
+          <label htmlFor="remember-me" className="block text-sm/6 text-foreground">
             Remember me
           </label>
         </div>
@@ -314,7 +320,7 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPasswordReset(true)}
-              className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 rounded"
+              className="font-semibold text-primary hover:text-primary/80 dark:text-primary/80 dark:hover:text-primary/60 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
             >
               Forgot password?
             </button>
@@ -324,16 +330,17 @@ export function LoginForm() {
                 type="button"
                 onClick={handlePasswordReset}
                 disabled={isResettingPassword || !form.getValues('email')}
-                className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 rounded flex items-center gap-1"
+                className="font-semibold text-primary hover:text-primary/80 dark:text-primary/80 dark:hover:text-primary/60 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded flex items-center gap-1"
+                aria-label={isResettingPassword ? 'Sending password reset email' : 'Send password reset email'}
               >
                 {isResettingPassword ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                     Sending...
                   </>
                 ) : (
                   <>
-                    <Mail className="h-4 w-4" />
+                    <Mail className="h-4 w-4" aria-hidden="true" />
                     Send reset email
                   </>
                 )}
@@ -344,7 +351,8 @@ export function LoginForm() {
                   setShowPasswordReset(false)
                   setResetEmailSent(false)
                 }}
-                className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-sm text-muted-foreground hover:text-foreground"
+                aria-label="Cancel password reset"
               >
                 Cancel
               </button>
@@ -357,11 +365,12 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={isSubmitting || isGoogleSigningIn}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm/6 font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50 disabled:cursor-not-allowed dark:shadow-none dark:hover:bg-primary/80 dark:focus-visible:outline-ring"
+          aria-label={isSubmitting ? 'Signing in, please wait' : 'Sign in to your account'}
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               Signing in...
             </>
           ) : (
@@ -373,10 +382,10 @@ export function LoginForm() {
       <div className="mt-10">
         <div className="relative">
           <div aria-hidden="true" className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+            <div className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center text-sm/6 font-medium">
-            <span className="bg-white px-6 text-gray-900 dark:bg-gray-900 dark:text-gray-300">
+            <span className="bg-background px-6 text-foreground dark:bg-card">
               Or continue with
             </span>
           </div>
@@ -387,9 +396,10 @@ export function LoginForm() {
             type="button"
             onClick={onGoogleSignIn}
             disabled={isSubmitting || isGoogleSigningIn}
-            className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:ring-transparent disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white/10 dark:text-white dark:shadow-none dark:ring-white/5 dark:hover:bg-white/20"
+            className="flex w-full items-center justify-center gap-3 rounded-md bg-background px-3 py-2 text-sm font-semibold text-foreground shadow-sm ring-1 ring-inset ring-border hover:bg-accent focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed dark:bg-card dark:shadow-none dark:ring-border dark:hover:bg-accent"
+            aria-label={isGoogleSigningIn ? 'Signing in with Google, please wait' : 'Sign in with Google'}
           >
-            {isGoogleSigningIn && <Loader2 className="h-5 w-5 animate-spin" />}
+            {isGoogleSigningIn && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}
             <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
               <path
                 d="M12.0003 4.75C13.7703 4.75 15.3553 5.36002 16.6053 6.54998L20.0303 3.125C17.9502 1.19 15.2353 0 12.0003 0C7.31028 0 3.25527 2.69 1.28027 6.60998L5.27028 9.70498C6.21525 6.86002 8.87028 4.75 12.0003 4.75Z"

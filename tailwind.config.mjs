@@ -118,7 +118,10 @@ const config = {
           DEFAULT: 'var(--card)',
           foreground: 'var(--card-foreground)',
         },
-        success: 'var(--success)',
+        success: {
+          DEFAULT: 'var(--success)',
+          foreground: 'var(--success-foreground)',
+        },
         warning: 'var(--warning)',
         error: 'var(--error)',
         'chart-1': 'var(--chart-1)',

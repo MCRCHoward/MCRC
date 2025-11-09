@@ -105,8 +105,8 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
           <div className="mx-auto mt-8 flex max-w-2xl flex-wrap items-center justify-center gap-6 text-sm">
             {eventStartTime && (
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <time dateTime={eventStartTime}>
+                <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <time dateTime={eventStartTime} className="text-foreground">
                   {isSameDay
                     ? `${formatDate(eventStartTime)} • ${formatTime(eventStartTime)} - ${formatTime(eventEndTime || '')}`
                     : `${formatDateTime(eventStartTime)} - ${formatDateTime(eventEndTime || '')}`}
@@ -116,9 +116,9 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
 
             {location && (
               <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  {location.venueName && <strong>{location.venueName}</strong>}
+                <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-foreground">
+                  {location.venueName && <strong className="font-semibold">{location.venueName}</strong>}
                   {location.venueName && location.address && ' • '}
                   {location.address}
                 </span>
@@ -127,15 +127,15 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
 
             {modality === 'online' && onlineMeeting?.url && (
               <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4 text-muted-foreground" />
-                <span>Online Event</span>
+                <Globe className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-foreground">Online Event</span>
               </div>
             )}
 
             {cost && (
               <div className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                <span>
+                <CreditCard className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="text-foreground">
                   {cost.currency} {cost.amount.toFixed(2)}
                   {cost.description && ` • ${cost.description}`}
                 </span>
@@ -144,8 +144,10 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
 
             {isFree && (
               <div className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium text-green-600 dark:text-green-400">Free</span>
+                <CreditCard className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span className="font-medium text-success-foreground bg-success/15 dark:bg-success/25 px-2 py-0.5 rounded-md">
+                  Free
+                </span>
               </div>
             )}
           </div>
@@ -191,7 +193,7 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
               {eventStartTime && (
                 <div className="space-y-2">
                   <div className="flex items-start gap-3">
-                    <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div className="space-y-1 text-sm">
                       <p className="font-medium">Date & Time</p>
                       <time dateTime={eventStartTime} className="block text-muted-foreground">
@@ -222,7 +224,7 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
               {location && (
                 <div className="space-y-2">
                   <div className="flex items-start gap-3">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div className="space-y-1 text-sm">
                       <p className="font-medium">Location</p>
                       <address className="not-italic text-muted-foreground">
@@ -242,7 +244,7 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
               {modality === 'online' && onlineMeeting?.url && (
                 <div className="space-y-2">
                   <div className="flex items-start gap-3">
-                    <Globe className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Globe className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div className="space-y-1 text-sm">
                       <p className="font-medium">Online Meeting</p>
                       <a
@@ -250,6 +252,7 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block text-primary hover:underline"
+                        aria-label="Join online meeting (opens in new tab)"
                       >
                         Join online
                       </a>
@@ -264,12 +267,14 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
               {/* Pricing */}
               <div className="space-y-2">
                 <div className="flex items-start gap-3">
-                  <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <div className="space-y-1 text-sm">
                     <p className="font-medium">Price</p>
                     <p className="text-muted-foreground">
                       {isFree ? (
-                        <span className="font-medium text-green-600 dark:text-green-400">Free</span>
+                        <span className="font-medium text-success-foreground bg-success/15 dark:bg-success/25 px-2 py-0.5 rounded-md inline-block" aria-label="This event is free">
+                          Free
+                        </span>
                       ) : cost ? (
                         <>
                           {cost.currency} {cost.amount.toFixed(2)}
@@ -289,23 +294,23 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
               <div className="space-y-3">
                 {externalRegistrationLink ? (
                   <Button asChild className="w-full" size="lg">
-                    <Link href={externalRegistrationLink} target="_blank" rel="noopener noreferrer">
+                    <Link href={externalRegistrationLink} target="_blank" rel="noopener noreferrer" aria-label="Register for this event (opens in new tab)">
                       Register Now
                     </Link>
                   </Button>
                 ) : isRegistrationRequired ? (
-                  <Button className="w-full" size="lg" disabled>
+                  <Button className="w-full" size="lg" disabled aria-label="Registration is required for this event">
                     Registration Required
                   </Button>
                 ) : (
-                  <Button className="w-full" size="lg" variant="outline" disabled>
+                  <Button className="w-full" size="lg" variant="outline" disabled aria-label="Registration is not available for this event">
                     Registration Not Available
                   </Button>
                 )}
 
                 {modality === 'online' && onlineMeeting?.url && (
                   <Button asChild variant="secondary" className="w-full">
-                    <Link href={onlineMeeting.url} target="_blank" rel="noopener noreferrer">
+                    <Link href={onlineMeeting.url} target="_blank" rel="noopener noreferrer" aria-label="Join online meeting (opens in new tab)">
                       Join Online Meeting
                     </Link>
                   </Button>

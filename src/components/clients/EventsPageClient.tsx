@@ -281,25 +281,39 @@ export function EventsPageClient({ events, badges }: EventsPageClientProps) {
                       {/* Image Container with Dual Image System */}
                       {primaryImageUrl && (
                         <div className="relative h-64 w-full overflow-hidden">
-                          {/* Primary Image - Always Visible */}
-                          <Image
-                            src={primaryImageUrl}
-                            alt={primaryImageAlt}
-                            fill
-                            sizes="(min-width: 768px) 50vw, 100vw"
-                            className="absolute inset-0 object-cover transition-opacity duration-500 ease-in-out group-hover:opacity-0"
-                            priority={isAboveFold}
-                            loading={isAboveFold ? undefined : 'lazy'}
-                          />
-                          {/* Secondary Image - Shown on Hover (only on hover-capable devices) */}
-                          {secondaryImageUrl && secondaryImageUrl !== primaryImageUrl && (
+                          {/* Check if we have a valid secondary image */}
+                          {secondaryImageUrl && secondaryImageUrl !== primaryImageUrl ? (
+                            <>
+                              {/* Primary Image - Fades out on hover when secondary exists */}
+                              <Image
+                                src={primaryImageUrl}
+                                alt={primaryImageAlt}
+                                fill
+                                sizes="(min-width: 768px) 50vw, 100vw"
+                                className="absolute inset-0 object-cover transition-opacity duration-500 ease-in-out group-hover:opacity-0"
+                                priority={isAboveFold}
+                                loading={isAboveFold ? undefined : 'lazy'}
+                              />
+                              {/* Secondary Image - Fades in on hover */}
+                              <Image
+                                src={secondaryImageUrl}
+                                alt={secondaryImageAlt}
+                                fill
+                                sizes="(min-width: 768px) 50vw, 100vw"
+                                className="absolute inset-0 object-cover opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100"
+                                loading="lazy"
+                              />
+                            </>
+                          ) : (
+                            /* Primary Image - Zoom effect on hover when no secondary image */
                             <Image
-                              src={secondaryImageUrl}
-                              alt={secondaryImageAlt}
+                              src={primaryImageUrl}
+                              alt={primaryImageAlt}
                               fill
                               sizes="(min-width: 768px) 50vw, 100vw"
-                              className="absolute inset-0 object-cover opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100"
-                              loading="lazy"
+                              className="absolute inset-0 object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+                              priority={isAboveFold}
+                              loading={isAboveFold ? undefined : 'lazy'}
                             />
                           )}
                         </div>

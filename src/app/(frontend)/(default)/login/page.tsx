@@ -25,14 +25,14 @@ export default function LoginPage() {
                 className="hidden h-10 w-auto dark:block"
                 priority
               />
-              <h2 className="mt-8 text-2xl/9 font-bold tracking-tight text-gray-900 dark:text-white">
+              <h2 className="mt-8 text-2xl/9 font-bold tracking-tight text-foreground">
                 Sign in to your account
               </h2>
-              <p className="mt-2 text-sm/6 text-gray-500 dark:text-gray-400">
+              <p className="mt-2 text-sm/6 text-muted-foreground">
                 Not a member?{' '}
                 <Link
                   href="/register"
-                  className="font-semibold text-purple hover:text-purple/80 dark:text-purple/80 dark:hover:text-purple/60"
+                  className="font-semibold text-primary hover:text-primary/80 dark:text-primary/80 dark:hover:text-primary/60"
                 >
                   Register Today
                 </Link>
@@ -53,6 +53,7 @@ export default function LoginPage() {
             fill
             className="object-cover"
             priority
+            aria-hidden="true"
           />
         </div>
       </div>
