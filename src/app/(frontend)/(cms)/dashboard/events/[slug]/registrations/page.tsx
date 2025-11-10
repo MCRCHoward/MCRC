@@ -3,6 +3,8 @@ import { adminDb } from '@/lib/firebase-admin'
 import { requireRole } from '@/lib/custom-auth'
 import { getEventRegistrations, getEventRegistrationCount } from '@/app/(frontend)/(default)/events/[slug]/actions'
 import { EventRegistrationsClient } from './EventRegistrationsClient'
+import { getEventName } from '@/utilities/event-helpers'
+import { logError } from '@/utilities/error-logging'
 
 type RouteParams = Promise<{ slug: string }>
 
@@ -28,8 +30,8 @@ export default async function EventRegistrationsPage({ params }: { params: Route
   }
 
   const eventId = eventDoc.id
-  const eventData = eventDoc.data()
-  const eventName = eventData.title || eventData.name || 'Event'
+  const eventData = eventDoc.data() || {}
+  const eventName = getEventName(eventData) || 'Event'
 
   // Fetch registrations and count
   let registrations: Awaited<ReturnType<typeof getEventRegistrations>> = []
@@ -39,7 +41,7 @@ export default async function EventRegistrationsPage({ params }: { params: Route
     registrations = await getEventRegistrations(eventId)
     registrationCount = await getEventRegistrationCount(eventId)
   } catch (error) {
-    console.error('Error fetching registrations:', error)
+    logError('Error fetching registrations', error, { eventId, eventSlug: slug })
   }
 
   return (

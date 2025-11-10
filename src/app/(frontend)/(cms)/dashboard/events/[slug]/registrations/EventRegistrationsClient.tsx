@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { markAttendance, cancelRegistrationAdmin } from './actions'
 import type { EventRegistration } from '@/types/event-registration'
+import { formatDateTimeShort } from '@/utilities/formatDateTime'
 
 interface EventRegistrationsClientProps {
   eventId: string
@@ -35,21 +36,6 @@ interface EventRegistrationsClientProps {
 }
 
 type StatusFilter = 'all' | 'registered' | 'cancelled' | 'attended'
-
-/**
- * Format date and time for display
- */
-function formatDateTime(dateString: string): string {
-  if (!dateString) return ''
-  try {
-    return new Date(dateString).toLocaleString('en-US', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    })
-  } catch {
-    return dateString
-  }
-}
 
 /**
  * Export registrations to CSV
@@ -70,7 +56,7 @@ function exportToCSV(registrations: (EventRegistration & { id: string })[], even
     reg.name,
     reg.email,
     reg.phone || '',
-    formatDateTime(reg.registrationDate),
+    formatDateTimeShort(reg.registrationDate),
     reg.status,
     reg.serviceInterest,
     reg.emailMarketingConsent ? 'Yes' : 'No',
@@ -261,7 +247,16 @@ export function EventRegistrationsClient({
         <CardContent>
           {filteredRegistrations.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-muted-foreground">No registrations found.</p>
+              <p className="text-muted-foreground mb-4">No registrations found.</p>
+              {searchQuery || statusFilter !== 'all' ? (
+                <p className="text-sm text-muted-foreground">
+                  Try adjusting your search or filter criteria.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No one has registered for this event yet.
+                </p>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -286,7 +281,7 @@ export function EventRegistrationsClient({
                         <TableCell className="font-medium">{registration.name}</TableCell>
                         <TableCell>{registration.email}</TableCell>
                         <TableCell>{registration.phone || '—'}</TableCell>
-                        <TableCell>{formatDateTime(registration.registrationDate)}</TableCell>
+                        <TableCell>{formatDateTimeShort(registration.registrationDate)}</TableCell>
                         <TableCell>{getStatusBadge(registration.status)}</TableCell>
                         <TableCell>{registration.serviceInterest}</TableCell>
                         <TableCell>

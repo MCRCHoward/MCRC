@@ -15,6 +15,7 @@ import type { User } from '@/types'
 import { EventRegistrationForm } from '@/components/events/EventRegistrationForm'
 import { cancelRegistration } from '@/app/(frontend)/(default)/events/[slug]/actions'
 import type { EventRegistration } from '@/types/event-registration'
+import { formatDateTime, formatDate, formatTime } from '@/utilities/formatDateTime'
 
 interface EventPageClientProps {
   event: Event & { descriptionHtml?: string }
@@ -34,49 +35,6 @@ function getImageData(featuredImage?: string | { url: string; alt?: string } | n
   if (typeof featuredImage === 'string') return { url: featuredImage, alt: null }
   if ('url' in featuredImage) return { url: featuredImage.url, alt: featuredImage.alt || null }
   return { url: null, alt: null }
-}
-
-/**
- * Format date and time for display
- */
-function formatDateTime(dateString: string): string {
-  if (!dateString) return ''
-  try {
-    return new Date(dateString).toLocaleString('en-US', {
-      dateStyle: 'long',
-      timeStyle: 'short',
-    })
-  } catch {
-    return dateString
-  }
-}
-
-/**
- * Format date only for display
- */
-function formatDate(dateString: string): string {
-  if (!dateString) return ''
-  try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      dateStyle: 'long',
-    })
-  } catch {
-    return dateString
-  }
-}
-
-/**
- * Format time only for display
- */
-function formatTime(dateString: string): string {
-  if (!dateString) return ''
-  try {
-    return new Date(dateString).toLocaleTimeString('en-US', {
-      timeStyle: 'short',
-    })
-  } catch {
-    return ''
-  }
 }
 
 const EventPageClient = ({
@@ -382,7 +340,6 @@ const EventPageClient = ({
                   !externalRegistrationLink && isRegistrationRequired ? (
                     <EventRegistrationForm
                       eventId={eventId}
-                      eventSlug={eventSlug}
                       userEmail={user.email || ''}
                       userName={user.name || ''}
                       onSuccess={() => router.refresh()}

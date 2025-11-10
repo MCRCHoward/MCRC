@@ -3,35 +3,8 @@ import { getCurrentUser } from '@/lib/custom-auth'
 import { getUserRegistrations } from '@/app/(frontend)/(default)/events/[slug]/actions'
 import type { EventRegistration } from '@/types/event-registration'
 import { MyEventsClient } from './MyEventsClient'
-
-/**
- * Format date and time for display
- */
-function formatDateTime(dateString: string): string {
-  if (!dateString) return ''
-  try {
-    return new Date(dateString).toLocaleString('en-US', {
-      dateStyle: 'long',
-      timeStyle: 'short',
-    })
-  } catch {
-    return dateString
-  }
-}
-
-/**
- * Format date only for display
- */
-function formatDate(dateString: string): string {
-  if (!dateString) return ''
-  try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      dateStyle: 'long',
-    })
-  } catch {
-    return dateString
-  }
-}
+import { formatDateTime, formatDate } from '@/utilities/formatDateTime'
+import { logError } from '@/utilities/error-logging'
 
 export default async function MyEventsPage() {
   const user = await getCurrentUser()
@@ -44,7 +17,7 @@ export default async function MyEventsPage() {
   try {
     registrations = await getUserRegistrations(user.id)
   } catch (error) {
-    console.error('Error fetching user registrations:', error)
+    logError('Error fetching user registrations', error, { userId: user.id })
   }
 
   const today = new Date().toISOString()

@@ -1,27 +1,62 @@
 /**
- * Formats a timestamp string into MM/DD/YYYY format.
- * @param timestamp - ISO date string or date string
- * @returns Formatted date string in MM/DD/YYYY format
+ * Centralized date and time formatting utilities
+ * Used across event registration system
  */
-export const formatDateTime = (timestamp: string): string => {
-  if (!timestamp) {
-    const now = new Date()
-    const month = now.getMonth() + 1
-    const day = now.getDate()
-    const year = now.getFullYear()
-    return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year}`
+
+/**
+ * Format date and time for display
+ */
+export function formatDateTime(dateString: string): string {
+  if (!dateString) return ''
+  try {
+    return new Date(dateString).toLocaleString('en-US', {
+      dateStyle: 'long',
+      timeStyle: 'short',
+    })
+  } catch {
+    return dateString
   }
+}
 
-  const date = new Date(timestamp)
+/**
+ * Format date only for display
+ */
+export function formatDate(dateString: string): string {
+  if (!dateString) return ''
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      dateStyle: 'long',
+    })
+  } catch {
+    return dateString
+  }
+}
 
-  // Validate date
-  if (Number.isNaN(date.getTime())) {
+/**
+ * Format time only for display
+ */
+export function formatTime(dateString: string): string {
+  if (!dateString) return ''
+  try {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      timeStyle: 'short',
+    })
+  } catch {
     return ''
   }
+}
 
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  const year = date.getFullYear()
-
-  return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year}`
+/**
+ * Format date and time in short format (for tables/lists)
+ */
+export function formatDateTimeShort(dateString: string): string {
+  if (!dateString) return ''
+  try {
+    return new Date(dateString).toLocaleString('en-US', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    })
+  } catch {
+    return dateString
+  }
 }

@@ -1,13 +1,20 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import { cache } from 'react'
 
 import { fetchEventBySlug, fetchPublishedEvents } from '@/lib/firebase-api-events'
 import { EventPageClient } from '@/components/clients/EventPageClient'
 import { getServerSideURL } from '@/utilities/getURL'
 import { getCurrentUser } from '@/lib/custom-auth'
 import { getUserRegistrationStatus, getEventRegistrationCount } from './actions'
+import { logError } from '@/utilities/error-logging'
 
 type RouteParams = Promise<{ slug: string }>
+
+// Cache event fetch to avoid duplicate queries
+const getCachedEvent = cache(async (slug: string) => {
+  return await fetchEventBySlug(slug)
+})
 
 /**
  * Helper to extract image URL from featuredImage
@@ -25,7 +32,7 @@ function getImageUrl(
 export async function generateMetadata({ params }: { params: RouteParams }): Promise<Metadata> {
   const { slug } = await params
 
-  const event = await fetchEventBySlug(slug)
+  const event = await getCachedEvent(slug)
   if (!event) return { title: 'Event Not Found', robots: { index: false } }
 
   const title = event.name || 'Event'
@@ -56,30 +63,32 @@ export async function generateMetadata({ params }: { params: RouteParams }): Pro
 export default async function EventPage({ params }: { params: RouteParams }) {
   const { slug } = await params
 
-  const event = await fetchEventBySlug(slug)
+  const event = await getCachedEvent(slug)
   if (!event) return notFound()
 
-  // Get current user and registration status
+  // Get current user
   const user = await getCurrentUser()
-  let registrationStatus = null
-  let registrationCount = null
 
-  if (user) {
-    try {
-      registrationStatus = await getUserRegistrationStatus(event.id)
-    } catch (error) {
-      // User might not be registered, which is fine
-      console.error('Error fetching registration status:', error)
-    }
+  // Fetch registration data in parallel for better performance
+  const [registrationStatusResult, registrationCountResult] = await Promise.allSettled([
+    user ? getUserRegistrationStatus(event.id).catch(() => null) : Promise.resolve(null),
+    user?.role === 'admin' ? getEventRegistrationCount(event.id).catch(() => null) : Promise.resolve(null),
+  ])
+
+  const registrationStatus =
+    registrationStatusResult.status === 'fulfilled' ? registrationStatusResult.value : null
+  const registrationCount =
+    registrationCountResult.status === 'fulfilled' ? registrationCountResult.value : null
+
+  // Log errors if any occurred
+  if (registrationStatusResult.status === 'rejected') {
+    logError('Error fetching registration status', registrationStatusResult.reason, {
+      eventId: event.id,
+      userId: user?.id,
+    })
   }
-
-  // Get registration count if user is admin
-  if (user?.role === 'admin') {
-    try {
-      registrationCount = await getEventRegistrationCount(event.id)
-    } catch (error) {
-      console.error('Error fetching registration count:', error)
-    }
+  if (registrationCountResult.status === 'rejected') {
+    logError('Error fetching registration count', registrationCountResult.reason, { eventId: event.id })
   }
 
   return (
@@ -103,7 +112,7 @@ export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
       .filter((slug): slug is string => typeof slug === 'string' && slug.length > 0)
       .map((slug) => ({ slug }))
   } catch (error) {
-    console.error('Error generating static params for events:', error)
+    logError('Error generating static params for events', error)
     return []
   }
 }

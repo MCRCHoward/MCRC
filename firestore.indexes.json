@@ -79,16 +79,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "registrationDate",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "eventRegistrations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
           "fieldPath": "eventId",
           "order": "ASCENDING"
         },
