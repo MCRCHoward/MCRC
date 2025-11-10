@@ -371,11 +371,21 @@ export function EventsPageClient({ events, badges }: EventsPageClientProps) {
                           {/* Price */}
                           <div className="flex items-center gap-2 text-sm font-medium">
                             <DollarSign className="h-4 w-4" aria-hidden="true" />
-                            <span>
-                              {event.isFree
-                                ? 'Free Event'
-                                : `$${event.cost?.amount || '0'} ${event.cost?.currency || 'USD'}`}
-                            </span>
+                            {event.isFree ? (
+                              <span
+                                className="font-medium text-green-600 dark:text-green-400 px-2 py-0.5 rounded-md inline-block"
+                                aria-label="This event is free"
+                              >
+                                Free Event
+                              </span>
+                            ) : (
+                              <span
+                                className="font-medium text-muted-foreground px-2 py-0.5 rounded-md inline-block"
+                                aria-label="This event is not free"
+                              >
+                                {event.cost?.amount || '0'} {event.cost?.currency || 'USD'}
+                              </span>
+                            )}
                           </div>
                         </div>
 

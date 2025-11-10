@@ -4,6 +4,8 @@ import type { Metadata } from 'next'
 import { fetchEventBySlug, fetchPublishedEvents } from '@/lib/firebase-api-events'
 import { EventPageClient } from '@/components/clients/EventPageClient'
 import { getServerSideURL } from '@/utilities/getURL'
+import { getCurrentUser } from '@/lib/custom-auth'
+import { getUserRegistrationStatus, getEventRegistrationCount } from './actions'
 
 type RouteParams = Promise<{ slug: string }>
 
@@ -57,7 +59,37 @@ export default async function EventPage({ params }: { params: RouteParams }) {
   const event = await fetchEventBySlug(slug)
   if (!event) return notFound()
 
-  return <EventPageClient event={event} />
+  // Get current user and registration status
+  const user = await getCurrentUser()
+  let registrationStatus = null
+  let registrationCount = null
+
+  if (user) {
+    try {
+      registrationStatus = await getUserRegistrationStatus(event.id)
+    } catch (error) {
+      // User might not be registered, which is fine
+      console.error('Error fetching registration status:', error)
+    }
+  }
+
+  // Get registration count if user is admin
+  if (user?.role === 'admin') {
+    try {
+      registrationCount = await getEventRegistrationCount(event.id)
+    } catch (error) {
+      console.error('Error fetching registration count:', error)
+    }
+  }
+
+  return (
+    <EventPageClient
+      event={event}
+      user={user}
+      registrationStatus={registrationStatus}
+      registrationCount={registrationCount}
+    />
+  )
 }
 
 export const revalidate = 60

@@ -1,16 +1,29 @@
 'use client'
 
-import { Calendar, MapPin, Globe, CreditCard } from 'lucide-react'
+import { Calendar, MapPin, Globe, CreditCard, CheckCircle2, X, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import type { Event } from '@/types'
+import type { User } from '@/types'
+import { EventRegistrationForm } from '@/components/events/EventRegistrationForm'
+import { cancelRegistration } from '@/app/(frontend)/(default)/events/[slug]/actions'
+import type { EventRegistration } from '@/types/event-registration'
 
 interface EventPageClientProps {
   event: Event & { descriptionHtml?: string }
+  user?: User | null
+  registrationStatus?: {
+    registrationId: string
+    status: EventRegistration['status']
+  } | null
+  registrationCount?: number | null
 }
 
 /**
@@ -66,9 +79,16 @@ function formatTime(dateString: string): string {
   }
 }
 
-const EventPageClient = ({ event }: EventPageClientProps) => {
+const EventPageClient = ({
+  event,
+  user,
+  registrationStatus,
+  registrationCount,
+}: EventPageClientProps) => {
   const {
+    id: eventId,
     name,
+    slug: eventSlug,
     summary,
     descriptionHtml,
     featuredImage,
@@ -83,11 +103,39 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
     externalRegistrationLink,
   } = event
 
+  const router = useRouter()
+  const [isCancelling, setIsCancelling] = useState(false)
   const imageData = getImageData(featuredImage)
   const isSameDay =
     eventStartTime && eventEndTime
       ? new Date(eventStartTime).toDateString() === new Date(eventEndTime).toDateString()
       : false
+
+  const isRegistered = registrationStatus?.status === 'registered'
+  const registrationId = registrationStatus?.registrationId
+
+  const handleCancelRegistration = async () => {
+    if (!registrationId) return
+
+    setIsCancelling(true)
+    try {
+      await cancelRegistration(registrationId)
+      toast.success('Registration cancelled successfully')
+      router.refresh()
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to cancel registration. Please try again.'
+      toast.error(errorMessage)
+    } finally {
+      setIsCancelling(false)
+    }
+  }
+
+  const handleSignInClick = () => {
+    const returnUrl = `/events/${eventSlug}`
+    router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
+  }
+
   return (
     <article className="py-16 md:py-24">
       <div className="container max-w-7xl">
@@ -290,27 +338,101 @@ const EventPageClient = ({ event }: EventPageClientProps) => {
 
               <Separator />
 
-              {/* Registration CTA */}
+              {/* Registration Section */}
               <div className="space-y-3">
-                {externalRegistrationLink ? (
-                  <Button asChild className="w-full" size="lg">
-                    <Link href={externalRegistrationLink} target="_blank" rel="noopener noreferrer" aria-label="Register for this event (opens in new tab)">
-                      Register Now
-                    </Link>
-                  </Button>
-                ) : isRegistrationRequired ? (
-                  <Button className="w-full" size="lg" disabled aria-label="Registration is required for this event">
-                    Registration Required
-                  </Button>
-                ) : (
-                  <Button className="w-full" size="lg" variant="outline" disabled aria-label="Registration is not available for this event">
-                    Registration Not Available
-                  </Button>
+                {/* Registration Count (Admin only) */}
+                {registrationCount !== null && registrationCount !== undefined && (
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium">{registrationCount}</span> registration
+                    {registrationCount !== 1 ? 's' : ''}
+                  </div>
                 )}
 
+                {/* Registration Status */}
+                {isRegistered ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 rounded-md bg-success/10 p-3 dark:bg-success/20">
+                      <CheckCircle2 className="h-5 w-5 text-success-foreground" aria-hidden="true" />
+                      <span className="text-sm font-medium text-success-foreground">
+                        You are registered for this event
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleCancelRegistration}
+                      disabled={isCancelling}
+                      aria-label="Cancel your registration for this event"
+                    >
+                      {isCancelling ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                          Cancelling...
+                        </>
+                      ) : (
+                        <>
+                          <X className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Cancel Registration
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : user ? (
+                  // User is authenticated but not registered
+                  !externalRegistrationLink && isRegistrationRequired ? (
+                    <EventRegistrationForm
+                      eventId={eventId}
+                      eventSlug={eventSlug}
+                      userEmail={user.email || ''}
+                      userName={user.name || ''}
+                      onSuccess={() => router.refresh()}
+                    />
+                  ) : externalRegistrationLink ? (
+                    <Button asChild className="w-full" size="lg">
+                      <Link
+                        href={externalRegistrationLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Register for this event (opens in new tab)"
+                      >
+                        Register Now
+                      </Link>
+                    </Button>
+                  ) : null
+                ) : (
+                  // User is not authenticated
+                  !externalRegistrationLink && isRegistrationRequired ? (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={handleSignInClick}
+                      aria-label="Sign in to register for this event"
+                    >
+                      Sign in to Register
+                    </Button>
+                  ) : externalRegistrationLink ? (
+                    <Button asChild className="w-full" size="lg">
+                      <Link
+                        href={externalRegistrationLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Register for this event (opens in new tab)"
+                      >
+                        Register Now
+                      </Link>
+                    </Button>
+                  ) : null
+                )}
+
+                {/* Online Meeting Link */}
                 {modality === 'online' && onlineMeeting?.url && (
                   <Button asChild variant="secondary" className="w-full">
-                    <Link href={onlineMeeting.url} target="_blank" rel="noopener noreferrer" aria-label="Join online meeting (opens in new tab)">
+                    <Link
+                      href={onlineMeeting.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Join online meeting (opens in new tab)"
+                    >
                       Join Online Meeting
                     </Link>
                   </Button>

@@ -83,3 +83,12 @@ export interface EventInput {
   featuredImage?: string
   meta: EventMeta
 }
+
+/**
+ * Helper type for events with registration status
+ * Not stored on event, computed client-side
+ */
+export interface EventWithRegistrationStatus extends Event {
+  userRegistrationStatus?: 'registered' | 'cancelled' | null
+  registrationCount?: number // Computed on-demand using Firestore count() query, not denormalized
+}

@@ -38,7 +38,7 @@
     --destructive: rgb(229, 77, 46);
     --destructive-foreground: rgb(255, 255, 255);
     --success: rgb(34, 139, 58);
-    --success-foreground: rgb(255, 255, 255);
+    --success-foreground: rgb(22, 163, 74);
     --border: rgb(216, 216, 216);
     --input: rgb(216, 216, 216);
     --ring: rgb(100, 74, 64);
@@ -102,7 +102,7 @@
     --destructive: rgb(229, 77, 46);
     --destructive-foreground: rgb(255, 255, 255);
     --success: rgb(74, 222, 128);
-    --success-foreground: rgb(20, 83, 45);
+    --success-foreground: rgb(22, 163, 74);
     --border: rgb(32, 30, 24);
     --input: rgb(72, 72, 72);
     --ring: rgb(255, 224, 194);

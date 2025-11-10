@@ -68,16 +68,23 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+    }
 
-      match /registrations/{regId} {
-        // you said "require sign-in (anonymous is fine)"
-        // so this is good:
-        allow create: if isSignedIn();
-
-        // people can see their own registrations, admins see all
-        allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-        allow update, delete: if isAdmin();
-      }
+    // ---------- EVENT REGISTRATIONS (root-level collection) ----------
+    match /eventRegistrations/{regId} {
+      // Users can only create registrations for themselves
+      allow create: if isSignedIn() && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Users can read/update their own registrations
+      allow read, update: if isSignedIn() && 
+                             resource.data.userId == request.auth.uid;
+      
+      // Admins can read/list all registrations
+      allow read, list: if isAdmin();
+      
+      // Only admins can delete registrations
+      allow delete: if isAdmin();
     }
 
     // ---------- FORMS ----------
