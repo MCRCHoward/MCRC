@@ -111,10 +111,15 @@ const STEP_FIELDS: Array<(keyof MediationFormValues)[]> = [
 export function MediationSelfReferralForm() {
   const TOTAL_STEPS = STEP_TITLES.length
   const [currentStep, setCurrentStep] = React.useState(0)
+  const formRef = React.useRef<HTMLFormElement>(null)
 
-  const { isSubmitting, error, success, submitData } = useFirestoreFormSubmit(
-    'forms/mediationSelfReferral/submissions',
-  )
+  const {
+    isSubmitting,
+    error,
+    success,
+    submitData,
+    reset: resetSubmission,
+  } = useFirestoreFormSubmit('forms/mediationSelfReferral/submissions')
 
   const form = useForm<MediationFormValues>({
     resolver: zodResolver(mediationFormSchema),
@@ -159,14 +164,22 @@ export function MediationSelfReferralForm() {
   // Auto-save form data
   const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'mediation-self-referral')
 
-  const goBack = () => setCurrentStep((s) => Math.max(0, s - 1))
+  const goBack = () => {
+    setCurrentStep((s) => Math.max(0, s - 1))
+    // Scroll to top of form when going back
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const goNext = async () => {
     const fields = STEP_FIELDS[currentStep]
     const isStepValid = await form.trigger(fields as Array<keyof MediationFormValues>, {
       shouldFocus: true,
     })
-    if (isStepValid) setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1))
+    if (isStepValid) {
+      setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1))
+      // Scroll to top of form when going to next step
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
   }
 
   async function onSubmit(data: MediationFormValues) {
@@ -177,22 +190,51 @@ export function MediationSelfReferralForm() {
     if (!okay) return
 
     await submitData(data)
+    // The success state will trigger the "Thank You" view
+  }
 
-    // Allow the success UI to render, then reset
-    setTimeout(() => {
-      if (form.formState.isSubmitSuccessful && !error) {
-        clearSavedData() // Clear auto-saved data on successful submission
-        setCurrentStep(0)
-        form.reset()
-      }
-    }, 0)
+  // Handle resetting the form after successful submission
+  const handleReset = () => {
+    clearSavedData() // Clear auto-saved data
+    setCurrentStep(0)
+    form.reset()
+    resetSubmission() // Reset the submission state
+    // Scroll to top when resetting
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const progressPct = ((currentStep + 1) / TOTAL_STEPS) * 100
 
+  // Show success view after successful submission
+  if (success) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Thank You!</CardTitle>
+          <CardDescription>Your referral form has been submitted successfully.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert className="border-green-500/50 bg-green-50 dark:bg-green-950/20">
+            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <AlertTitle className="text-green-800 dark:text-green-200">
+              Form submitted successfully!
+            </AlertTitle>
+            <AlertDescription className="text-green-700 dark:text-green-300">
+              We will contact you within 2 business days.
+            </AlertDescription>
+          </Alert>
+          <Button onClick={handleReset} className="w-full" size="lg">
+            Submit another referral
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Render the form as usual if not 'success'
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form ref={formRef} onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 scroll-mt-20">
         {/* Step header + progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -775,19 +817,8 @@ export function MediationSelfReferralForm() {
           </Card>
         )}
 
-        {/* Footer: errors/success + nav buttons */}
+        {/* Footer: errors + nav buttons */}
         <div className="flex flex-col gap-3">
-          {success && (
-            <Alert className="border-green-500/50 bg-green-50 dark:bg-green-950/20">
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertTitle className="text-green-800 dark:text-green-200">
-                Form submitted successfully!
-              </AlertTitle>
-              <AlertDescription className="text-green-700 dark:text-green-300">
-                We will contact you within 2 business days.
-              </AlertDescription>
-            </Alert>
-          )}
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />

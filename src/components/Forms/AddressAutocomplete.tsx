@@ -16,11 +16,17 @@ import type { UseFormReturn } from 'react-hook-form'
 /**
  * Google Maps Places Autocomplete Integration
  *
- * NOTE: This component uses the legacy `google.maps.places.Autocomplete` API.
- * Google recommends migrating to `google.maps.places.PlaceAutocompleteElement` (Places API New),
- * but the legacy API will continue to work and receive bug fixes.
+ * ⚠️ DEPRECATION WARNING: This component uses the legacy `google.maps.places.Autocomplete` API.
+ * As of March 1st, 2025, this API is not available to new customers. Google recommends
+ * migrating to `google.maps.places.PlaceAutocompleteElement` (Places API New).
  *
+ * The legacy API will continue to work for existing customers and receive bug fixes,
+ * but new features will not be added. At least 12 months notice will be given before
+ * support is discontinued.
+ *
+ * TODO: Migrate to PlaceAutocompleteElement when ready
  * Migration Guide: https://developers.google.com/maps/documentation/javascript/places-migration-overview
+ * Legacy API Info: https://developers.google.com/maps/legacy
  *
  * If you see errors about "legacy API not enabled", ensure the Places API is enabled
  * in Google Cloud Console: https://console.cloud.google.com/apis/library/places-backend.googleapis.com

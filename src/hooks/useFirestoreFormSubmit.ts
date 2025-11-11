@@ -30,6 +30,7 @@ interface UseFirestoreFormSubmitReturn {
   error: string | null // Error message if submission fails
   success: boolean // True when submission succeeds
   submitData: (data: Record<string, unknown>) => Promise<void> // Function to submit data
+  reset: () => void // Function to reset the submission state
 }
 
 export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreFormSubmitReturn {
@@ -83,11 +84,20 @@ export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreForm
       // Get a reference to the specified Firestore collection
       const colRef = collection(db, collectionPath)
 
+      // Filter out undefined values - Firestore doesn't allow undefined
+      const cleanedData = Object.fromEntries(
+        Object.entries(data).filter(([_, value]) => value !== undefined),
+      )
+
+      // Convert Date objects to ISO strings for Firestore compatibility
+      const processedData = { ...cleanedData }
+      if (processedData.deadline instanceof Date) {
+        processedData.deadline = processedData.deadline.toISOString()
+      }
+
       // Add a new document with the form data and metadata
       await addDoc(colRef, {
-        ...data, // Spread all form data
-        // Convert Date object to ISO string for Firestore compatibility (if deadline exists)
-        ...(data.deadline instanceof Date && { deadline: data.deadline.toISOString() }),
+        ...processedData,
         // Add server timestamp for when the document was created
         submittedAt: serverTimestamp(),
         // Track which user submitted the form
@@ -107,6 +117,15 @@ export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreForm
     }
   }
 
+  /**
+   * Resets the submission state back to idle
+   * Useful for allowing users to submit another form after a successful submission
+   */
+  const reset = () => {
+    setStatus('idle')
+    setError(null)
+  }
+
   // Return the hook's interface for use in components
-  return { isSubmitting, error, success, submitData }
+  return { isSubmitting, error, success, submitData, reset }
 }
