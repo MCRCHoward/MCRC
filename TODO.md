@@ -769,3 +769,69 @@ When completing a TODO item:
 4. Test the implementation thoroughly
 5. Update the Forms Inventory if new forms are added
 
+# Fix Auto-Submit Issue on Final Step
+
+## Problem
+
+The form auto-submits when users reach step 4 because:
+
+1. Default values (`'None'`) make `accessibilityNeeds` and `additionalInfo` fields already valid
+2. Pressing Enter in any input field triggers form submission
+3. No check to ensure user has interacted with step 4 fields
+
+## Solution
+
+### 1. Prevent Enter Key Submission on Final Step ✅ **COMPLETED**
+
+- ✅ Added `handleFormKeyDown` function that prevents Enter key from submitting when on final step
+- ✅ Added `onKeyDown={handleFormKeyDown}` handler to form element
+- ✅ Only allows submission via explicit button click (Enter key is prevented unless clicking submit button)
+
+### 2. Track User Interaction with Step 4 ✅ **COMPLETED**
+
+- ✅ Added `hasInteractedWithStep4` state to track user interaction
+- ✅ Added `markStep4Interaction()` function to mark when user interacts with step 4 fields
+- ✅ Added interaction tracking to all step 4 fields:
+  - ✅ `deadline` field (Calendar `onSelect` handler)
+  - ✅ `accessibilityNeeds` field (Textarea `onChange` handler)
+  - ✅ `additionalInfo` field (Textarea `onChange` handler)
+- ✅ Updated `onSubmit` to check `hasInteractedWithStep4` before allowing submission
+- ✅ If user hasn't interacted, form focuses first field (`deadline`) and prevents submission
+- ✅ Reset interaction state when navigating back from step 4 (in `goBack` function)
+- ✅ Reset interaction state in `handleReset` after successful submission
+
+### 3. Update Default Values ✅ **COMPLETED**
+
+- ✅ Changed `accessibilityNeeds` default value from `'None'` to `''` (empty string)
+- ✅ Changed `additionalInfo` default value from `'None'` to `''` (empty string)
+- ✅ Fields are no longer pre-validated, ensuring users must explicitly enter data
+
+## Files Modified
+
+- ✅ `src/Forms/formDisplay/selfReferralForm.tsx`
+  - ✅ Added `hasInteractedWithStep4` state (line 115)
+  - ✅ Added `handleFormKeyDown` function (lines 225-234)
+  - ✅ Added `markStep4Interaction` function (lines 237-241)
+  - ✅ Added `onKeyDown={handleFormKeyDown}` to form element (line 277)
+  - ✅ Updated `onSubmit` to check interaction state (lines 197-202)
+  - ✅ Updated default values for `accessibilityNeeds` and `additionalInfo` (lines 165-166)
+  - ✅ Added interaction tracking to `deadline` Calendar `onSelect` (line 805)
+  - ✅ Added interaction tracking to `accessibilityNeeds` Textarea `onChange` (line 834)
+  - ✅ Added interaction tracking to `additionalInfo` Textarea `onChange` (line 860)
+  - ✅ Reset interaction state in `goBack` when leaving step 4 (lines 175-178)
+  - ✅ Reset interaction state in `handleReset` (line 218)
+
+## Implementation Details
+
+- ✅ Implemented `handleFormKeyDown` that prevents Enter key submission on final step (unless clicking submit button)
+- ✅ Track interactions with `onChange`/`onSelect` handlers on all step 4 fields
+- ✅ Check `hasInteractedWithStep4` in `onSubmit` before allowing submission
+- ✅ Default values changed to empty strings to prevent pre-validation
+
+## Status: ✅ **COMPLETED**
+
+All three solution components have been successfully implemented. The form now:
+- Prevents auto-submission when users reach step 4
+- Requires user interaction with at least one step 4 field before allowing submission
+- Blocks Enter key from submitting on the final step (unless clicking submit button)
+- Uses empty default values so fields require explicit user input

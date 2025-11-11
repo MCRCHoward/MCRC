@@ -111,6 +111,8 @@ const STEP_FIELDS: Array<(keyof MediationFormValues)[]> = [
 export function MediationSelfReferralForm() {
   const TOTAL_STEPS = STEP_TITLES.length
   const [currentStep, setCurrentStep] = React.useState(0)
+  const [isMounted, setIsMounted] = React.useState(false)
+  const [hasInteractedWithStep4, setHasInteractedWithStep4] = React.useState(false)
   const formRef = React.useRef<HTMLFormElement>(null)
 
   const {
@@ -120,6 +122,11 @@ export function MediationSelfReferralForm() {
     submitData,
     reset: resetSubmission,
   } = useFirestoreFormSubmit('forms/mediationSelfReferral/submissions')
+
+  // Track mount state to prevent hydration mismatch with localStorage
+  React.useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const form = useForm<MediationFormValues>({
     resolver: zodResolver(mediationFormSchema),
@@ -155,8 +162,8 @@ export function MediationSelfReferralForm() {
 
       // Section 4
       deadline: undefined,
-      accessibilityNeeds: 'None',
-      additionalInfo: 'None',
+      accessibilityNeeds: '',
+      additionalInfo: '',
     },
     mode: 'onChange', // Changed from 'onTouched' for real-time validation
   })
@@ -165,6 +172,10 @@ export function MediationSelfReferralForm() {
   const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'mediation-self-referral')
 
   const goBack = () => {
+    // Reset interaction state when leaving step 4
+    if (currentStep === 3) {
+      setHasInteractedWithStep4(false)
+    }
     setCurrentStep((s) => Math.max(0, s - 1))
     // Scroll to top of form when going back
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -183,6 +194,13 @@ export function MediationSelfReferralForm() {
   }
 
   async function onSubmit(data: MediationFormValues) {
+    // Prevent submission if on final step and user hasn't interacted with step 4 fields
+    if (currentStep === 3 && !hasInteractedWithStep4) {
+      // Focus first field to prompt user interaction
+      form.setFocus('deadline')
+      return
+    }
+
     // Optional: final guard to ensure last step is valid
     const okay = await form.trigger(STEP_FIELDS[currentStep] as Array<keyof MediationFormValues>, {
       shouldFocus: true,
@@ -197,10 +215,29 @@ export function MediationSelfReferralForm() {
   const handleReset = () => {
     clearSavedData() // Clear auto-saved data
     setCurrentStep(0)
+    setHasInteractedWithStep4(false) // Reset interaction state
     form.reset()
     resetSubmission() // Reset the submission state
     // Scroll to top when resetting
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // Prevent Enter key from submitting form on final step
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter' && currentStep === 3) {
+      // Only prevent if not clicking the submit button
+      const target = e.target as HTMLElement
+      if (target.tagName !== 'BUTTON' || target.getAttribute('type') !== 'submit') {
+        e.preventDefault()
+      }
+    }
+  }
+
+  // Track user interaction with step 4 fields
+  const markStep4Interaction = () => {
+    if (currentStep === 3) {
+      setHasInteractedWithStep4(true)
+    }
   }
 
   const progressPct = ((currentStep + 1) / TOTAL_STEPS) * 100
@@ -234,7 +271,12 @@ export function MediationSelfReferralForm() {
   // Render the form as usual if not 'success'
   return (
     <Form {...form}>
-      <form ref={formRef} onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 scroll-mt-20">
+      <form
+        ref={formRef}
+        onSubmit={form.handleSubmit(onSubmit)}
+        onKeyDown={handleFormKeyDown}
+        className="space-y-6 scroll-mt-20"
+      >
         {/* Step header + progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -758,7 +800,10 @@ export function MediationSelfReferralForm() {
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(date) => {
+                            field.onChange(date)
+                            markStep4Interaction()
+                          }}
                           initialFocus
                         />
                       </PopoverContent>
@@ -784,6 +829,10 @@ export function MediationSelfReferralForm() {
                         placeholder="e.g., ASL interpreter, Spanish-speaking mediator, wheelchair accessibility..."
                         className="min-h-[100px]"
                         {...field}
+                        onChange={(e) => {
+                          field.onChange(e)
+                          markStep4Interaction()
+                        }}
                       />
                     </FormControl>
                     <FormDescription>
@@ -806,6 +855,10 @@ export function MediationSelfReferralForm() {
                         placeholder="Any additional context or notes for our team."
                         className="min-h-[100px]"
                         {...field}
+                        onChange={(e) => {
+                          field.onChange(e)
+                          markStep4Interaction()
+                        }}
                       />
                     </FormControl>
                     <FormDescription>(Enter &apos;None&apos; if not applicable)</FormDescription>
@@ -828,7 +881,7 @@ export function MediationSelfReferralForm() {
               </AlertDescription>
             </Alert>
           )}
-          {hasSavedData() && !isSubmitting && !success && (
+          {isMounted && hasSavedData() && !isSubmitting && !success && (
             <Alert className="border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
               <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
                 Your progress has been saved automatically.
