@@ -835,3 +835,340 @@ All three solution components have been successfully implemented. The form now:
 - Requires user interaction with at least one step 4 field before allowing submission
 - Blocks Enter key from submitting on the final step (unless clicking submit button)
 - Uses empty default values so fields require explicit user input
+
+
+# Rebuild Donation Page with CMS Integration
+
+## Overview
+
+Complete rebuild of `/donate` page with conversion-focused design, secure PayPal Smart Buttons integration for one-time donations, dedicated thank-you page, and CMS donations tracking system.
+
+## Implementation Status
+
+### 1. Create Donation Types and Schema ✅ **COMPLETED**
+
+- **File**: `src/types/donation.ts`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ `Donation` interface defined with all required fields (id, amount, currency, frequency, donorName, donorEmail, donorPhone, emailMarketingConsent, paymentId, paymentStatus, paymentDate, donationDate, notes, createdAt, updatedAt)
+  - ✅ `DonationInput` type defined (omits auto-generated fields)
+  - ✅ `DonationFrequency` type: 'one-time' | 'monthly'
+  - ✅ `DonationPaymentStatus` type: 'completed' | 'pending' | 'failed'
+  - ✅ `DonationSubscription` type documented for Phase 2 (monthly recurring donations)
+- **Files Created**:
+  - `src/types/donation.ts` - Complete type definitions
+
+### 2. Create PayPal Donation Server Actions (One-Time Only V1) ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(default)/donate/donation-actions.ts`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ `createPayPalDonationOrder(amount: number, donorData: DonationInput)` - Creates PayPal order using server SDK, validates amount (minimum $1) and donor data, returns order ID
+  - ✅ `capturePayPalDonation(orderId: string, donationData: DonationInput)` - Captures PayPal payment, creates donation record in Firestore `donations` collection via Admin SDK, validates payment amount matches donation amount, redirects to thank-you page
+  - ✅ Only supports one-time donations in Phase 1 (monthly disabled with error message)
+  - ✅ Comprehensive error handling and logging
+  - ✅ Input sanitization (name, email, phone, notes)
+  - ✅ Payment amount and currency validation
+- **Files Created**:
+  - `src/app/(frontend)/(default)/donate/donation-actions.ts` - Complete server actions implementation
+
+### 3. Rebuild Donation Page Component ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(default)/donate/page.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Complete rebuild with conversion-focused design
+  - ✅ **Section 1: Hero** - Headline "Support Your Community", impact statement, hero image
+  - ✅ **Section 2: Donation Form** with 4-step process:
+    - Step 1 (User Info): FormField inputs for donor name, email, optional phone, email marketing consent
+    - Step 2 (Giving Level): ToggleGroup for preset amounts ($25, $50, $100, $250), custom amount input with validation
+    - Step 3 (Frequency): ToggleGroup with "One-Time" pre-selected, "Monthly" disabled with "Coming Soon" badge
+    - Step 4 (Payment): Integrated PayPal Smart Buttons using `DonationPayPalButton` component with `createPayPalDonationOrder` and `capturePayPalDonation` server actions
+    - Security reassurance with lock icon and "Secure payment processing by PayPal" message
+  - ✅ **Section 3: Impact Justification** - "Where Your Money Goes" cards with icons (Users, GraduationCap, Handshake, Heart), testimonial card
+  - ✅ **Section 4: Alternatives** - Volunteer CTA linking to `/volunteer`, in-kind donation guidance with contact link
+  - ✅ **Section 5: Trust & Legal** - 501(c)(3) statement, privacy reassurance, contact info with email and phone links
+- **Files Created**:
+  - `src/components/payments/DonationPayPalButton.tsx` - PayPal Smart Buttons integration component
+
+### 4. Create Dedicated Thank-You Page ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(default)/donate/thank-you/page.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Server Component that reads donation ID from search params
+  - ✅ Fetches donation data via Admin SDK (`getDonationById`)
+  - ✅ Displays personalized confirmation (name, amount, frequency) without exposing data in URL
+  - ✅ Includes thank-you message, social share prompts (Facebook, Twitter, LinkedIn), and next-step CTAs (volunteer, make another gift)
+  - ✅ Handles missing/invalid ID with graceful fallback (`MissingDonationState` component) and navigation back to `/donate`
+  - ✅ Donation summary card with amount, frequency, gift date, transaction ID
+  - ✅ Receipt & questions section with contact email link
+  - ✅ Impact message section
+- **Files Created**:
+  - `src/app/(frontend)/(default)/donate/thank-you/page.tsx` - Complete thank-you page implementation
+
+### 5. Create CMS Donations Section ✅ **COMPLETED**
+
+- **Files**: 
+  - `src/app/(frontend)/(cms)/dashboard/donations/page.tsx`
+  - `src/app/(frontend)/(cms)/dashboard/donations/firebase-actions.ts`
+  - `src/app/(frontend)/(cms)/dashboard/donations/DonationsTable.tsx`
+  - `src/app/(frontend)/(cms)/dashboard/donations/[id]/page.tsx`
+  - `src/app/(frontend)/(cms)/dashboard/donations/[id]/DonationDetailClient.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Created donations list page with Admin SDK to list donations in table
+  - ✅ Added filtering/search on donor name/email/phone/payment ID, status (completed/pending/failed), and frequency (one-time/monthly)
+  - ✅ Created detailed donation view page with metadata, notes, and actions (add/update admin notes)
+  - ✅ Created `firebase-actions.ts` for donation management (`updateDonationNotes`, `getDonationById`, `getDonations`)
+  - ✅ Updated sidebar navigation in `dashboard/layout.tsx` to add "Donations" section with Heart icon
+  - ✅ Added Heart icon to `nav-main.tsx` iconMap
+  - ✅ Summary cards showing total donations, one-time gifts count, and completed payments count
+  - ✅ CSV export functionality for filtered donations
+  - ✅ Responsive table design with proper formatting
+
+### 6. Lock Down Firestore Security Rules ✅ **COMPLETED**
+
+- **File**: `firestore.rules`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Added `donations` collection rules:
+    - `allow read: if isStaff();` (staff only - admin or coordinator)
+    - `allow create, update, delete: if false;` (all writes go through Admin SDK server actions)
+  - ✅ Added comments explaining reasoning: all writes must go through Admin SDK server actions, only staff can read for CMS dashboard
+  - ✅ Rules placed before catch-all deny rule to ensure proper matching
+
+### 7. Update PayPal Integration Utilities ✅ **COMPLETED**
+
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Created `DonationPayPalButton` component using PayPal Smart Buttons SDK (`@paypal/paypal-js`)
+  - ✅ Integrated with `createPayPalDonationOrder` and `capturePayPalDonation` server actions
+  - ✅ Shows disabled state for monthly option with "Coming Soon" badge (Phase 2)
+  - ✅ Uses centralized PayPal config via `getPayPalConfig()` from `paypal-config.ts`
+  - ✅ Proper loading states, error handling, and user feedback via toast notifications
+  - ✅ Security reassurance message with lock icon
+
+## Summary
+
+**Completed (7/7):** ✅ **ALL COMPLETED**
+- ✅ Donation Types and Schema
+- ✅ PayPal Donation Server Actions
+- ✅ Thank-You Page
+- ✅ Donation Page Component Rebuild (multi-step form with PayPal Smart Buttons)
+- ✅ CMS Donations Dashboard (list page, detail page, filtering, search, export)
+- ✅ Firestore Security Rules for donations collection
+- ✅ PayPal Smart Buttons Integration (replaced hosted button)
+
+**All implementation tasks have been completed!** The donation system is now fully functional with:
+- Complete multi-step donation form with PayPal Smart Buttons integration
+- Secure server-side payment processing
+- CMS dashboard for viewing and managing donations
+- Proper security rules and access controls
+
+## Technical Details
+
+### Phase Approach
+
+- Phase 1 ships secure one-time donations only
+- Phase 2 will introduce PayPal Subscriptions; capture requirements in docs/TODO for later
+
+### Data Flow
+
+1. User completes donor info + giving level form on donate page (4-step process)
+2. Clicking PayPal Smart Button calls `createPayPalDonationOrder` server action
+3. PayPal popup approval triggers `capturePayPalDonation`
+4. Server action captures payment, writes donation document via Admin SDK, then redirects to thank-you page with donation ID
+5. Thank-you page fetches donation data server-side and renders personalized confirmation
+
+### CMS Access
+
+- Only authenticated admin/staff can view donations dashboard using Admin SDK reads
+- No client-side access to sensitive donation data (all reads go through Admin SDK)
+- Admin notes functionality allows staff to add internal notes about donations
+- All writes (create, update, delete) must go through Admin SDK server actions (Firestore rules enforce this)
+
+# Form Submissions Dashboard Implementation ✅ **COMPLETED**
+
+## Overview
+Created `/dashboard/inquiry` page (corrected route name) to display the top 10 most recent form submissions from all 4 form types using a single collection group query for optimal performance. Includes pagination support, normalization helpers, privacy features, and reviewed flag functionality.
+
+## Implementation Status
+
+### 1. Create Server-Only Data Fetch Function ✅ **COMPLETED**
+
+- **File**: `src/lib/listSubmissions.ts`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Uses collection group query (`collectionGroup('submissions')`) for optimal performance
+  - ✅ Single query across all `forms/*/submissions` collections (1 query, 10 docs)
+  - ✅ Order by `submittedAt` descending
+  - ✅ Cursor-based pagination support with `startAfter` parameter
+  - ✅ Normalization helper functions:
+    - `getName(data)`: Extracts name from firstName+lastName, name, referrerName, participantName
+    - `getEmail(data)`: Extracts email from email, referrerEmail, participantEmail
+    - `getPhone(data)`: Extracts phone from phone, referrerPhone, participantPhone, parentGuardianPhone, contactOnePhone
+  - ✅ Form type extraction from document path (`doc.ref.parent.parent?.id`)
+  - ✅ Form type mapping to display names:
+    - `mediationSelfReferral` → "Mediation Self Referral"
+    - `groupFacilitationInquiry` → "Group Facilitation Inquiry"
+    - `restorativeProgramReferral` → "Restorative Program Referral"
+    - `communityEducationTrainingRequest` → "Community Education Training Request"
+  - ✅ Handles Firestore Timestamp conversion with fallback to `doc.createTime` for legacy docs
+  - ✅ Returns typed `SubmissionRow` array with pagination metadata
+- **Files Created**:
+  - `src/lib/listSubmissions.ts` - Complete server-only data fetching with normalization
+
+### 2. Create Form Submissions Table Component ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/FormSubmissionsTable.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Client component with table display using Shadcn UI Table components
+  - ✅ Columns: Form Type (badge), Name, Email (masked/privacy), Phone (masked/privacy), Submission Date, Status (New/Reviewed), Actions
+  - ✅ Privacy features:
+    - Email masking (shows first 3 chars + domain)
+    - Phone masking (shows last 4 digits)
+    - Toggle to show full details per row
+    - Copy-to-clipboard functionality for email/phone with toast notifications
+  - ✅ Filtering and search:
+    - Search by name, email, phone, or form type (client-side fuzzy search)
+    - Filter by form type (dropdown)
+    - Filter by review status (All/New/Reviewed)
+  - ✅ Reviewed status toggle:
+    - Button to mark as reviewed/unreviewed
+    - Loading states during update
+    - Visual feedback with badges and icons
+  - ✅ CSV export functionality for filtered submissions
+  - ✅ Sticky table header
+  - ✅ Empty state handling
+  - ✅ Results count display
+  - ✅ View button linking to detail page (future enhancement)
+- **Files Created**:
+  - `src/app/(frontend)/(cms)/dashboard/inquiry/FormSubmissionsTable.tsx` - Complete table component
+
+### 3. Update Inquiry Page (Route Name Corrected) ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx` (renamed from `inquery`)
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Server Component configuration:
+    - `export const runtime = 'nodejs'`
+    - `export const dynamic = 'force-dynamic'`
+    - `export const revalidate = 0` (always fresh data)
+  - ✅ Role-gated via parent CMS layout (authenticated users only)
+  - ✅ Calls `listRecentSubmissions(10)` function
+  - ✅ Summary cards:
+    - Total Submissions (count)
+    - New (unreviewed count)
+    - Reviewed (reviewed count)
+    - Form Types (number of different form types)
+  - ✅ Form type breakdown card showing counts per form type
+  - ✅ Error handling with user-friendly error messages
+  - ✅ Renders FormSubmissionsTable component with fetched data
+- **Files Modified**:
+  - `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx` - Complete Server Component implementation
+  - Route renamed from `inquery` to `inquiry` (directory renamed)
+
+### 4. Handle Form-Specific Field Variations ✅ **COMPLETED**
+
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Normalization helpers handle all form-specific field variations:
+    - **Name**: Handles firstName+lastName, name, referrerName, participantName
+    - **Email**: Handles email, referrerEmail, participantEmail
+    - **Phone**: Handles phone, referrerPhone, participantPhone, parentGuardianPhone, contactOnePhone
+  - ✅ Fallback values ("—" for name, undefined for email/phone) when fields are missing
+  - ✅ Normalization happens at fetch time in server-side function
+- **Files Created**:
+  - Normalization functions in `src/lib/listSubmissions.ts`
+
+### 5. Add Reviewed Flag Functionality ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/submission-actions.ts`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ `markSubmissionAsReviewed(originalDocPath)` server action
+  - ✅ `markSubmissionAsUnreviewed(originalDocPath)` server action
+  - ✅ Updates Firestore document with `reviewed: true` and `reviewedAt` timestamp
+  - ✅ Revalidates page after update
+  - ✅ Integrated into FormSubmissionsTable component with loading states
+  - ✅ Error handling with user-friendly messages
+- **Files Created**:
+  - `src/app/(frontend)/(cms)/dashboard/inquiry/submission-actions.ts` - Server actions for review status
+
+### 6. Add Firestore Index ✅ **COMPLETED**
+
+- **File**: `firestore.indexes.json`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Added collection group index for `submissions`:
+    - Collection Group: `submissions`
+    - Query Scope: `COLLECTION_GROUP`
+    - Fields: `submittedAt` (Descending)
+  - ✅ Enables efficient querying across all form submission collections
+- **Files Modified**:
+  - `firestore.indexes.json` - Added collection group index
+
+## Technical Details
+
+### Collection Group Query Pattern
+
+- Uses `adminDb.collectionGroup('submissions')` to query across all `forms/*/submissions` collections
+- Single query with correct global ordering by `submittedAt`
+- Efficient (only reads needed documents)
+- Easy to paginate with cursor-based approach
+
+### Data Structure
+
+Each submission document contains:
+- Form-specific fields (varies by form type)
+- Metadata: `submittedAt` (Firestore Timestamp), `submittedBy` (UID), `submissionType` ('authenticated' | 'anonymous')
+- Optional: `reviewed` (boolean), `reviewedAt` (Timestamp)
+
+### Security
+
+- Server Component only (never import Admin SDK in client code)
+- Role-gated route (authenticated users via CMS layout)
+- Admin SDK bypasses Firestore rules (server-side)
+- PII masked in table view (email/phone)
+
+### Performance
+
+- Single collection group query (optimal performance)
+- Proper indexing (`submittedAt` descending)
+- Cursor-based pagination support (ready for future pagination UI)
+- Client-side filtering/search on loaded data
+- Server-side search option for full history (future enhancement)
+
+## Files Created/Modified
+
+**New Files:**
+- `src/lib/listSubmissions.ts` - Server-only data fetching with normalization helpers
+- `src/app/(frontend)/(cms)/dashboard/inquiry/FormSubmissionsTable.tsx` - Client component for table display
+- `src/app/(frontend)/(cms)/dashboard/inquiry/submission-actions.ts` - Server actions for review status
+
+**Modified Files:**
+- `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx` - Server component (renamed from `inquery`)
+- `firestore.indexes.json` - Added collection group index for submissions
+
+**Files Renamed:**
+- `src/app/(frontend)/(cms)/dashboard/inquery/` → `src/app/(frontend)/(cms)/dashboard/inquiry/`
+
+## Summary
+
+**Completed (6/6):** ✅ **ALL COMPLETED**
+- ✅ Server-only data fetch function with collection group query
+- ✅ Form submissions table component with privacy features
+- ✅ Inquiry page (Server Component) with summary cards
+- ✅ Form-specific field normalization helpers
+- ✅ Reviewed flag functionality
+- ✅ Firestore index configuration
+
+**All implementation tasks have been completed!** The form submissions dashboard is now fully functional with:
+- Optimal performance using collection group query (1 query, 10 docs)
+- Privacy features (masked PII, copy-to-clipboard)
+- Review status management
+- Comprehensive filtering and search
+- CSV export functionality
+- Proper error handling and empty states

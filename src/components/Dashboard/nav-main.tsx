@@ -7,6 +7,7 @@ import {
   Calendar,
   Frame,
   GalleryVerticalEnd,
+  Heart,
   Map,
   PieChart,
   SquareTerminal,
@@ -34,6 +35,7 @@ const iconMap: Record<string, LucideIcon> = {
   pieChart: PieChart,
   map: Map,
   galleryVerticalEnd: GalleryVerticalEnd,
+  heart: Heart,
 }
 
 export function NavMain({

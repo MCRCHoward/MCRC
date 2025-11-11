@@ -110,6 +110,18 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // ---------- DONATIONS (admin-only access) ----------
+    // All writes go through Admin SDK server actions (bypasses Firestore rules)
+    // Only staff (admin/coordinator) can read donations for CMS dashboard
+    match /donations/{donationId} {
+      // Staff can read donations for CMS dashboard
+      allow read: if isStaff();
+      
+      // All writes (create, update, delete) are disabled for client-side access
+      // All donation creation/updates must go through Admin SDK server actions
+      allow create, update, delete: if false;
+    }
+
     // ---------- Catch-all deny ----------
     match /{document=**} {
       allow read, write: if false;
