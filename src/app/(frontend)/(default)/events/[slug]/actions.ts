@@ -51,6 +51,33 @@ export async function registerForEvent(
     throw new Error('You are already registered for this event')
   }
 
+  // Check user registration limit (max 10 active registrations per user)
+  const MAX_USER_REGISTRATIONS = 10
+  try {
+    const userRegistrationsQuery = adminDb
+      .collection('eventRegistrations')
+      .where('userId', '==', user.id)
+      .where('status', '==', 'registered')
+      .limit(MAX_USER_REGISTRATIONS + 1)
+
+    const userRegistrationsSnapshot = await userRegistrationsQuery.get()
+    if (userRegistrationsSnapshot.size >= MAX_USER_REGISTRATIONS) {
+      throw new Error(
+        `You have reached the maximum limit of ${MAX_USER_REGISTRATIONS} active registrations. ` +
+          'Please cancel an existing registration before registering for a new event.',
+      )
+    }
+  } catch (error) {
+    if (isMissingIndexError(error)) {
+      throw new Error(formatIndexError(error))
+    }
+    // Re-throw if it's our custom error
+    if (error instanceof Error && error.message.includes('maximum limit')) {
+      throw error
+    }
+    throw error
+  }
+
   // Check if event date is in the past (registration deadline)
   const eventStartAt = eventData.startAt
   if (eventStartAt) {
@@ -223,7 +250,9 @@ export async function cancelRegistration(registrationId: string): Promise<void> 
       // Allow cancellation if event is more than 1 hour away (grace period)
       const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000)
       if (eventDateTime < oneHourFromNow) {
-        throw new Error('Cancellation is no longer available. The event has started or is starting soon.')
+        throw new Error(
+          'Cancellation is no longer available. The event has started or is starting soon.',
+        )
       }
     }
   }

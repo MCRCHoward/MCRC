@@ -25,6 +25,12 @@ export interface EventRegistration {
   eventName: string // Copied from event.title
   eventDate: string // ISO timestamp, copied from event.startAt
   eventSlug: string // Copied from event.slug
+  // Payment information (for paid events)
+  paymentId?: string // PayPal order ID
+  paymentStatus?: 'completed' | 'pending' | 'failed'
+  paymentAmount?: number
+  paymentCurrency?: string
+  paymentDate?: string // ISO timestamp
 }
 
 /**
@@ -33,5 +39,15 @@ export interface EventRegistration {
  */
 export type EventRegistrationInput = Omit<
   EventRegistration,
-  'userId' | 'registrationDate' | 'eventName' | 'eventDate' | 'eventSlug' | 'status'
+  | 'userId'
+  | 'registrationDate'
+  | 'eventName'
+  | 'eventDate'
+  | 'eventSlug'
+  | 'status'
+  | 'paymentId'
+  | 'paymentStatus'
+  | 'paymentAmount'
+  | 'paymentCurrency'
+  | 'paymentDate'
 >

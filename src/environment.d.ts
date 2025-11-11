@@ -25,6 +25,19 @@ declare global {
       FIREBASE_ADMIN_AUTH_PROVIDER_X509_CERT_URL: string
       FIREBASE_ADMIN_CLIENT_X509_CERT_URL: string
       FIREBASE_ADMIN_UNIVERSE_DOMAIN: string
+
+      // PayPal (server-side) config
+      PAYPAL_PRODUCTION_DISPLAY_APP_NAME?: string
+      PAYPAL_PRODUCTION_CLIENT_ID?: string
+      PAYPAL_PRODUCTION_SECRET_KEY_1?: string
+      PAYPAL_SANDBOX_DISPLAY_APP_NAME?: string
+      PAYPAL_SANDBOX_CLIENT_ID?: string
+      PAYPAL_SANDBOX_SECRET_KEY_1?: string
+      PAYPAL_ENVIRONMENT?: 'sandbox' | 'production'
+      // PayPal (client-side) config
+      NEXT_PUBLIC_PAYPAL_PRODUCTION_CLIENT_ID?: string
+      NEXT_PUBLIC_PAYPAL_SANDBOX_CLIENT_ID?: string
+      NEXT_PUBLIC_PAYPAL_ENVIRONMENT?: 'sandbox' | 'production'
     }
   }
 }

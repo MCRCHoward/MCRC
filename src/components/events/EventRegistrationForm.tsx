@@ -29,6 +29,8 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { EventRegistrationInput } from '@/types/event-registration'
 import { registerForEvent } from '@/app/(frontend)/(default)/events/[slug]/actions'
+import { PayPalButton } from '@/components/payments/PayPalButton'
+import { formatPaymentAmount } from '@/utilities/payment-helpers'
 
 const registrationSchema = z.object({
   name: z.string().min(1, 'Name is required').max(200, 'Name must be less than 200 characters'),
@@ -55,6 +57,8 @@ interface EventRegistrationFormProps {
   userEmail?: string
   userName?: string
   userPhone?: string
+  isFree: boolean
+  eventCost?: { amount: number; currency: string }
   onSuccess?: () => void
 }
 
@@ -63,10 +67,14 @@ export function EventRegistrationForm({
   userEmail = '',
   userName = '',
   userPhone = '',
+  isFree,
+  eventCost,
   onSuccess,
 }: EventRegistrationFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPayPalButtons, setShowPayPalButtons] = useState(false)
+  const [formData, setFormData] = useState<EventRegistrationInput | null>(null)
 
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
@@ -99,15 +107,29 @@ export function EventRegistrationForm({
         serviceInterest: values.serviceInterest,
       }
 
-      await registerForEvent(eventId, registrationData)
+      // For free events, register directly
+      if (isFree) {
+        await registerForEvent(eventId, registrationData)
 
-      toast.success('Successfully registered!', {
-        description: 'You will receive a confirmation email shortly.',
-        duration: 5000,
-      })
-      onSuccess?.()
-      // Refresh the page to show updated registration status
-      router.refresh()
+        toast.success('Successfully registered!', {
+          description: 'You will receive a confirmation email shortly.',
+          duration: 5000,
+        })
+        onSuccess?.()
+        router.refresh()
+        return
+      }
+
+      // For paid events, show PayPal buttons
+      if (eventCost && eventCost.amount > 0) {
+        setFormData(registrationData)
+        setShowPayPalButtons(true)
+        setIsSubmitting(false)
+        return
+      }
+
+      // Fallback: should not reach here, but handle gracefully
+      throw new Error('Payment information is missing for this paid event')
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to register for event. Please try again.'
@@ -115,9 +137,23 @@ export function EventRegistrationForm({
         description: errorMessage,
         duration: 5000,
       })
-    } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handlePaymentSuccess = () => {
+    toast.success('Successfully registered!', {
+      description: 'Your payment has been processed and registration confirmed.',
+      duration: 5000,
+    })
+    onSuccess?.()
+    router.refresh()
+  }
+
+  const handlePaymentError = (_error: Error) => {
+    // Error is already handled in PayPalButton component
+    setShowPayPalButtons(false)
+    setFormData(null)
   }
 
   return (
@@ -254,16 +290,50 @@ export function EventRegistrationForm({
           )}
         />
 
-        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-              Registering...
-            </>
-          ) : (
-            'Register for Event'
-          )}
-        </Button>
+        {!showPayPalButtons ? (
+          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                {isFree ? 'Registering...' : 'Continue to Payment...'}
+              </>
+            ) : isFree ? (
+              'Register for Event'
+            ) : (
+              `Continue to Payment - ${formatPaymentAmount(eventCost?.amount || 0, eventCost?.currency || 'USD')}`
+            )}
+          </Button>
+        ) : (
+          <div className="space-y-4">
+            {eventCost && formData && (
+              <>
+                <div className="rounded-lg border bg-muted/50 p-4 text-center">
+                  <p className="text-sm font-medium">Total Amount</p>
+                  <p className="text-2xl font-bold">{formatPaymentAmount(eventCost.amount, eventCost.currency)}</p>
+                </div>
+                <PayPalButton
+                  eventId={eventId}
+                  registrationData={formData}
+                  amount={eventCost.amount}
+                  currency={eventCost.currency}
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setShowPayPalButtons(false)
+                    setFormData(null)
+                  }}
+                >
+                  Back to Form
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </form>
     </Form>
   )

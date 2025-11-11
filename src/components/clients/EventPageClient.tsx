@@ -342,6 +342,8 @@ const EventPageClient = ({
                       eventId={eventId}
                       userEmail={user.email || ''}
                       userName={user.name || ''}
+                      isFree={isFree}
+                      eventCost={cost ? { amount: cost.amount, currency: cost.currency || 'USD' } : undefined}
                       onSuccess={() => router.refresh()}
                     />
                   ) : externalRegistrationLink ? (
