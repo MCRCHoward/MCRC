@@ -70,9 +70,12 @@ export default async function BlogPage() {
   const blogPosts = await fetchBlogPosts()
 
   return (
-    <div className="p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Blog</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Blog</h1>
+          <p className="text-muted-foreground">View and manage all blog posts</p>
+        </div>
         <Button asChild>
           <Link href="/dashboard/blog/new">New Blog Post</Link>
         </Button>
@@ -80,9 +83,12 @@ export default async function BlogPage() {
 
       <div className="grid gap-3">
         {blogPosts.map((post) => (
-          <div key={post.id} className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <div className="font-medium">{post.title ?? '(untitled)'}</div>
+          <div
+            key={post.id}
+            className="flex items-center justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
+          >
+            <div className="flex-1">
+              <div className="font-medium text-card-foreground">{post.title ?? '(untitled)'}</div>
               <div className="text-sm text-muted-foreground">
                 {post.slug ? `/${post.slug}` : ''} &middot; <StatusBadge status={post._status} />{' '}
                 &middot; {post.updatedAt?.slice(0, 10)}
@@ -103,7 +109,9 @@ export default async function BlogPage() {
           </div>
         ))}
         {blogPosts.length === 0 && (
-          <div className="text-sm text-muted-foreground">No blog posts yet.</div>
+          <div className="rounded-lg border border-border bg-card p-8 text-center">
+            <p className="text-sm text-muted-foreground">No blog posts yet.</p>
+          </div>
         )}
       </div>
     </div>
