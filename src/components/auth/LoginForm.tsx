@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { Loader2, Mail } from 'lucide-react'
-import { auth, db } from '@/firebase/client'
+import { auth } from '@/firebase/client'
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
@@ -19,7 +19,6 @@ import {
   type User,
   type AuthError,
 } from 'firebase/auth'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -83,23 +82,17 @@ export function LoginForm() {
     defaultValues: { email: '', password: '', rememberMe: false },
   })
 
-  const ensureUserProfile = async (user: User) => {
-    const userRef = doc(db, 'users', user.uid)
-    const snap = await getDoc(userRef)
-    if (!snap.exists()) {
-      await setDoc(userRef, { role: 'participant', email: user.email ?? null }, { merge: true })
-    } else if (!snap.data()?.role) {
-      await setDoc(userRef, { role: 'participant' }, { merge: true })
-    }
-  }
-
   const createSession = async (user: User) => {
     try {
       const idToken = await user.getIdToken()
       const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({
+          idToken,
+          email: user.email,
+          displayName: user.displayName,
+        }),
       })
 
       if (!response.ok) {
@@ -124,7 +117,6 @@ export function LoginForm() {
 
       const cred = await signInWithEmailAndPassword(auth, values.email, values.password)
       const user = cred.user
-      await ensureUserProfile(user)
 
       // Create server session
       await createSession(user)
@@ -165,13 +157,7 @@ export function LoginForm() {
         `[LOGIN] Google popup completed: ${(performance.now() - popupStart).toFixed(2)}ms`,
       )
 
-      // User profile
       const user = cred.user
-      const profileStart = performance.now()
-      await ensureUserProfile(user)
-      console.log(
-        `[LOGIN] User profile ensured: ${(performance.now() - profileStart).toFixed(2)}ms`,
-      )
 
       // Session creation
       const sessionStart = performance.now()

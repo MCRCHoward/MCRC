@@ -10,20 +10,21 @@ export default function LoginPage() {
           <div className="mx-auto w-full max-w-sm lg:w-96">
             <div>
               <Image
-                alt="Logo"
+                alt="MCRC Logo"
                 src="/images/logo/mcrc-logo.png"
-                width={120}
-                height={40}
-                className="h-10 w-auto dark:hidden"
+                width={150}
+                height={57}
+                className="h-14 w-auto dark:hidden"
                 priority
               />
               <Image
-                alt="Logo"
+                alt="MCRC Logo"
                 src="/images/logo/mcrc-logo.png"
-                width={120}
-                height={40}
-                className="hidden h-10 w-auto dark:block"
+                width={150}
+                height={57}
+                className="hidden h-14 w-auto dark:block"
                 priority
+                aria-hidden="true"
               />
               <h2 className="mt-8 text-2xl/9 font-bold tracking-tight text-foreground">
                 Sign in to your account
@@ -48,12 +49,12 @@ export default function LoginPage() {
         </div>
         <div className="relative hidden w-0 flex-1 lg:block">
           <Image
-            alt=""
+            alt="Community meeting"
             src="https://images.unsplash.com/photo-1496917756835-20cb06e75b4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1908&q=80"
             fill
             className="object-cover"
             priority
-            aria-hidden="true"
+            sizes="50vw"
           />
         </div>
       </div>
