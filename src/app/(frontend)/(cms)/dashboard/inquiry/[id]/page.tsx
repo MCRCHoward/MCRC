@@ -32,6 +32,38 @@ function toISOString(value: unknown): string | undefined {
 }
 
 /**
+ * Recursively convert Firestore Timestamp objects to ISO strings
+ * This is necessary for serializing data to pass to client components
+ */
+function serializeFirestoreData(data: unknown): unknown {
+  if (data === null || data === undefined) {
+    return data
+  }
+  
+  // Handle Firestore Timestamp
+  if (typeof data === 'object' && 'toDate' in data && typeof (data as Timestamp).toDate === 'function') {
+    return (data as Timestamp).toDate().toISOString()
+  }
+  
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data.map(serializeFirestoreData)
+  }
+  
+  // Handle objects
+  if (typeof data === 'object') {
+    const result: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(data)) {
+      result[key] = serializeFirestoreData(value)
+    }
+    return result
+  }
+  
+  // Return primitives as-is
+  return data
+}
+
+/**
  * Get form type display name from document path
  */
 function getFormTypeFromPath(path: string): string {
@@ -80,39 +112,55 @@ async function getSubmissionByPath(docPath: string) {
 export default async function SubmissionDetailPage({ params }: RouteParams) {
   const { id } = await params
 
+  if (!id || typeof id !== 'string') {
+    console.error('[SubmissionDetailPage] Invalid id parameter:', id)
+    notFound()
+  }
+
   let docPath: string
   try {
     docPath = decodeDocPath(id)
+    console.log('[SubmissionDetailPage] Decoded path:', docPath)
   } catch (error) {
     console.error('[SubmissionDetailPage] Error decoding path:', error)
+    console.error('[SubmissionDetailPage] Encoded id:', id)
+    notFound()
+  }
+
+  if (!docPath || docPath.trim() === '') {
+    console.error('[SubmissionDetailPage] Empty docPath after decoding')
     notFound()
   }
 
   const submission = await getSubmissionByPath(docPath)
 
   if (!submission) {
+    console.error('[SubmissionDetailPage] Submission not found for path:', docPath)
     notFound()
   }
 
   const { data, formType, submittedAt, reviewed, reviewedAt } = submission
 
+  // Serialize Firestore data for client component (convert Timestamps to ISO strings)
+  const serializedData = serializeFirestoreData(data) as Record<string, unknown>
+
   // Extract common fields
-  const firstName = (data.firstName as string) || ''
-  const lastName = (data.lastName as string) || ''
+  const firstName = (serializedData.firstName as string) || ''
+  const lastName = (serializedData.lastName as string) || ''
   const name =
     firstName && lastName
       ? `${firstName} ${lastName}`
-      : (data.name as string) || (data.referrerName as string) || '—'
+      : (serializedData.name as string) || (serializedData.referrerName as string) || '—'
   const email =
-    (data.email as string) ||
-    (data.referrerEmail as string) ||
-    (data.participantEmail as string) ||
+    (serializedData.email as string) ||
+    (serializedData.referrerEmail as string) ||
+    (serializedData.participantEmail as string) ||
     ''
   const phone =
-    (data.phone as string) ||
-    (data.referrerPhone as string) ||
-    (data.participantPhone as string) ||
-    (data.contactOnePhone as string) ||
+    (serializedData.phone as string) ||
+    (serializedData.referrerPhone as string) ||
+    (serializedData.participantPhone as string) ||
+    (serializedData.contactOnePhone as string) ||
     ''
 
   return (
@@ -230,7 +278,7 @@ export default async function SubmissionDetailPage({ params }: RouteParams) {
             docPath={docPath}
             formType={formType}
             initialReviewed={reviewed}
-            formData={data}
+            formData={serializedData}
           />
         </CardContent>
       </Card>
