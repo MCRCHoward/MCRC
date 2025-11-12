@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Sparkles } from 'lucide-react'
+import { BadgeCheck, Bell, ChevronsUpDown, LogOut, Moon, Sparkles, Sun } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner'
 import { auth } from '@/firebase/client'
 import { signOut } from 'firebase/auth'
+import { useCmsTheme } from '@/providers/CmsTheme'
 
 function getInitials(name?: string) {
   if (!name) return 'U'
@@ -44,6 +45,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
+  const { theme, setTheme } = useCmsTheme()
 
   const onLogout = async () => {
     try {
@@ -123,9 +125,9 @@ export function NavUser({
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard />
-                Billing
+              <DropdownMenuItem onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+                {theme === 'light' ? <Moon /> : <Sun />}
+                {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Bell />

@@ -8,6 +8,9 @@ import {
 } from '@/components/Dashboard/app-sidebar'
 import { getCurrentUser } from '@/lib/custom-auth'
 import DashboardBreadcrumbs from '@/components/Dashboard/dashboard-breadcrumbs'
+import { CmsThemeProvider } from '@/providers/CmsTheme'
+import { DashboardLayoutContent } from './DashboardLayoutContent'
+import './cms-theme.css'
 
 // Server-side rendering configuration
 export const runtime = 'nodejs'
@@ -81,22 +84,14 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   ]
 
   return (
-    <SidebarProvider>
-      <AppSidebar user={sidebarUser} navMain={navMain} teams={teams} />
-      <SidebarInset>
-        {/* Shared dashboard header */}
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-            {/* Dynamic breadcrumbs */}
-            <DashboardBreadcrumbs />
-          </div>
-        </header>
-
-        {/* Every /dashboard/* page content renders here */}
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>
-      </SidebarInset>
-    </SidebarProvider>
+    <CmsThemeProvider>
+      <DashboardLayoutContent
+        sidebarUser={sidebarUser}
+        navMain={navMain}
+        teams={teams}
+      >
+        {children}
+      </DashboardLayoutContent>
+    </CmsThemeProvider>
   )
 }
