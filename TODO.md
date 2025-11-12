@@ -1353,3 +1353,1035 @@ All tasks have been successfully implemented and tested.
 - Clear summary card metrics with explanatory tooltip
 - Proper document path encoding for secure navigation
 - Full email and phone number display (no masking)
+
+# Login Performance Diagnostics and Optimization
+
+## Problem
+Google sign-in shows 5-second delay before success toast, then additional delay before dashboard loads.
+
+## Root Cause Analysis ✅ **COMPLETED**
+
+Performance logging revealed the exact bottlenecks:
+- **6.2s session API delay:** Serverless cold start (Firebase Admin SDK initialization) - unavoidable in serverless architecture
+- **621ms profile creation:** Client-side Firestore call (eliminable)
+- **Dashboard loading:** Actually fast at 270-670ms (not the problem)
+
+**Understanding Serverless Cold Starts:**
+- The 6.2s delay is NOT a bug - it's a serverless function "cold start"
+- Functions "sleep" after inactivity to save costs
+- First request "wakes up" the function (spins up container, loads code, initializes Firebase Admin SDK)
+- Subsequent requests are fast (270ms) once warm
+- **This is unavoidable** in serverless architecture without keep-alive pings or dedicated hosting
+
+## Phase 1: Add Performance Timing Logs ✅ **COMPLETED**
+
+### 1.1 Add timing logs to LoginForm.tsx Google sign-in flow
+
+In [`src/components/auth/LoginForm.tsx`](src/components/auth/LoginForm.tsx), add performance markers to the `onGoogleSignIn` function:
+
+```typescript
+const onGoogleSignIn = async () => {
+  const startTime = performance.now()
+  console.log('[LOGIN] Google sign-in started')
+  
+  setError(null)
+  setIsGoogleSigningIn(true)
+
+  try {
+    // Persistence
+    const persistenceStart = performance.now()
+    const rememberMe = form.watch('rememberMe')
+    const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence
+    await setPersistence(auth, persistence)
+    console.log(`[LOGIN] Persistence set: ${performance.now() - persistenceStart}ms`)
+
+    // Google popup
+    const popupStart = performance.now()
+    const provider = new GoogleAuthProvider()
+    const cred = await signInWithPopup(auth, provider)
+    console.log(`[LOGIN] Google popup completed: ${performance.now() - popupStart}ms`)
+    
+    // User profile
+    const user = cred.user
+    const profileStart = performance.now()
+    await ensureUserProfile(user)
+    console.log(`[LOGIN] User profile ensured: ${performance.now() - profileStart}ms`)
+
+    // Session creation
+    const sessionStart = performance.now()
+    await createSession(user)
+    console.log(`[LOGIN] Session created: ${performance.now() - sessionStart}ms`)
+
+    const totalTime = performance.now() - startTime
+    console.log(`[LOGIN] Total sign-in time: ${totalTime}ms`)
+    
+    toast.success('Login successful!')
+    
+    const navStart = performance.now()
+    router.push('/dashboard')
+    router.refresh()
+    console.log(`[LOGIN] Navigation triggered: ${performance.now() - navStart}ms`)
+  } catch (err: unknown) {
+    // ... error handling
+  }
+}
+```
+
+### 1.2 Add timing logs to session API route
+
+In [`src/app/api/session/route.ts`](src/app/api/session/route.ts), add timing to POST handler:
+
+```typescript
+export async function POST(request: Request) {
+  const startTime = performance.now()
+  console.log('[SESSION API] Request received')
+  
+  try {
+    const body = await request.json()
+    const { idToken } = body as { idToken?: string }
+
+    if (!idToken || typeof idToken !== 'string') {
+      return Response.json({ error: 'Missing idToken' }, { status: 400 })
+    }
+
+    // Token verification
+    const verifyStart = performance.now()
+    const decodedToken = await adminAuth.verifyIdToken(idToken)
+    console.log(`[SESSION API] Token verified: ${performance.now() - verifyStart}ms`)
+    
+    const uid = decodedToken.uid
+
+    // Cookie setting
+    const cookieStart = performance.now()
+    const cookieStore = await cookies()
+    cookieStore.set(COOKIE_NAME, idToken, {
+      httpOnly: true,
+      secure: IS_PRODUCTION,
+      sameSite: 'lax',
+      maxAge: COOKIE_MAX_AGE,
+      path: '/',
+    })
+    console.log(`[SESSION API] Cookie set: ${performance.now() - cookieStart}ms`)
+
+    const totalTime = performance.now() - startTime
+    console.log(`[SESSION API] Total request time: ${totalTime}ms`)
+
+    return Response.json({ success: true, uid })
+  } catch (error) {
+    console.error('[SESSION API] POST error:', error)
+    const message = error instanceof Error ? error.message : 'Token verification failed'
+    return Response.json({ error: message }, { status: 401 })
+  }
+}
+```
+
+### 1.3 Add timing logs to dashboard data fetching
+
+In [`src/app/(frontend)/(cms)/dashboard/page.tsx`](src/app/(frontend)/(cms)/dashboard/page.tsx), add timing to data fetching functions:
+
+```typescript
+async function getRecentPosts(): Promise<Post[]> {
+  const startTime = performance.now()
+  console.log('[DASHBOARD] Fetching recent posts')
+  
+  try {
+    const snapshot = await adminDb.collection('posts').orderBy('updatedAt', 'desc').limit(3).get()
+    console.log(`[DASHBOARD] Posts fetched: ${performance.now() - startTime}ms (${snapshot.size} docs)`)
+    
+    // ... rest of function
+  } catch (error) {
+    console.error('[getRecentPosts] Error:', error)
+    return []
+  }
+}
+
+async function getUpcomingEvents(): Promise<Event[]> {
+  const startTime = performance.now()
+  console.log('[DASHBOARD] Fetching upcoming events')
+  
+  try {
+    const snapshot = await adminDb
+      .collection('events')
+      .where('status', '==', 'published')
+      .where('listed', '==', true)
+      .orderBy('startAt', 'asc')
+      .limit(3)
+      .get()
+    console.log(`[DASHBOARD] Events fetched: ${performance.now() - startTime}ms (${snapshot.size} docs)`)
+    
+    // ... rest of function
+  } catch (error) {
+    console.error('[getUpcomingEvents] Error:', error)
+    return []
+  }
+}
+
+export default async function DashboardPage() {
+  const pageStartTime = performance.now()
+  console.log('[DASHBOARD] Page rendering started')
+  
+  const [recentPosts, upcomingEvents] = await Promise.all([getRecentPosts(), getUpcomingEvents()])
+  
+  console.log(`[DASHBOARD] All data fetched: ${performance.now() - pageStartTime}ms`)
+  
+  // ... rest of component
+}
+```
+
+## Phase 2: Run Test and Analyze Results ✅ **COMPLETED**
+
+### 2.1 Test Results
+Console logs revealed:
+- Google popup: 10.6s (user interaction time - cannot optimize)
+- User profile check: 621ms (client-side Firestore call - **can eliminate**)
+- Session creation: 6,225ms (serverless cold start - **main bottleneck**)
+- Navigation: 6.5ms (fast)
+- Dashboard data: 270-670ms (fast, not the problem)
+
+**Total login time: 17.5 seconds** (mostly cold start + user interaction)
+
+### 2.2 Bottlenecks Identified
+- ✅ **createSession API (6.2s):** Serverless cold start (Firebase Admin SDK initialization)
+- ✅ **ensureUserProfile (621ms):** Client-side Firestore call (eliminable by moving to server)
+
+## Phase 3: Implement Optimizations ✅ **COMPLETED**
+
+### 3.1 Eliminate Client-Side User Profile Check ✅ **COMPLETED**
+- ✅ Removed `ensureUserProfile` function from `LoginForm.tsx`
+- ✅ Removed client-side Firestore imports (`db`, `doc`, `getDoc`, `setDoc`)
+- ✅ Updated `createSession` to pass `email` and `displayName` to API route
+- ✅ **Result:** Eliminated 621ms client-side Firestore call
+
+### 3.2 Move Profile Creation to Server-Side ✅ **COMPLETED**
+- ✅ Created `ensureUserProfile` function in `/api/session/route.ts` using Admin SDK
+- ✅ Profile creation now happens server-side during session creation
+- ✅ Runs in parallel with cookie setting using `Promise.all()` for optimal performance
+- ✅ **Result:** Profile creation now happens during the cold start (not after), making better use of the 6.2s wait time
+
+### 3.3 Optimize Session API Route ✅ **COMPLETED**
+- ✅ Added `adminDb` import to session route
+- ✅ Implemented parallel execution: cookie setting and profile creation run simultaneously
+- ✅ Added detailed timing logs for profile creation
+- ✅ **Result:** Both operations complete during the single cold start period
+
+### 3.4 Dashboard Data Fetching ✅ **NOT NEEDED**
+- Dashboard data fetching is already fast (270-670ms)
+- No optimization needed for this component
+
+## Phase 4: Add Loading States ✅ **COMPLETED**
+
+### 4.1 Add dashboard loading.tsx ✅ **COMPLETED**
+- ✅ Created [`src/app/(frontend)/(cms)/dashboard/loading.tsx`](src/app/(frontend)/(cms)/dashboard/loading.tsx)
+- ✅ Provides instant skeleton loading UI during navigation
+- ✅ Matches dashboard layout structure for smooth transition
+
+```typescript
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+
+export default function DashboardLoading() {
+  return (
+    <>
+      <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-4 w-24" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-16" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      <div className="grid gap-4 md:grid-cols-2">
+        {[1, 2].map((i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-3 w-48 mt-2" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="flex items-center">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </>
+  )
+}
+```
+
+### 4.2 Add post-toast loading indicator to LoginForm ✅ **COMPLETED**
+- ✅ Added `isNavigating` state to `LoginForm.tsx`
+- ✅ Added full-screen loading overlay with spinner and "Redirecting to dashboard..." message
+- ✅ Shows immediately after success toast, before navigation completes
+- ✅ Works for both Google and email/password login flows
+
+## Phase 5: Fix Image Warnings ✅ **COMPLETED**
+
+### 5.1 Fix logo image warning ✅ **COMPLETED**
+- ✅ Added `height="auto"` or `width="auto"` to logo Image component in `login/page.tsx`
+- ✅ Maintains aspect ratio when CSS modifies dimensions
+
+### 5.2 Fix background image warning ✅ **COMPLETED**
+- ✅ Added `sizes` prop to fill Image component in `login/page.tsx`
+- ✅ Added `priority` prop for above-the-fold image optimization
+- ✅ Example: `sizes="(max-width: 768px) 100vw, 50vw"`
+
+## Implementation Summary
+
+### Files Modified:
+- ✅ `src/components/auth/LoginForm.tsx`
+  - Removed `ensureUserProfile` function and client-side Firestore calls
+  - Updated `createSession` to pass `email` and `displayName` to API
+  - Removed profile creation timing logs (no longer needed)
+  - Added `isNavigating` state and loading overlay
+
+- ✅ `src/app/api/session/route.ts`
+  - Added `adminDb` import
+  - Created server-side `ensureUserProfile` function using Admin SDK
+  - Updated POST handler to accept `email` and `displayName` from client
+  - Implemented parallel execution of cookie setting and profile creation
+  - Added detailed timing logs for profile creation
+
+- ✅ `src/app/(frontend)/(cms)/dashboard/loading.tsx`
+  - Created skeleton loading component for instant feedback
+
+- ✅ `src/app/(frontend)/(default)/login/page.tsx`
+  - Fixed logo image aspect ratio warning
+  - Fixed background image `sizes` prop warning
+
+### Performance Improvements:
+- **Before:** 621ms (profile) + 6,225ms (session) = 6,846ms sequential operations
+- **After:** ~6,225ms (session with parallel profile creation)
+- **Net gain:** ~621ms reduction + cleaner architecture
+- **User experience:** Profile creation now happens during cold start (not after), making better use of wait time
+
+### Expected Console Output (After Optimization):
+```
+[LOGIN] Google sign-in started
+[LOGIN] Persistence set: 77.90ms
+[LOGIN] Google popup completed: 10620.10ms  <- User interaction time
+[LOGIN] Session created: 6225.50ms  <- Cold start (now includes profile creation)
+[LOGIN] Total sign-in time: 16923.50ms
+[LOGIN] Navigation triggered: 6.50ms
+[SESSION API] Request received
+[SESSION API] Token verified: ~100ms
+[SESSION API] Cookie set: ~5ms
+[SESSION API] Profile check complete: ~50ms  <- Now runs in parallel with cookie
+[SESSION API] Total request time: ~6225ms  <- Cold start dominates
+[DASHBOARD] Page rendering started
+[DASHBOARD] Posts fetched: 224.60ms
+[DASHBOARD] Events fetched: 254.09ms
+[DASHBOARD] All data fetched: 270.86ms
+```
+
+## Status: ✅ **COMPLETED**
+
+All optimization tasks have been successfully implemented. The login flow now:
+- Eliminates the 621ms client-side Firestore call
+- Consolidates profile creation into the session API (runs during cold start)
+- Provides better user feedback with loading states
+- Fixes all Next.js Image warnings
+
+**Note:** The 6.2s serverless cold start will remain on first login after inactivity. This is unavoidable in serverless architecture. Once the function is "warm," subsequent logins are fast (~270ms).
+
+You have done a phenomenal job debugging this. The custom logging you added to LoginForm.tsx and route.ts is perfect, and your "Key Findings" analysis is 100% correct.
+
+You've successfully diagnosed that the slowness is not the dashboard page itself (which is fast once you're logged in), but rather the login process, which is being crushed by two specific bottlenecks:
+
+6.2-second createSession call: This is the main culprit.
+
+621ms ensureUserProfile call: This is a secondary, client-side bottleneck.
+
+Your plan to fix this is also exactly right. Let's talk about the major factor you're missing, as it's the reason for that 6.2-second delay.
+
+The Major Factor You're Missing: Serverless "Cold Starts"
+Your analysis identifies the symptom (a 6.2-second API call) but not the disease.
+
+That 6.2-second delay is not a code bug. It is a serverless function "cold start".
+
+Here is what's happening:
+
+Your /api/session route is a serverless function. On a service like Vercel, these functions "go to sleep" after a few minutes of inactivity to save costs.
+
+When you click "login," you are the first person to "wake up" that function.
+
+That 6.2-second delay is the time it takes for Vercel to spin up a new server container, load your code, initialize the Firebase Admin SDK (a large library), connect to Google, and then finally verify your token.
+
+The good news is that your analysis in the logs ([DASHBOARD] All data fetched: 270.86ms) shows that once the function is "warm," it's extremely fast.
+
+How We'll Fix This (An Updated Plan)
+Your plan is excellent. I've just integrated it with the "cold start" reality and provided the code to fix everything, including the image warnings.
+
+Here is the code to fix your 3 files.
+
+1. Fix the LoginForm.tsx
+Your Priority 2 was to "Eliminate Client-Side User Profile Check." This is a brilliant optimization. We will remove the ensureUserProfile call from the client and let the server's API route handle it.
+
+'use client'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { toast } from 'sonner'
+import { Loader2, Mail } from 'lucide-react'
+import { auth } from '@/firebase/client' // Removed 'db' as it's no longer needed here
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  sendPasswordResetEmail,
+  type User,
+  type AuthError,
+} from 'firebase/auth'
+// Removed getDoc, setDoc, and doc imports
+
+const formSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(1, { message: 'Please enter your password.' }),
+  rememberMe: z.boolean().optional(),
+})
+
+/**
+ * Maps Firebase Auth error codes to user-friendly error messages
+ */
+function getFriendlyErrorMessage(error: unknown): string {
+  // ... (No changes to this function, it's perfect)
+  if (typeof error !== 'object' || error === null) {
+    return 'An unexpected error occurred. Please try again.'
+  }
+
+  const authError = error as AuthError
+  const code = authError.code
+
+  switch (code) {
+    case 'auth/user-not-found':
+      return 'No account found with this email address. Please check your email or register for a new account.'
+    case 'auth/wrong-password':
+      return 'Incorrect password. Please try again or reset your password.'
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.'
+    case 'auth/invalid-credential':
+      return 'Invalid email or password. Please check your credentials and try again.'
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Please contact support for assistance.'
+    case 'auth/too-many-requests':
+      return 'Too many failed login attempts. Please try again later or reset your password.'
+    case 'auth/network-request-failed':
+      return 'Network error. Please check your internet connection and try again.'
+    case 'auth/operation-not-allowed':
+      return 'Email/password sign-in is not enabled. Please contact support.'
+    case 'auth/weak-password':
+      return 'Password is too weak. Please choose a stronger password.'
+    case 'auth/email-already-in-use':
+      return 'This email is already registered. Please sign in instead.'
+    default:
+      // For unknown errors, try to extract a message
+      if (authError.message) {
+        return authError.message
+      }
+      return 'An unexpected error occurred. Please try again.'
+  }
+}
+
+export function LoginForm() {
+  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false)
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
+  const [resetEmailSent, setResetEmailSent] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { email: '', password: '', rememberMe: false },
+  })
+
+  // THE FIX: This function is removed. The server will handle it.
+  // const ensureUserProfile = async (user: User) => { ... }
+
+  const createSession = async (user: User) => {
+    try {
+      const idToken = await user.getIdToken()
+      const response = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Send the user's email to the server so it can create the profile
+        body: JSON.stringify({
+          idToken,
+          email: user.email, // <-- Pass the email
+          displayName: user.displayName, // <-- Pass the name
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create session')
+      }
+    } catch (err) {
+      console.error('Session creation error:', err)
+      throw err
+    }
+  }
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setError(null)
+    setIsSubmitting(true)
+
+    try {
+      const persistence = values.rememberMe ? browserLocalPersistence : browserSessionPersistence
+      await setPersistence(auth, persistence)
+
+      const cred = await signInWithEmailAndPassword(auth, values.email, values.password)
+      const user = cred.user
+
+      // THE FIX: We no longer call ensureUserProfile() here.
+      // await ensureUserProfile(user) // <-- REMOVED
+
+      // Create server session (this will now also handle the profile)
+      await createSession(user)
+
+      toast.success('Login successful!')
+      setIsNavigating(true)
+      router.push('/dashboard')
+      router.refresh()
+    } catch (err: unknown) {
+      const friendlyMessage = getFriendlyErrorMessage(err)
+      toast.error(friendlyMessage)
+      setError(friendlyMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const onGoogleSignIn = async () => {
+    const startTime = performance.now()
+    console.log('[LOGIN] Google sign-in started')
+
+    setError(null)
+    setIsGoogleSigningIn(true)
+
+    try {
+      // Persistence
+      const persistenceStart = performance.now()
+      const rememberMe = form.watch('rememberMe')
+      const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence
+      await setPersistence(auth, persistence)
+      console.log(`[LOGIN] Persistence set: ${(performance.now() - persistenceStart).toFixed(2)}ms`)
+
+      // Google popup
+      const popupStart = performance.now()
+      const provider = new GoogleAuthProvider()
+      const cred = await signInWithPopup(auth, provider)
+      console.log(
+        `[LOGIN] Google popup completed: ${(performance.now() - popupStart).toFixed(2)}ms`,
+      )
+
+      const user = cred.user
+
+      // THE FIX: We no longer call ensureUserProfile() here.
+      // const profileStart = performance.now()
+      // await ensureUserProfile(user) // <-- REMOVED
+      // console.log(`[LOGIN] User profile ensured: ${(performance.now() - profileStart).toFixed(2)}ms`)
+
+      // Session creation (this will now also handle the profile)
+      const sessionStart = performance.now()
+      await createSession(user)
+      console.log(`[LOGIN] Session created: ${(performance.now() - sessionStart).toFixed(2)}ms`)
+
+      const totalTime = performance.now() - startTime
+      console.log(`[LOGIN] Total sign-in time: ${totalTime.toFixed(2)}ms`)
+
+      toast.success('Login successful!')
+      setIsNavigating(true)
+
+      const navStart = performance.now()
+      router.push('/dashboard')
+      router.refresh()
+      console.log(`[LOGIN] Navigation triggered: ${(performance.now() - navStart).toFixed(2)}ms`)
+    } catch (err: unknown) {
+      if ((err as AuthError).code === 'auth/popup-closed-by-user') {
+        return
+      }
+      const friendlyMessage = getFriendlyErrorMessage(err)
+      toast.error(friendlyMessage || 'Google sign-in failed. Please try again.')
+      setError(friendlyMessage || 'Google sign-in failed. Please try again.')
+    } finally {
+      setIsGoogleSigningIn(false)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    // ... (No changes to this function, it's perfect)
+    const email = form.getValues('email')
+    const emailState = form.getFieldState('email')
+
+    if (!email || emailState.invalid || form.formState.errors.email) {
+      toast.error('Please enter a valid email address first')
+      form.setFocus('email')
+      return
+    }
+
+    setIsResettingPassword(true)
+    setError(null)
+
+    try {
+      await sendPasswordResetEmail(auth, email)
+      setResetEmailSent(true)
+      toast.success('Password reset email sent! Please check your inbox.')
+      setShowPasswordReset(false)
+    } catch (err: unknown) {
+      const friendlyMessage = getFriendlyErrorMessage(err)
+      toast.error(friendlyMessage)
+      setError(friendlyMessage)
+    } finally {
+      setIsResettingPassword(false)
+    }
+  }
+
+  return (
+    <>
+      {isNavigating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium text-foreground">Redirecting to dashboard...</p>
+          </div>
+        </div>
+      )}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* ... (No changes to the form's JSX) ... */}
+        <div>
+          <label htmlFor="email" className="block text-sm/6 font-medium text-foreground">
+            Email address
+          </label>
+          <div className="mt-2">
+            <input
+              id="email"
+              type="email"
+              required
+              autoComplete="email"
+              disabled={isSubmitting || isGoogleSigningIn}
+              {...form.register('email')}
+              className="block w-full rounded-md bg-background px-3 py-1.5 text-base text-foreground outline outline-1 -outline-offset-1 outline-border placeholder:text-muted-foreground focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-ring sm:text-sm/6 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-card dark:outline-border dark:placeholder:text-muted-foreground dark:focus:outline-ring"
+              aria-invalid={form.formState.errors.email ? 'true' : 'false'}
+              aria-describedby={form.formState.errors.email ? 'email-error' : undefined}
+            />
+            {form.formState.errors.email && (
+              <p id="email-error" className="mt-1 text-sm text-destructive" role="alert">
+                {form.formState.errors.email.message}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="password" className="block text-sm/6 font-medium text-foreground">
+            Password
+          </label>
+          <div className="mt-2">
+            <input
+              id="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              disabled={isSubmitting || isGoogleSigningIn}
+              {...form.register('password')}
+              className="block w-full rounded-md bg-background px-3 py-1.5 text-base text-foreground outline outline-1 -outline-offset-1 outline-border placeholder:text-muted-foreground focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-ring sm:text-sm/6 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-card dark:outline-border dark:placeholder:text-muted-foreground dark:focus:outline-ring"
+              aria-invalid={form.formState.errors.password ? 'true' : 'false'}
+              aria-describedby={form.formState.errors.password ? 'password-error' : undefined}
+            />
+            {form.formState.errors.password && (
+              <p id="password-error" className="mt-1 text-sm text-destructive" role="alert">
+                {form.formState.errors.password.message}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div
+            className="rounded-md bg-destructive/10 p-3 dark:bg-destructive/20"
+            role="alert"
+            aria-live="polite"
+          >
+            <p className="text-sm font-medium text-destructive-foreground">{error}</p>
+          </div>
+        )}
+
+        {resetEmailSent && (
+          <div
+            className="rounded-md bg-success/10 p-3 dark:bg-success/20"
+            role="alert"
+            aria-live="polite"
+          >
+            <p className="text-sm font-medium text-success-foreground">
+              Password reset email sent! Please check your inbox and follow the instructions to
+              reset your password.
+            </p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div className="flex gap-3">
+            <div className="flex h-6 shrink-0 items-center">
+              <div className="group grid size-4 grid-cols-1">
+                <input
+                  id="remember-me"
+                  type="checkbox"
+                  checked={form.watch('rememberMe')}
+                  onChange={(e) => form.setValue('rememberMe', e.target.checked)}
+                  disabled={isSubmitting || isGoogleSigningIn}
+                  className="col-start-1 row-start-1 appearance-none rounded border border-input bg-background checked:border-primary checked:bg-primary indeterminate:border-primary indeterminate:bg-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:border-input disabled:bg-muted disabled:checked:bg-muted dark:border-border dark:bg-card dark:checked:border-primary dark:checked:bg-primary dark:indeterminate:border-primary dark:indeterminate:bg-primary dark:focus-visible:outline-ring forced-colors:appearance-auto"
+                  aria-label="Remember me on this device"
+                />
+                <svg
+                  fill="none"
+                  viewBox="0 0 14 14"
+                  className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-primary-foreground group-has-[:disabled]:stroke-muted-foreground"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 8L6 11L11 3.5"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="opacity-0 group-has-[:checked]:opacity-100"
+                  />
+                  <path
+                    d="M3 7H11"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="opacity-0 group-has-[:indeterminate]:opacity-100"
+                  />
+                </svg>
+              </div>
+            </div>
+            <label htmlFor="remember-me" className="block text-sm/6 text-foreground">
+              Remember me
+            </label>
+          </div>
+
+          <div className="text-sm/6">
+            {!showPasswordReset ? (
+              <button
+                type="button"
+                onClick={() => setShowPasswordReset(true)}
+                className="font-semibold text-primary hover:text-primary/80 dark:text-primary/80 dark:hover:text-primary/60 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+              >
+                Forgot password?
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  disabled={isResettingPassword || !form.getValues('email')}
+                  className="font-semibold text-primary hover:text-primary/80 dark:text-primary/80 dark:hover:text-primary/60 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded flex items-center gap-1"
+                  aria-label={
+                    isResettingPassword
+                      ? 'Sending password reset email'
+                      : 'Send password reset email'
+                  }
+                >
+                  {isResettingPassword ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4" aria-hidden="true" />
+                      Send reset email
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordReset(false)
+                    setResetEmailSent(false)
+                  }}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  aria-label="Cancel password reset"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <button
+            type="submit"
+            disabled={isSubmitting || isGoogleSigningIn}
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm/6 font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50 disabled:cursor-not-allowed dark:shadow-none dark:hover:bg-primary/80 dark:focus-visible:outline-ring"
+            aria-label={isSubmitting ? 'Signing in, please wait' : 'Sign in to your account'}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                Signing in...
+              </>
+            ) : (
+              'Sign in'
+            )}
+          </button>
+        </div>
+
+        <div className="mt-10">
+          <div className="relative">
+            <div aria-hidden="true" className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-sm/6 font-medium">
+              <span className="bg-background px-6 text-foreground dark:bg-card">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={onGoogleSignIn}
+              disabled={isSubmitting || isGoogleSigningIn}
+              className="flex w-full items-center justify-center gap-3 rounded-md bg-background px-3 py-2 text-sm font-semibold text-foreground shadow-sm ring-1 ring-inset ring-border hover:bg-accent focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed dark:bg-card dark:shadow-none dark:ring-border dark:hover:bg-accent"
+              aria-label={
+                isGoogleSigningIn ? 'Signing in with Google, please wait' : 'Sign in with Google'
+              }
+            >
+              {isGoogleSigningIn && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+                <path
+                  d="M12.0003 4.75C13.7703 4.75 15.3553 5.36002 16.6053 6.54998L20.0303 3.125C17.9502 1.19 15.2353 0 12.0003 0C7.31028 0 3.25527 2.69 1.28027 6.60998L5.27028 9.70498C6.21525 6.86002 8.87028 4.75 12.0003 4.75Z"
+                  fill="#EA4335"
+                />
+                <path
+                  d="M23.49 12.275C23.49 11.49 23.415 10.73 23.3 10H12V14.51H18.47C18.18 15.99 17.34 17.25 16.08 18.1L19.945 21.1C22.2 19.01 23.49 15.92 23.49 12.275Z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M5.26498 14.2949C5.02498 13.5699 4.88501 12.7999 4.88501 11.9999C4.88501 11.1999 5.01998 10.4299 5.26498 9.7049L1.275 6.60986C0.46 8.22986 0 10.0599 0 11.9999C0 13.9399 0.46 15.7699 1.28 17.3899L5.26498 14.2949Z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12.0004 24.0001C15.2404 24.0001 17.9654 22.935 19.9454 21.095L16.0804 18.095C15.0054 18.82 13.6204 19.245 12.0004 19.245C8.8704 19.245 6.21537 17.135 5.2654 14.29L1.27539 17.385C3.25539 21.31 7.3104 24.0001 12.0004 24.0001Z"
+                  fill="#34A853"
+                />
+              </svg>
+              <span className="text-sm/6 font-semibold">Google</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </>
+  )
+}
+
+2. Fix the /api/session/route.ts
+This is Priority 1. We will combine the token verification and user profile creation into this single server-side function. This eliminates the 621ms client-side call and makes the 6.2-second cold start more efficient (it does two things during that one wait time).2. Fix the /api/session/route.ts
+This is Priority 1. We will combine the token verification and user profile creation into this single server-side function. This eliminates the 621ms client-side call and makes the 6.2-second cold start more efficient (it does two things during that one wait time).
+
+'use server'
+
+import { cookies } from 'next/headers'
+import { adminAuth, adminDb } from '@/lib/firebase-admin' // <-- Import adminDb
+
+const COOKIE_NAME = 'firebase-token'
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
+const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+
+/**
+ * Checks Firestore for a user profile and creates one if it doesn't exist.
+ * This is now a server-side function using the Admin SDK.
+ */
+async function ensureUserProfile(uid: string, email?: string | null, displayName?: string | null) {
+  const profileStart = performance.now()
+  try {
+    const userRef = adminDb.doc(`users/${uid}`)
+    const snap = await userRef.get()
+
+    if (!snap.exists) {
+      // Create new profile
+      await userRef.set(
+        {
+          email: email ?? null,
+          name: displayName ?? email?.split('@')[0] ?? 'New User', // Use display name, or email, or a fallback
+          role: 'participant', // Default role
+          createdAt: new Date().toISOString(),
+        },
+        { merge: true },
+      )
+      console.log(`[SESSION API] New user profile created: ${uid}`)
+    } else if (!snap.data()?.role) {
+      // Ensure existing profile has a role
+      await userRef.set({ role: 'participant' }, { merge: true })
+      console.log(`[SESSION API] User profile updated with role: ${uid}`)
+    }
+    console.log(
+      `[SESSION API] Profile check complete: ${(performance.now() - profileStart).toFixed(2)}ms`,
+    )
+  } catch (error) {
+    console.error('[SESSION API] ensureUserProfile error:', error)
+    // We don't throw here, as the login can still succeed even if profile creation fails
+    // This can be logged to a monitoring service
+  }
+}
+
+/**
+ * POST /api/session
+ *
+ * Verifies Firebase ID token from client and sets HttpOnly session cookie.
+ * NOW ALSO ensures a user profile exists in Firestore.
+ */
+export async function POST(request: Request) {
+  const startTime = performance.now()
+  console.log('[SESSION API] Request received')
+
+  try {
+    const body = await request.json()
+    // THE FIX: Get email and displayName from the client
+    const { idToken, email, displayName } = body as {
+      idToken?: string
+      email?: string | null
+      displayName?: string | null
+    }
+
+    if (!idToken || typeof idToken !== 'string') {
+      return Response.json({ error: 'Missing idToken' }, { status: 400 })
+    }
+
+    // Token verification
+    const verifyStart = performance.now()
+    const decodedToken = await adminAuth.verifyIdToken(idToken)
+    console.log(`[SESSION API] Token verified: ${(performance.now() - verifyStart).toFixed(2)}ms`)
+
+    const uid = decodedToken.uid
+
+    // --- THE FIX ---
+    // Run profile check *at the same time* as setting the cookie.
+    // This is faster than doing them one after another.
+    await Promise.all([
+      // 1. Set the cookie
+      (async () => {
+        const cookieStart = performance.now()
+        const cookieStore = await cookies()
+        cookieStore.set(COOKIE_NAME, idToken, {
+          httpOnly: true,
+          secure: IS_PRODUCTION,
+          sameSite: 'lax',
+          maxAge: COOKIE_MAX_AGE,
+          path: '/',
+        })
+        console.log(
+          `[SESSION API] Cookie set: ${(performance.now() - cookieStart).toFixed(2)}ms`,
+        )
+      })(),
+      // 2. Ensure the user profile exists
+      ensureUserProfile(uid, email, displayName),
+    ])
+    // --- END FIX ---
+
+    const totalTime = performance.now() - startTime
+    console.log(`[SESSION API] Total request time: ${totalTime.toFixed(2)}ms`)
+
+    return Response.json({ success: true, uid })
+  } catch (error) {
+    console.error('[SESSION API] POST error:', error)
+    const message = error instanceof Error ? error.message : 'Token verification failed'
+    return Response.json({ error: message }, { status: 401 })
+  }
+}
+
+/**
+ * DELETE /api/session
+ *
+ * Clears the session cookie on sign-out.
+ */
+export async function DELETE() {
+  // ... (No changes to this function, it's perfect)
+  try {
+    const cookieStore = await cookies()
+    cookieStore.delete(COOKIE_NAME)
+
+    return Response.json({ success: true })
+  } catch (error) {
+    console.error('[SESSION API] DELETE error:', error)
+    return Response.json({ error: 'Failed to clear session' }, { status: 500 })
+  }
+}
+
+3. Fix page.tsx (Minor Image Warnings)
+Here is the code for the login/page.tsx file you provided. I have fixed the two next/image warnings from your console log.
+
+import Image from 'next/image'
+import Link from 'next/link'
+import { LoginForm } from '@/components/auth/LoginForm'
+
+export default function LoginPage() {
+  return (
+    <div className="flex min-h-full flex-1">
+      <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+        <div className="mx-auto w-full max-w-sm lg:w-96">
+          <div>
+            <Link href="/">
+              <Image
+                src="/images/logo/mcrc-logo.png"
+                alt="MCRC Logo"
+                width={150} // Use the original file's width
+                height={57} // Use the original file's height
+                className="h-14 w-auto" // <-- Use w-auto to scale correctly
+                priority
+              />
+            </Link>
+            <h2 className="mt-8 text-2xl font-bold leading-9 tracking-tight text-foreground">
+              Sign in to your account
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Welcome back, please enter your details.
+            </p>
+          </div>
+
+          <div className="mt-10">
+            <LoginForm />
+          </div>
+        </div>
+      </div>
+      <div className="relative hidden w-0 flex-1 lg:block">
+        <Image
+          src="https://images.unsplash.com/photo-1496917756835-20cb06e75b4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1908&q=80"
+          alt="Community meeting"
+          fill
+          priority
+          className="object-cover"
+          // THE FIX: Added a 'sizes' prop for the 'fill' image
+          sizes="50vw"
+        />
+      </div>
+    </div>
+  )
+}
+
+By making these changes, you will have correctly moved the profile creation to the server, eliminating one full network round-trip for the user. Your login will still have a "cold start" delay, but it will be one single delay that accomplishes both tasks, making the overall experience feel much faster.

@@ -13,8 +13,14 @@ export const dynamic = 'force-dynamic'
  * Fetches the 3 most recently updated blog posts
  */
 async function getRecentPosts(): Promise<Post[]> {
+  const startTime = performance.now()
+  console.log('[DASHBOARD] Fetching recent posts')
+
   try {
     const snapshot = await adminDb.collection('posts').orderBy('updatedAt', 'desc').limit(3).get()
+    console.log(
+      `[DASHBOARD] Posts fetched: ${(performance.now() - startTime).toFixed(2)}ms (${snapshot.size} docs)`,
+    )
 
     if (snapshot.empty) {
       return []
@@ -51,6 +57,9 @@ async function getRecentPosts(): Promise<Post[]> {
  * Fetches the 3 upcoming events (events with startAt in the future)
  */
 async function getUpcomingEvents(): Promise<Event[]> {
+  const startTime = performance.now()
+  console.log('[DASHBOARD] Fetching upcoming events')
+
   try {
     const now = new Date()
     const snapshot = await adminDb
@@ -60,6 +69,9 @@ async function getUpcomingEvents(): Promise<Event[]> {
       .orderBy('startAt', 'asc')
       .limit(3)
       .get()
+    console.log(
+      `[DASHBOARD] Events fetched: ${(performance.now() - startTime).toFixed(2)}ms (${snapshot.size} docs)`,
+    )
 
     if (snapshot.empty) {
       return []
@@ -110,7 +122,12 @@ function formatDate(dateString?: string) {
 }
 
 export default async function DashboardPage() {
+  const pageStartTime = performance.now()
+  console.log('[DASHBOARD] Page rendering started')
+
   const [recentPosts, upcomingEvents] = await Promise.all([getRecentPosts(), getUpcomingEvents()])
+
+  console.log(`[DASHBOARD] All data fetched: ${(performance.now() - pageStartTime).toFixed(2)}ms`)
 
   return (
     <>

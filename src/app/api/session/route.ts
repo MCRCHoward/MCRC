@@ -14,6 +14,9 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production'
  * Called by LoginForm after successful sign-in.
  */
 export async function POST(request: Request) {
+  const startTime = performance.now()
+  console.log('[SESSION API] Request received')
+
   try {
     const body = await request.json()
     const { idToken } = body as { idToken?: string }
@@ -22,14 +25,15 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Missing idToken' }, { status: 400 })
     }
 
-    // Verify the ID token with Firebase Admin
+    // Token verification
+    const verifyStart = performance.now()
     const decodedToken = await adminAuth.verifyIdToken(idToken)
+    console.log(`[SESSION API] Token verified: ${(performance.now() - verifyStart).toFixed(2)}ms`)
+
     const uid = decodedToken.uid
 
-    // Get additional user data from Firestore if needed
-    // For now, we'll just store the verified token in the cookie
-
-    // Set secure, HttpOnly cookie
+    // Cookie setting
+    const cookieStart = performance.now()
     const cookieStore = await cookies()
     cookieStore.set(COOKIE_NAME, idToken, {
       httpOnly: true,
@@ -38,6 +42,10 @@ export async function POST(request: Request) {
       maxAge: COOKIE_MAX_AGE,
       path: '/',
     })
+    console.log(`[SESSION API] Cookie set: ${(performance.now() - cookieStart).toFixed(2)}ms`)
+
+    const totalTime = performance.now() - startTime
+    console.log(`[SESSION API] Total request time: ${totalTime.toFixed(2)}ms`)
 
     return Response.json({ success: true, uid })
   } catch (error) {
