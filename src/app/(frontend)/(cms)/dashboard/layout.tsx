@@ -64,9 +64,13 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       title: 'Donations',
       url: '/dashboard/donations',
       iconKey: 'heart',
-      items: [
-        { title: 'All Donations', url: '/dashboard/donations' },
-      ],
+      items: [{ title: 'All Donations', url: '/dashboard/donations' }],
+    },
+    {
+      title: 'Newsletter',
+      url: '/dashboard/newsletter',
+      iconKey: 'mailbox',
+      items: [{ title: 'All Subscribers', url: '/dashboard/newsletter' }],
     },
     {
       title: 'Inquiries',
@@ -85,11 +89,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   return (
     <CmsThemeProvider>
-      <DashboardLayoutContent
-        sidebarUser={sidebarUser}
-        navMain={navMain}
-        teams={teams}
-      >
+      <DashboardLayoutContent sidebarUser={sidebarUser} navMain={navMain} teams={teams}>
         {children}
       </DashboardLayoutContent>
     </CmsThemeProvider>

@@ -9,11 +9,9 @@ import {
   FaTwitter,
 } from 'react-icons/fa'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import Image from 'next/image'
 import Link from 'next/link'
+import { NewsletterForm } from '@/components/newsletter'
 
 interface FooterLink {
   name: string
@@ -150,13 +148,8 @@ const Footer = ({
                 </li>
               </ul>
               <div className="grid w-full max-w-sm items-center gap-1.5">
-                <Label htmlFor="email">Subscribe to our newsletter</Label>
-                <div className="flex w-full max-w-sm items-center space-x-2">
-                  <Input type="email" placeholder="Email" />
-                  <Button type="submit" className="text-white bg-primary">
-                    Subscribe
-                  </Button>
-                </div>
+                <h5 className="text-sm font-medium">Subscribe to our newsletter</h5>
+                <NewsletterForm showNames={true} variant="default" />
                 <p className="mt-1 text-xs text-muted-foreground">
                   By submitting, you agree to our
                   <Link href="#" className="ml-1 text-primary hover:underline">

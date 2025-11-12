@@ -10,6 +10,7 @@ import {
   GalleryVerticalEnd,
   Heart,
   Map,
+  Mail,
   PieChart,
   SquareTerminal,
   type LucideIcon,
@@ -38,6 +39,8 @@ const iconMap: Record<string, LucideIcon> = {
   galleryVerticalEnd: GalleryVerticalEnd,
   heart: Heart,
   fileText: FileText,
+  mail: Mail,
+  mailbox: Mail,
 }
 
 export function NavMain({

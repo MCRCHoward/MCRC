@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 import * as z from 'zod'
 
 const formSchema = z.object({
@@ -31,6 +33,8 @@ const formSchema = z.object({
 })
 
 export function Volunteer() {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -41,9 +45,32 @@ export function Volunteer() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // This will be replaced with actual form submission logic
-    console.log(values)
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('/api/volunteer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to submit application')
+      }
+
+      toast.success('Application submitted successfully! We will get back to you soon.')
+      form.reset()
+    } catch (error) {
+      console.error('Form submission error:', error)
+      const errorMessage =
+        error instanceof Error ? error.message : 'Something went wrong. Please try again later.'
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -117,8 +144,8 @@ export function Volunteer() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full">
-                    Submit Application
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
                   </Button>
                 </form>
               </Form>

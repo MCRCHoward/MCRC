@@ -47,6 +47,24 @@ export async function POST(request: Request) {
 
     const docRef = await adminDb.collection('contacts').add(payload)
 
+    // Also save to contactSubmissions collection as backup
+    try {
+      await adminDb.collection('contactSubmissions').add({
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName,
+        email: parsed.data.email,
+        phone: parsed.data.phone || null,
+        service: parsed.data.service,
+        subject: parsed.data.subject,
+        message: parsed.data.message,
+        submittedAt: FieldValue.serverTimestamp(),
+        reviewed: false,
+      })
+    } catch (firestoreError) {
+      // Log error but don't fail the request since main save and email are more important
+      console.error('[api/contact] Failed to save to contactSubmissions:', firestoreError)
+    }
+
     // Send notification email via Resend (non-blocking best-effort)
     const RESEND_API_KEY = process.env.RESEND_API || process.env.RESEND_API_KEY
     const CONTACT_TO = process.env.CONTACT_TO_EMAIL || 'derrick.valentine@gmail.com'

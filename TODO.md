@@ -2385,3 +2385,193 @@ export default function LoginPage() {
 }
 
 By making these changes, you will have correctly moved the profile creation to the server, eliminating one full network round-trip for the user. Your login will still have a "cold start" delay, but it will be one single delay that accomplishes both tasks, making the overall experience feel much faster.
+
+# Kit Newsletter Integration Plan
+
+## Overview
+Implement Kit (ConvertKit) newsletter subscription functionality with a reusable React component that can be used throughout the site. The integration will use Kit's Subscribers API v4 with server-side API calls for security.
+
+## Implementation Steps
+
+### 1. Create Newsletter API Route
+**File**: `src/app/api/newsletter/subscribe/route.ts`
+
+Create a Next.js API route handler that:
+- Accepts POST requests with `{ email: string, firstName?: string }`
+- Validates the input data
+- Calls Kit API v4 to create/update subscriber: `POST https://api.kit.com/v4/subscribers`
+- Uses the `KIT_API_KEY` from environment variables
+- Headers: `X-Kit-Api-Key: ${process.env.KIT_API_KEY}`, `Content-Type: application/json`
+- Request body: `{ email_address: string, first_name?: string, state: 'active' }`
+- Returns appropriate success/error responses with proper status codes
+
+Reference Kit API documentation: https://developers.kit.com/api-reference/overview
+
+### 2. Create Reusable Newsletter Form Component
+**File**: `src/components/newsletter/NewsletterForm.tsx`
+
+Create a flexible client component that:
+- Accepts props: `variant` ('default' | 'compact'), `showNames` (boolean), custom styling props
+- Uses `react-hook-form` with Zod validation (consistent with existing form patterns)
+- Includes fields for email (required) and firstName (optional, shown when `showNames={true}`)
+- Calls `/api/newsletter/subscribe` endpoint on submission
+- Shows loading state during submission (disable button, show spinner)
+- On success: shows toast notification using `toast.success()` from `sonner`, displays inline success message, clears form
+- On error: shows toast error using `toast.error()` from `sonner`, displays inline error message
+- Uses existing Shadcn UI components: `Input`, `Button`, `Label`, `Form` components
+
+### 3. Update Footer Component
+**File**: `src/Footer/Component.tsx`
+
+Replace the static newsletter form (lines 152-166) with:
+```tsx
+<NewsletterForm showNames={true} variant="default" />
+```
+
+Remove the now-unused static `Input`, `Button`, and `Label` elements from the "Subscribe to our newsletter" section.
+
+### 4. Create Newsletter Component Index
+**File**: `src/components/newsletter/index.ts`
+
+Export the `NewsletterForm` component for easy imports:
+```tsx
+export { NewsletterForm } from './NewsletterForm'
+```
+
+### 5. Type Definitions
+**File**: `src/components/newsletter/types.ts`
+
+Define TypeScript interfaces:
+- `NewsletterFormData`: `{ email: string; firstName?: string }`
+- `NewsletterFormProps`: component props interface
+- `NewsletterAPIResponse`: API response types
+
+### 6. Environment Variable Documentation
+Add to `.env.example` (if needed):
+```
+KIT_API_KEY=your_kit_api_key_here
+```
+
+## Key Technical Details
+
+- **API Authentication**: Use `X-Kit-Api-Key` header (not Bearer token)
+- **Kit API Endpoint**: `https://api.kit.com/v4/subscribers`
+- **Toast Library**: `sonner` (already installed, imported as `toast` from 'sonner')
+- **Form Library**: `react-hook-form` with `zod` validation
+- **UI Components**: Shadcn UI (`Button`, `Input`, `Label`, `Form`)
+- **Server Actions Pattern**: Use Next.js API routes (not server actions) for external API calls
+
+## Usage Examples
+
+After implementation, the component can be used anywhere:
+
+```tsx
+// Footer (with names)
+<NewsletterForm showNames={true} />
+
+// Landing page (compact, email only)
+<NewsletterForm showNames={false} variant="compact" />
+
+// Blog sidebar
+<NewsletterForm showNames={true} />
+```
+
+## Testing Checklist
+
+1. Verify API key is loaded from environment
+2. Test successful subscription flow
+3. Test error handling (invalid email, network errors)
+4. Verify toast notifications appear and disappear
+5. Verify inline success/error messages
+6. Test form clearing after success
+7. Test component in footer
+8. Test component reusability in other locations
+9. Verify dark mode compatibility (CMS theme-aware)
+
+# Add Newsletter Dashboard Page
+
+## Overview
+Create a new Newsletter section in the CMS dashboard that displays all subscribers from the Firestore `newsletter` collection.
+
+## Implementation Steps
+
+### 1. Update Dashboard Sidebar Navigation
+**File**: [`src/app/(frontend)/(cms)/dashboard/layout.tsx`](src/app/(frontend)/(cms)/dashboard/layout.tsx)
+
+Add a "Newsletter" item to the Donations navigation section:
+
+```typescript
+{
+  title: 'Donations',
+  url: '/dashboard/donations',
+  iconKey: 'heart',
+  items: [
+    { title: 'All Donations', url: '/dashboard/donations' },
+    { title: 'Newsletter', url: '/dashboard/newsletter' }, // Add this
+  ],
+},
+```
+
+### 2. Create Newsletter Page (Server Component)
+**File**: `src/app/(frontend)/(cms)/dashboard/newsletter/page.tsx`
+
+Create a Server Component that:
+- Fetches all newsletter subscribers from `newsletter` collection using `adminDb`
+- Orders by `subscribedAt` descending (most recent first)
+- Converts Firestore Timestamps to ISO strings
+- Displays summary cards:
+  - Total Subscribers
+  - Subscribers This Month
+  - Subscribers This Week
+- Passes data to client table component
+- Follows the same pattern as [`donations/page.tsx`](src/app/(frontend)/(cms)/dashboard/donations/page.tsx)
+
+### 3. Create Newsletter Table Component (Client Component)
+**File**: `src/app/(frontend)/(cms)/dashboard/newsletter/NewsletterTable.tsx`
+
+Create a client component that:
+- Displays subscribers in a sortable, filterable table
+- Columns: Email, First Name, Subscribed Date, Source, Kit ID
+- Search functionality (filter by email or name)
+- Uses Shadcn UI Table components
+- Similar pattern to [`DonationsTable.tsx`](src/app/(frontend)/(cms)/dashboard/donations/DonationsTable.tsx)
+- Shows formatted dates using relative time (e.g., "2 days ago")
+
+### 4. Type Definitions (Optional)
+**File**: `src/types/newsletter.ts`
+
+Define TypeScript interface for newsletter subscriber data:
+
+```typescript
+export interface NewsletterSubscriber {
+  id: string
+  email: string
+  firstName?: string | null
+  subscribedAt: string
+  kitSubscriberId: number | null
+  source: string
+}
+```
+
+## Key Technical Details
+
+- **Firestore Collection**: `newsletter`
+- **Data Structure**:
+  - `email`: string
+  - `firstName`: string | null
+  - `subscribedAt`: Firestore Timestamp
+  - `kitSubscriberId`: number | null
+  - `source`: string (e.g., 'website')
+- **Server Component Pattern**: Use `adminDb` for server-side data fetching
+- **Timestamp Conversion**: Convert Firestore Timestamps to ISO strings for client components
+- **UI Components**: Use Shadcn UI `Card`, `Table`, `Input` for search
+- **Dark Mode**: All styles should use theme-aware classes for CMS dark mode compatibility
+
+## Success Criteria
+
+1. Newsletter link appears in sidebar under Donations
+2. `/dashboard/newsletter` page displays all subscribers
+3. Table is searchable and displays all subscriber information
+4. Summary cards show accurate counts
+5. Page loads quickly with proper error handling
+6. Dark mode compatible styling
