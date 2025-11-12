@@ -1,9 +1,19 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Filter, Download, Copy, Check, Eye, CheckCircle2, Circle } from 'lucide-react'
+import {
+  Search,
+  Filter,
+  Download,
+  Copy,
+  Check,
+  CheckCircle2,
+  Circle,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { markSubmissionAsReviewed, markSubmissionAsUnreviewed } from './submission-actions'
 import {
@@ -25,33 +35,22 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTimeShort } from '@/utilities/formatDateTime'
+import { encodeDocPath } from '@/utilities/encodeDocPath'
 import type { SubmissionRow } from '@/lib/listSubmissions'
 
 interface FormSubmissionsTableProps {
   submissions: SubmissionRow[]
+  hasMore?: boolean
+  currentPage?: number
 }
 
-type FormTypeFilter = 'all' | 'Mediation Self Referral' | 'Group Facilitation Inquiry' | 'Restorative Program Referral' | 'Community Education Training Request'
+type FormTypeFilter =
+  | 'all'
+  | 'Mediation Self Referral'
+  | 'Group Facilitation Inquiry'
+  | 'Restorative Program Referral'
+  | 'Community Education Training Request'
 type ReviewFilter = 'all' | 'new' | 'reviewed'
-
-/**
- * Mask email for privacy (show first 3 chars and domain)
- */
-function maskEmail(email: string): string {
-  if (!email || email.length < 5) return email
-  const [localPart, domain] = email.split('@')
-  if (!domain) return email
-  const maskedLocal = localPart.length > 3 ? `${localPart.slice(0, 3)}***` : '***'
-  return `${maskedLocal}@${domain}`
-}
-
-/**
- * Mask phone for privacy (show last 4 digits)
- */
-function maskPhone(phone: string): string {
-  if (!phone || phone.length < 4) return phone
-  return `***-***-${phone.slice(-4)}`
-}
 
 /**
  * Copy text to clipboard
@@ -60,7 +59,7 @@ async function copyToClipboard(text: string, label: string) {
   try {
     await navigator.clipboard.writeText(text)
     toast.success(`${label} copied to clipboard`)
-  } catch (error) {
+  } catch {
     toast.error('Failed to copy to clipboard')
   }
 }
@@ -108,12 +107,16 @@ function exportToCSV(submissions: SubmissionRow[]) {
   toast.success('Submissions exported to CSV')
 }
 
-export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSubmissionsTableProps) {
+export function FormSubmissionsTable({
+  submissions: initialSubmissions,
+  hasMore = false,
+  currentPage = 1,
+}: FormSubmissionsTableProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [formTypeFilter, setFormTypeFilter] = useState<FormTypeFilter>('all')
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('all')
-  const [showFullDetails, setShowFullDetails] = useState<Record<string, boolean>>({})
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
 
@@ -152,13 +155,6 @@ export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSu
     await copyToClipboard(text, label)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
-  }
-
-  const toggleDetails = (id: string) => {
-    setShowFullDetails((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }))
   }
 
   const handleToggleReviewed = async (submission: SubmissionRow) => {
@@ -218,13 +214,18 @@ export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSu
             <SelectItem value="all">All Form Types</SelectItem>
             <SelectItem value="Mediation Self Referral">Mediation Self Referral</SelectItem>
             <SelectItem value="Group Facilitation Inquiry">Group Facilitation Inquiry</SelectItem>
-            <SelectItem value="Restorative Program Referral">Restorative Program Referral</SelectItem>
+            <SelectItem value="Restorative Program Referral">
+              Restorative Program Referral
+            </SelectItem>
             <SelectItem value="Community Education Training Request">
               Community Education Training Request
             </SelectItem>
           </SelectContent>
         </Select>
-        <Select value={reviewFilter} onValueChange={(value) => setReviewFilter(value as ReviewFilter)}>
+        <Select
+          value={reviewFilter}
+          onValueChange={(value) => setReviewFilter(value as ReviewFilter)}
+        >
           <SelectTrigger className="w-full sm:w-[150px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
@@ -263,7 +264,6 @@ export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSu
               </TableRow>
             ) : (
               filteredSubmissions.map((submission) => {
-                const showFull = showFullDetails[submission.id]
                 const isCopied = copiedId === submission.id
 
                 return (
@@ -277,9 +277,7 @@ export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSu
                     <TableCell>
                       {submission.email ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">
-                            {showFull ? submission.email : maskEmail(submission.email)}
-                          </span>
+                          <span className="text-sm">{submission.email}</span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -301,9 +299,7 @@ export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSu
                     <TableCell>
                       {submission.phone ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">
-                            {showFull ? submission.phone : maskPhone(submission.phone)}
-                          </span>
+                          <span className="text-sm">{submission.phone}</span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -323,7 +319,9 @@ export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSu
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">{formatDateTimeShort(submission.submittedAt.toISOString())}</div>
+                      <div className="text-sm">
+                        {formatDateTimeShort(submission.submittedAt.toISOString())}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -349,19 +347,13 @@ export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSu
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleDetails(submission.id)}
-                          title={showFull ? 'Hide details' : 'Show details'}
+                      <Button asChild variant="ghost" size="sm">
+                        <Link
+                          href={`/dashboard/inquiry/${encodeDocPath(submission.originalDocPath)}`}
                         >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button asChild variant="ghost" size="sm">
-                          <Link href={`/dashboard/inquiry/${submission.id}`}>View</Link>
-                        </Button>
-                      </div>
+                          View
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 )
@@ -371,11 +363,49 @@ export function FormSubmissionsTable({ submissions: initialSubmissions }: FormSu
         </Table>
       </div>
 
-      {/* Results count */}
-      <div className="text-sm text-muted-foreground">
-        Showing {filteredSubmissions.length} of {initialSubmissions.length} submissions
+      {/* Results count and Pagination */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {filteredSubmissions.length} of {initialSubmissions.length} submissions
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage <= 1}
+            onClick={() => {
+              const params = new URLSearchParams(searchParams.toString())
+              if (currentPage > 2) {
+                params.set('page', String(currentPage - 1))
+              } else {
+                params.delete('page')
+              }
+              router.push(`/dashboard/inquiry?${params.toString()}`)
+            }}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+
+          <div className="text-sm text-muted-foreground px-3">Page {currentPage}</div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!hasMore}
+            onClick={() => {
+              const params = new URLSearchParams(searchParams.toString())
+              params.set('page', String(currentPage + 1))
+              router.push(`/dashboard/inquiry?${params.toString()}`)
+            }}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
       </div>
     </div>
   )
 }
-

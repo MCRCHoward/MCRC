@@ -5,6 +5,7 @@ import {
   Bot,
   BookOpen,
   Calendar,
+  FileText,
   Frame,
   GalleryVerticalEnd,
   Heart,
@@ -36,6 +37,7 @@ const iconMap: Record<string, LucideIcon> = {
   map: Map,
   galleryVerticalEnd: GalleryVerticalEnd,
   heart: Heart,
+  fileText: FileText,
 }
 
 export function NavMain({

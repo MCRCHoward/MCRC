@@ -12,13 +12,10 @@ import {
   Users,
   GraduationCap,
   Handshake,
-  Lock,
   ArrowRight,
   ArrowLeft,
-  CheckCircle2,
   Mail,
   Phone,
-  Share2,
 } from 'lucide-react'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,7 +30,6 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Separator } from '@/components/ui/separator'
@@ -229,7 +225,7 @@ export default function DonatePage() {
                               <Input type="tel" placeholder="(123) 456-7890" {...field} />
                             </FormControl>
                             <FormDescription>
-                              We'll only use this to contact you about your donation if needed.
+                              We&apos;ll only use this to contact you about your donation if needed.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -246,8 +242,8 @@ export default function DonatePage() {
                             <div className="space-y-1 leading-none">
                               <FormLabel>Email Marketing Consent *</FormLabel>
                               <FormDescription>
-                                I consent to receive email updates about MCRC's programs and impact.
-                                You can unsubscribe at any time.
+                                I consent to receive email updates about MCRC&apos;s programs and
+                                impact. You can unsubscribe at any time.
                               </FormDescription>
                             </div>
                           </FormItem>
@@ -469,9 +465,9 @@ export default function DonatePage() {
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6">
               <blockquote className="text-lg italic text-foreground">
-                "MCRC helped our family navigate a difficult situation with compassion and
+                &quot;MCRC helped our family navigate a difficult situation with compassion and
                 professionalism. Their free services made all the difference when we needed it
-                most."
+                most.&quot;
               </blockquote>
               <p className="mt-4 text-sm text-muted-foreground">
                 — Community Member, Howard County
@@ -544,7 +540,7 @@ export default function DonatePage() {
             <div>
               <h3 className="text-xl font-semibold mb-2">Questions About Giving?</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                We're here to help. Contact us with any questions about donations or giving.
+                We&apos;re here to help. Contact us with any questions about donations or giving.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button asChild variant="outline">

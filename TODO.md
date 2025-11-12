@@ -1172,3 +1172,184 @@ Each submission document contains:
 - Comprehensive filtering and search
 - CSV export functionality
 - Proper error handling and empty states
+
+# Inquiry Dashboard Optimization Plan
+
+## Overview
+Fix missing detail page, add traditional pagination, and clarify summary card metrics to improve the inquiry dashboard functionality.
+
+## Changes
+
+### 1. Create Submission Detail Page
+**File**: `src/app/(frontend)/(cms)/dashboard/inquiry/[id]/page.tsx` (new)
+
+Create a Server Component that:
+- Accepts `id` parameter from URL
+- Extracts `originalDocPath` from query params or decodes from `id`
+- Fetches full submission data using Admin SDK
+- Displays all form fields in a readable format
+- Shows submission metadata (submitted date, reviewed status, etc.)
+- Includes "Mark as Reviewed" action button
+- Handles different form types with conditional field rendering
+
+**Additional file**: `src/app/(frontend)/(cms)/dashboard/inquiry/[id]/SubmissionDetailClient.tsx` (new)
+- Client component for interactive elements (copy buttons, review toggle)
+- Displays form-specific fields based on form type
+
+### 2. Implement Traditional Pagination
+**File**: `src/lib/listSubmissions.ts`
+
+No changes needed - already supports `startAfter` cursor parameter.
+
+**File**: `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx`
+
+Modify to:
+- Accept `searchParams` for page number
+- Calculate page-based offset (though cursor-based is better for Firestore)
+- Pass page parameter to `listRecentSubmissions`
+- Update to fetch 25 submissions per page instead of 10
+
+**File**: `src/app/(frontend)/(cms)/dashboard/inquiry/FormSubmissionsTable.tsx`
+
+Add pagination UI:
+- Import `useRouter` and `useSearchParams` (already has useRouter)
+- Add pagination controls at bottom of table
+- Show "Previous" and "Next" buttons
+- Display current page number
+- Use URL search params for page state (enables back button navigation)
+- Note: True cursor-based pagination requires storing last doc reference, so we'll implement page number approach with limit/offset approximation
+
+### 3. Clarify Summary Card Metrics
+**File**: `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx`
+
+Update summary card descriptions:
+- Change "Recent submissions" to "From top 25 submissions"
+- Change "Unreviewed submissions" to "Unreviewed (top 25)"
+- Change "Reviewed submissions" to "Reviewed (top 25)"
+- Change "Different form types" to "Form types (top 25)"
+
+Add info icon with tooltip explaining these are from the most recent 25 submissions only.
+
+### 4. Minor Optimizations
+**File**: `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx`
+
+- Remove unused `adminDb` import
+- Increase default limit from 10 to 25 submissions
+- Update card description to reflect new limit
+
+**File**: `src/app/(frontend)/(cms)/dashboard/inquiry/FormSubmissionsTable.tsx`
+
+- Update "View" button to properly pass submission data via query params or state
+- Ensure `originalDocPath` is URL-encoded when navigating to detail page
+
+## Implementation Order
+
+1. Create submission detail page and client component
+2. Update table to properly link to detail page with document path
+3. Implement pagination UI in FormSubmissionsTable
+4. Update page.tsx to handle page parameter and increase limit to 25
+5. Update summary card descriptions and add clarifying notes
+6. Remove unused imports and test all functionality
+
+## Implementation Status
+
+### Status: ✅ **COMPLETED**
+
+All tasks have been successfully implemented and tested.
+
+### 1. Create Submission Detail Page ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/[id]/page.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Server Component that accepts base64url-encoded document path as `id` parameter
+  - ✅ Decodes document path using `decodeDocPath` utility
+  - ✅ Fetches full submission data using Admin SDK (`adminDb.doc(docPath).get()`)
+  - ✅ Displays submission metadata (form type, status, submitted date, reviewed date)
+  - ✅ Shows contact information (name, email, phone) with mailto/tel links
+  - ✅ Handles 404 errors gracefully with `notFound()`
+  - ✅ Includes back button to return to submissions list
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/[id]/SubmissionDetailClient.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Client component for interactive features
+  - ✅ Review status toggle with loading states
+  - ✅ Copy-to-clipboard functionality for all form fields
+  - ✅ Displays all form fields in readable format with field name formatting
+  - ✅ Hides internal metadata fields (submittedAt, submittedBy, etc.)
+  - ✅ Toast notifications for user actions
+- **Files Created**:
+  - `src/app/(frontend)/(cms)/dashboard/inquiry/[id]/page.tsx` - Complete detail page
+  - `src/app/(frontend)/(cms)/dashboard/inquiry/[id]/SubmissionDetailClient.tsx` - Interactive client component
+  - `src/utilities/encodeDocPath.ts` - Utility for base64url encoding/decoding document paths
+
+### 2. Implement Traditional Pagination ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Accepts `searchParams.page` for page number
+  - ✅ Increased limit from 10 to 25 submissions
+  - ✅ Passes `hasMore` and `currentPage` to table component
+  - ✅ Handles page number parsing and validation
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/FormSubmissionsTable.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Added pagination controls at bottom of table
+  - ✅ Previous button (disabled on page 1)
+  - ✅ Current page number display
+  - ✅ Next button (disabled when `!hasMore`)
+  - ✅ Uses URL search params for page state (enables back button navigation)
+  - ✅ Integrated with `useRouter` and `useSearchParams` hooks
+- **Files Modified**:
+  - `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx` - Added searchParams handling and increased limit
+  - `src/app/(frontend)/(cms)/dashboard/inquiry/FormSubmissionsTable.tsx` - Added pagination UI
+
+### 3. Clarify Summary Card Metrics ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Updated all summary card descriptions:
+    - "Recent submissions" → "From top 25 submissions"
+    - "Unreviewed submissions" → "Unreviewed (top 25)"
+    - "Reviewed submissions" → "Reviewed (top 25)"
+    - "Different form types" → "Form types (top 25)"
+  - ✅ Added info icon with tooltip explaining metrics are from most recent 25 submissions only
+  - ✅ Tooltip uses Shadcn UI Tooltip component with Info icon from lucide-react
+- **Files Modified**:
+  - `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx` - Updated descriptions and added tooltip
+
+### 4. Minor Optimizations ✅ **COMPLETED**
+
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/page.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Removed unused `adminDb` import
+  - ✅ Increased default limit from 10 to 25 submissions
+  - ✅ Updated card description to "Top 25 most recent form submissions"
+- **File**: `src/app/(frontend)/(cms)/dashboard/inquiry/FormSubmissionsTable.tsx`
+- **Status**: ✅ **COMPLETED**
+- **Implementation Details**:
+  - ✅ Updated "View" button to use `encodeDocPath` utility for base64url encoding
+  - ✅ Properly encodes `originalDocPath` when navigating to detail page
+  - ✅ Removed email/phone masking - now shows full values (as per user request)
+  - ✅ Kept copy-to-clipboard functionality for email and phone
+- **Files Created**:
+  - `src/utilities/encodeDocPath.ts` - Utility for encoding/decoding document paths (works in both server and client contexts)
+
+## Summary
+
+**Completed (4/4):** ✅ **ALL COMPLETED**
+- ✅ Submission detail page with full form data display
+- ✅ Traditional pagination with Previous/Next buttons
+- ✅ Summary card descriptions clarified with "(top 25)" labels
+- ✅ Info tooltip explaining metric limitations
+- ✅ All optimizations and cleanup completed
+
+**All implementation tasks have been completed!** The inquiry dashboard now includes:
+- Full submission detail pages with all form data
+- Pagination controls for navigating through submissions
+- Clear summary card metrics with explanatory tooltip
+- Proper document path encoding for secure navigation
+- Full email and phone number display (no masking)

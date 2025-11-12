@@ -65,6 +65,15 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         { title: 'All Donations', url: '/dashboard/donations' },
       ],
     },
+    {
+      title: 'Inquiries',
+      url: '/dashboard/inquiry',
+      iconKey: 'fileText',
+      items: [
+        { title: 'All Submissions', url: '/dashboard/inquiry' },
+        { title: 'Mediation', url: '/dashboard/inquiry/mediation' },
+      ],
+    },
   ]
 
   const teams: SidebarTeam[] = [

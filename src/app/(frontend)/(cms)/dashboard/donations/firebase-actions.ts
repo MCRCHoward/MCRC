@@ -84,7 +84,7 @@ export async function getDonations(options?: {
     const orderBy = options?.orderBy || 'donationDate'
     const orderDirection = options?.orderDirection || 'desc'
 
-    let query = adminDb.collection('donations').orderBy(orderBy, orderDirection)
+    const query = adminDb.collection('donations').orderBy(orderBy, orderDirection)
 
     const snapshot = await query.limit(limit).get()
 

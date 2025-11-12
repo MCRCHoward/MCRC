@@ -146,7 +146,7 @@ function getSubmittedAt(
 
 /**
  * List recent form submissions using collection group query
- * Fetches submissions from all forms/*/submissions collections
+ * Fetches submissions from all forms/{formId}/submissions collections
  *
  * @param limit - Maximum number of submissions to return (default: 10)
  * @param startAfter - Optional document snapshot to start after (for pagination)
