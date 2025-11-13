@@ -66,15 +66,25 @@ export const mediationFormSchema = z.object({
   }),
 
   // Section 3: Other Participants
-  contactOneFirstName: z.string().min(1, 'First name is required.'),
-  contactOneLastName: z.string().min(1, 'Last name is required.'),
-  contactOnePhone: phoneSchema,
-  contactOneEmail: z.string().email('Invalid email address.'),
+  // Contact One is now optional
+  contactOneFirstName: z.string().optional(),
+  contactOneLastName: z.string().optional(),
+  contactOnePhone: optionalPhoneSchema,
+  contactOneEmail: z.string().email('Invalid email address.').optional().or(z.literal('')),
 
-  contactTwoFirstName: z.string().optional(),
-  contactTwoLastName: z.string().optional(),
-  contactTwoPhone: optionalPhoneSchema,
-  contactTwoEmail: z.string().email('Invalid email address.').optional().or(z.literal('')), // Allow empty string or valid email
+  // Additional contacts array (up to 5 additional contacts)
+  additionalContacts: z
+    .array(
+      z.object({
+        firstName: z.string().min(1, 'First name is required.'),
+        lastName: z.string().min(1, 'Last name is required.'),
+        phone: phoneSchema,
+        email: z.string().email('Invalid email address.'),
+      }),
+    )
+    .max(5, 'Maximum of 5 additional contacts allowed.')
+    .optional()
+    .default([]),
 
   // Section 4: Scheduling
   deadline: z.date().optional(),

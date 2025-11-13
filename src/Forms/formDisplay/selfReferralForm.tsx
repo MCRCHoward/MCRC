@@ -2,9 +2,9 @@
 
 import * as React from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { format } from 'date-fns'
-import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react'
+import { CalendarIcon, Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react'
 
 import { useFirestoreFormSubmit } from '@/hooks/useFirestoreFormSubmit'
 import {
@@ -99,11 +99,7 @@ const STEP_FIELDS: Array<(keyof MediationFormValues)[]> = [
     'contactOneLastName',
     'contactOnePhone',
     'contactOneEmail',
-    // optional: contactTwo*
-    'contactTwoFirstName',
-    'contactTwoLastName',
-    'contactTwoPhone',
-    'contactTwoEmail',
+    'additionalContacts',
   ],
   ['deadline', 'accessibilityNeeds', 'additionalInfo'],
 ]
@@ -129,7 +125,7 @@ export function MediationSelfReferralForm() {
   }, [])
 
   const form = useForm<MediationFormValues>({
-    resolver: zodResolver(mediationFormSchema),
+    resolver: zodResolver(mediationFormSchema) as any,
     defaultValues: {
       // Section 1
       prefix: '',
@@ -155,10 +151,7 @@ export function MediationSelfReferralForm() {
       contactOneLastName: '',
       contactOnePhone: '',
       contactOneEmail: '',
-      contactTwoFirstName: '',
-      contactTwoLastName: '',
-      contactTwoPhone: '',
-      contactTwoEmail: '',
+      additionalContacts: [],
 
       // Section 4
       deadline: undefined,
@@ -170,6 +163,15 @@ export function MediationSelfReferralForm() {
 
   // Auto-save form data
   const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'mediation-self-referral')
+
+  // Manage additional contacts array
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'additionalContacts',
+  })
+
+  const MAX_ADDITIONAL_CONTACTS = 5
+  const canAddMoreContacts = fields.length < MAX_ADDITIONAL_CONTACTS
 
   const goBack = () => {
     // Reset interaction state when leaving step 4
@@ -624,20 +626,27 @@ export function MediationSelfReferralForm() {
             <CardHeader>
               <CardTitle>Section 3: Other Participants</CardTitle>
               <CardDescription>
-                Please share the names of the other person or people involved.
+                Please share the names of the other person or people involved. You can add up to 5
+                additional contacts.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Contact One - Now Optional */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <h3 className="md:col-span-2 font-semibold">Contact One (Required)</h3>
+                <h3 className="md:col-span-2 font-semibold">Contact One (Optional)</h3>
                 <FormField
                   control={form.control}
                   name="contactOneFirstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name *</FormLabel>
+                      <FormLabel>First Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="John" {...field} />
+                        <Input
+                          placeholder="John"
+                          disabled={isSubmitting}
+                          aria-label="Contact one first name"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -648,9 +657,14 @@ export function MediationSelfReferralForm() {
                   name="contactOneLastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name *</FormLabel>
+                      <FormLabel>Last Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Smith" {...field} />
+                        <Input
+                          placeholder="Smith"
+                          disabled={isSubmitting}
+                          aria-label="Contact one last name"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -661,13 +675,15 @@ export function MediationSelfReferralForm() {
                   name="contactOnePhone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone *</FormLabel>
+                      <FormLabel>Phone</FormLabel>
                       <FormControl>
                         <Input
                           type="tel"
                           inputMode="tel"
                           placeholder="(123) 456-7890"
                           pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                          disabled={isSubmitting}
+                          aria-label="Contact one phone"
                           {...field}
                           onChange={(e) => {
                             handlePhoneInputChange(e.target.value, field.onChange)
@@ -684,9 +700,15 @@ export function MediationSelfReferralForm() {
                   name="contactOneEmail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email *</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="john.smith@example.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="john.smith@example.com"
+                          disabled={isSubmitting}
+                          aria-label="Contact one email"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -694,71 +716,169 @@ export function MediationSelfReferralForm() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
-                <h3 className="md:col-span-2 font-semibold">Contact Two (Optional)</h3>
-                <FormField
-                  control={form.control}
-                  name="contactTwoFirstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="contactTwoLastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="contactTwoPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="tel"
-                          inputMode="tel"
-                          placeholder="(123) 456-7890"
-                          pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
-                          {...field}
-                          onChange={(e) => {
-                            handlePhoneInputChange(e.target.value, field.onChange)
-                          }}
-                          onKeyPress={handlePhoneKeyPress}
+              {/* Additional Contacts */}
+              {fields.length > 0 && (
+                <div className="space-y-6 pt-4 border-t">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">Contact {index + 2}</h3>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => remove(index)}
+                          disabled={isSubmitting}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          aria-label={`Remove contact ${index + 2}`}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Remove
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name={`additionalContacts.${index}.firstName`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>First Name *</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Jane"
+                                  disabled={isSubmitting}
+                                  aria-label={`Contact ${index + 2} first name`}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="contactTwoEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                        <FormField
+                          control={form.control}
+                          name={`additionalContacts.${index}.lastName`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Last Name *</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Doe"
+                                  disabled={isSubmitting}
+                                  aria-label={`Contact ${index + 2} last name`}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`additionalContacts.${index}.phone`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Phone *</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="tel"
+                                  inputMode="tel"
+                                  placeholder="(123) 456-7890"
+                                  pattern="[\(]\d{3}[\)]\s\d{3}[\-]\d{4}"
+                                  disabled={isSubmitting}
+                                  aria-label={`Contact ${index + 2} phone`}
+                                  {...field}
+                                  onChange={(e) => {
+                                    handlePhoneInputChange(e.target.value, field.onChange)
+                                  }}
+                                  onKeyPress={handlePhoneKeyPress}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`additionalContacts.${index}.email`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email *</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="email"
+                                  placeholder="jane.doe@example.com"
+                                  disabled={isSubmitting}
+                                  aria-label={`Contact ${index + 2} email`}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add Additional Contact Button */}
+              {canAddMoreContacts && (
+                <div className="pt-4 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      append({
+                        firstName: '',
+                        lastName: '',
+                        phone: '',
+                        email: '',
+                      })
+                      // Scroll to the newly added contact after a brief delay
+                      setTimeout(() => {
+                        const newContactElement = document.querySelector(
+                          `[name="additionalContacts.${fields.length}.firstName"]`,
+                        )
+                        if (newContactElement) {
+                          newContactElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                          ;(newContactElement as HTMLInputElement).focus()
+                        }
+                      }, 100)
+                    }}
+                    disabled={isSubmitting}
+                    className="w-full md:w-auto"
+                    aria-label="Add additional contact"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Additional Contact ({fields.length}/{MAX_ADDITIONAL_CONTACTS})
+                  </Button>
+                </div>
+              )}
+
+              {/* Max contacts message */}
+              {!canAddMoreContacts && fields.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Maximum of {MAX_ADDITIONAL_CONTACTS} additional contacts reached.
+                  </p>
+                </div>
+              )}
+
+              {/* Empty state message */}
+              {fields.length === 0 &&
+                !form.watch('contactOneFirstName') &&
+                !form.watch('contactOneLastName') &&
+                !form.watch('contactOnePhone') &&
+                !form.watch('contactOneEmail') && (
+                  <div className="pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      No contacts added yet. You can add Contact One or click &quot;Add Additional
+                      Contact&quot; to get started.
+                    </p>
+                  </div>
+                )}
             </CardContent>
           </Card>
         )}

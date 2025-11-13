@@ -74,6 +74,41 @@ function getName(data: Record<string, unknown>): string {
     return data.participantName
   }
 
+  // Try Contact One (now optional)
+  const contactOneFirstName = data.contactOneFirstName as string | undefined
+  const contactOneLastName = data.contactOneLastName as string | undefined
+  if (contactOneFirstName && contactOneLastName) {
+    return `${contactOneFirstName} ${contactOneLastName}`.trim()
+  }
+  if (contactOneFirstName) return contactOneFirstName
+  if (contactOneLastName) return contactOneLastName
+
+  // Try additionalContacts array (new structure)
+  if (
+    Array.isArray(data.additionalContacts) &&
+    data.additionalContacts.length > 0 &&
+    typeof data.additionalContacts[0] === 'object' &&
+    data.additionalContacts[0] !== null
+  ) {
+    const firstContact = data.additionalContacts[0] as Record<string, unknown>
+    const contactFirstName = firstContact.firstName as string | undefined
+    const contactLastName = firstContact.lastName as string | undefined
+    if (contactFirstName && contactLastName) {
+      return `${contactFirstName} ${contactLastName}`.trim()
+    }
+    if (contactFirstName) return contactFirstName
+    if (contactLastName) return contactLastName
+  }
+
+  // Legacy: Try contactTwo for backward compatibility
+  const contactTwoFirstName = data.contactTwoFirstName as string | undefined
+  const contactTwoLastName = data.contactTwoLastName as string | undefined
+  if (contactTwoFirstName && contactTwoLastName) {
+    return `${contactTwoFirstName} ${contactTwoLastName}`.trim()
+  }
+  if (contactTwoFirstName) return contactTwoFirstName
+  if (contactTwoLastName) return contactTwoLastName
+
   return '—'
 }
 
@@ -89,6 +124,26 @@ function getEmail(data: Record<string, unknown>): string | undefined {
   }
   if (data.participantEmail && typeof data.participantEmail === 'string') {
     return data.participantEmail
+  }
+  // Check Contact One (now optional)
+  if (data.contactOneEmail && typeof data.contactOneEmail === 'string') {
+    return data.contactOneEmail
+  }
+  // Check additionalContacts array (new structure)
+  if (
+    Array.isArray(data.additionalContacts) &&
+    data.additionalContacts.length > 0 &&
+    typeof data.additionalContacts[0] === 'object' &&
+    data.additionalContacts[0] !== null
+  ) {
+    const firstContact = data.additionalContacts[0] as Record<string, unknown>
+    if (firstContact.email && typeof firstContact.email === 'string') {
+      return firstContact.email
+    }
+  }
+  // Legacy: Check contactTwoEmail for backward compatibility
+  if (data.contactTwoEmail && typeof data.contactTwoEmail === 'string') {
+    return data.contactTwoEmail
   }
   return undefined
 }
@@ -109,8 +164,25 @@ function getPhone(data: Record<string, unknown>): string | undefined {
   if (data.parentGuardianPhone && typeof data.parentGuardianPhone === 'string') {
     return data.parentGuardianPhone
   }
+  // Check Contact One (now optional)
   if (data.contactOnePhone && typeof data.contactOnePhone === 'string') {
     return data.contactOnePhone
+  }
+  // Check additionalContacts array (new structure)
+  if (
+    Array.isArray(data.additionalContacts) &&
+    data.additionalContacts.length > 0 &&
+    typeof data.additionalContacts[0] === 'object' &&
+    data.additionalContacts[0] !== null
+  ) {
+    const firstContact = data.additionalContacts[0] as Record<string, unknown>
+    if (firstContact.phone && typeof firstContact.phone === 'string') {
+      return firstContact.phone
+    }
+  }
+  // Legacy: Check contactTwoPhone for backward compatibility
+  if (data.contactTwoPhone && typeof data.contactTwoPhone === 'string') {
+    return data.contactTwoPhone
   }
   return undefined
 }
