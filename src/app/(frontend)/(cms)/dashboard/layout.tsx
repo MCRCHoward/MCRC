@@ -81,6 +81,12 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         { title: 'Mediation', url: '/dashboard/inquiry/mediation' },
       ],
     },
+    {
+      title: 'Developer Roadmap',
+      url: '/dashboard/roadmap',
+      iconKey: 'map',
+      items: [],
+    },
   ]
 
   const teams: SidebarTeam[] = [

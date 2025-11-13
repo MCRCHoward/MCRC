@@ -231,6 +231,87 @@ This document tracks all incomplete features, placeholders, and missing implemen
   - ✅ Created `TrashPageClient` component with proper error handling, loading states, and confirmation dialogs
   - ✅ Updated blog list page to exclude soft-deleted posts
 
+#### Developer Roadmap
+- **Files**: 
+  - `src/app/(frontend)/(cms)/dashboard/roadmap/page.tsx`
+  - `src/app/(frontend)/(cms)/dashboard/roadmap/firebase-actions.ts`
+  - `src/app/(frontend)/(cms)/dashboard/roadmap/RoadmapClient.tsx`
+  - `src/components/Dashboard/RoadmapTimeline.tsx`
+  - `src/components/Dashboard/RecommendationGrid.tsx`
+  - `src/components/Dashboard/SubmitRecommendationModal.tsx`
+  - `src/components/Dashboard/CreateRoadmapItemModal.tsx`
+  - `src/types/roadmap.ts`
+- **Status**: ✅ **COMPLETED**
+- **Description**: Complete Developer Roadmap feature with admin-managed timeline items and user-submitted recommendations. Admins can accept recommendations to add them to the roadmap, and all authenticated users can view and submit recommendations.
+- **Implementation Details**:
+  - ✅ **Type Definitions**: Created `RoadmapItem` and `Recommendation` interfaces with proper TypeScript types
+  - ✅ **Dashboard Navigation**: Added "Developer Roadmap" to sidebar navigation with 'map' icon
+  - ✅ **Server Actions**: Implemented Firebase server actions:
+    - `createRoadmapItem()` - Admin only, creates new roadmap timeline items
+    - `updateRoadmapItem()` - Admin only, updates existing roadmap items
+    - `deleteRoadmapItem()` - Admin only, deletes roadmap items
+    - `submitRecommendation()` - All authenticated users can submit recommendations
+    - `acceptRecommendation()` - Admin only, creates roadmap item from recommendation and updates status
+    - `deleteRecommendation()` - Admin only, permanently deletes recommendations
+  - ✅ **Server Page**: Created server component that fetches roadmap items and recommendations from Firestore
+  - ✅ **Timeline Component**: Built `RoadmapTimeline` component with:
+    - Timeline display based on provided HTML structure
+    - Color-coded type indicators (Feature=green, Bug=red, Enhancement=blue)
+    - Time ago formatting using `date-fns`
+    - Admin controls to delete roadmap items
+    - Responsive design with proper spacing
+  - ✅ **Recommendation Grid**: Built `RecommendationGrid` component with:
+    - Grid display (1 col mobile, 2 cols tablet, 3 cols desktop)
+    - Accepted items show green border and "Accepted" ribbon badge
+    - Pending items show regular styling with "Pending" badge
+    - Admin controls: green check icon to accept, red trash icon to delete
+    - Time ago formatting
+    - Copy-to-clipboard functionality
+  - ✅ **Modals**: Created two modal components:
+    - `SubmitRecommendationModal` - User recommendation submission form
+    - `CreateRoadmapItemModal` - Admin-only roadmap item creation form
+  - ✅ **Client Wrapper**: Created `RoadmapClient` component to orchestrate UI and manage modal state
+  - ✅ **Firestore Rules**: Updated security rules:
+    - `roadmapItems` collection: public read, admin write via Admin SDK
+    - `recommendations` collection: authenticated read/create, admin update/delete via Admin SDK
+  - ✅ **Loading State**: Created loading skeleton component for roadmap page
+  - ✅ **Data Structure**: 
+    - Roadmap items stored in `roadmapItems` collection with version, type, title, description, date, order
+    - Recommendations stored in `recommendations` collection with title, description, status, submittedBy, order
+    - Accepted recommendations automatically added to roadmap and moved to end of grid
+- **Files Created**:
+  - `src/types/roadmap.ts` - Type definitions
+  - `src/app/(frontend)/(cms)/dashboard/roadmap/page.tsx` - Server component page
+  - `src/app/(frontend)/(cms)/dashboard/roadmap/firebase-actions.ts` - Server actions
+  - `src/app/(frontend)/(cms)/dashboard/roadmap/RoadmapClient.tsx` - Main client component
+  - `src/app/(frontend)/(cms)/dashboard/roadmap/loading.tsx` - Loading skeleton
+  - `src/components/Dashboard/RoadmapTimeline.tsx` - Timeline display component
+  - `src/components/Dashboard/RecommendationGrid.tsx` - Recommendation grid component
+  - `src/components/Dashboard/SubmitRecommendationModal.tsx` - User recommendation modal
+  - `src/components/Dashboard/CreateRoadmapItemModal.tsx` - Admin roadmap item modal
+- **Files Modified**:
+  - `src/types/index.ts` - Added roadmap type exports
+  - `src/app/(frontend)/(cms)/dashboard/layout.tsx` - Added Developer Roadmap navigation item
+  - `firestore.rules` - Added rules for roadmapItems and recommendations collections
+- **Key Features**:
+  - Timeline displays roadmap items in descending order (newest first)
+  - Accepted recommendations appear both in roadmap AND grid
+  - Green "Accepted" ribbon on accepted recommendation cards
+  - Admin-only controls properly gated by role check
+  - Optimistic UI updates with proper error handling
+  - Mobile-responsive design
+  - Proper role-based access control (admin-only actions)
+- **Action Required**:
+  - ✅ ~~Create TypeScript type definitions for RoadmapItem and Recommendation~~ (Completed)
+  - ✅ ~~Add Developer Roadmap navigation item to dashboard layout~~ (Completed)
+  - ✅ ~~Implement Firebase server actions for roadmap and recommendation operations~~ (Completed)
+  - ✅ ~~Create server component page to fetch and display roadmap data~~ (Completed)
+  - ✅ ~~Build RoadmapTimeline component with admin controls~~ (Completed)
+  - ✅ ~~Build RecommendationGrid component with status indicators and admin controls~~ (Completed)
+  - ✅ ~~Create modal components for submitting recommendations and creating roadmap items~~ (Completed)
+  - ✅ ~~Create RoadmapClient wrapper component to orchestrate UI~~ (Completed)
+  - ✅ ~~Update Firestore security rules for roadmapItems and recommendations collections~~ (Completed)
+
 ### Page Block Rendering
 
 #### Dynamic Page Block Rendering

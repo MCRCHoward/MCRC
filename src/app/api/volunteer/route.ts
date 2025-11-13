@@ -36,8 +36,8 @@ export async function POST(request: Request) {
 
     // Send notification email via Resend (non-blocking best-effort)
     const RESEND_API_KEY = process.env.RESEND_API || process.env.RESEND_API_KEY
-    const VOLUNTEER_TO = process.env.VOLUNTEER_TO_EMAIL || 'director@mcrchoward.org'
-    const FROM_EMAIL = process.env.CONTACT_FROM_EMAIL || 'director@mcrchoward.org'
+    const VOLUNTEER_TO = process.env.VOLUNTEER_TO_EMAIL || 'info@mcrchoward.org'
+    const FROM_EMAIL = process.env.CONTACT_FROM_EMAIL || 'info@mcrchoward.org'
 
     if (RESEND_API_KEY) {
       const resend = new Resend(RESEND_API_KEY)
@@ -66,13 +66,12 @@ export async function POST(request: Request) {
       console.warn('[api/volunteer] RESEND_API/RESEND_API_KEY is not set; skipping email send')
     }
 
-    return NextResponse.json({ success: true, message: 'Volunteer application submitted successfully' })
+    return NextResponse.json({
+      success: true,
+      message: 'Volunteer application submitted successfully',
+    })
   } catch (error) {
     console.error('[api/volunteer] FAILED:', error)
-    return NextResponse.json(
-      { error: 'Failed to submit volunteer application' },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: 'Failed to submit volunteer application' }, { status: 500 })
   }
 }
-

@@ -122,6 +122,30 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---------- ROADMAP ITEMS (admin-only) ----------
+    match /roadmapItems/{itemId} {
+      // Public read for viewing roadmap
+      allow read: if true;
+      
+      // Only admins can create, update, delete
+      // All writes go through Admin SDK server actions (bypasses Firestore rules)
+      allow create, update, delete: if false;
+    }
+
+    // ---------- RECOMMENDATIONS ----------
+    match /recommendations/{recId} {
+      // Authenticated users can read all recommendations
+      allow read: if isSignedIn();
+      
+      // Authenticated users can create recommendations
+      allow create: if isSignedIn() && 
+                       request.resource.data.submittedBy == request.auth.uid;
+      
+      // Only admins can update/delete
+      // All writes go through Admin SDK server actions (bypasses Firestore rules)
+      allow update, delete: if false;
+    }
+
     // ---------- Catch-all deny ----------
     match /{document=**} {
       allow read, write: if false;
