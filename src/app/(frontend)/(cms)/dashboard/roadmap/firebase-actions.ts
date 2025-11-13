@@ -23,7 +23,10 @@ export async function createRoadmapItem(data: RoadmapItemInput) {
       .limit(1)
       .get()
 
-    const maxOrder = existingItems.empty ? 0 : (existingItems.docs[0].data().order as number) || 0
+    const maxOrder =
+      existingItems.empty || !existingItems.docs[0]
+        ? 0
+        : (existingItems.docs[0].data().order as number) || 0
 
     const roadmapData = {
       ...data,
@@ -101,7 +104,10 @@ export async function submitRecommendation(data: RecommendationInput) {
       .limit(1)
       .get()
 
-    const maxOrder = existingRecs.empty ? 0 : (existingRecs.docs[0].data().order as number) || 0
+    const maxOrder =
+      existingRecs.empty || !existingRecs.docs[0]
+        ? 0
+        : (existingRecs.docs[0].data().order as number) || 0
 
     const recommendationData = {
       ...data,
@@ -149,7 +155,10 @@ export async function acceptRecommendation(recommendationId: string) {
       .limit(1)
       .get()
 
-    const maxOrder = existingItems.empty ? 0 : (existingItems.docs[0].data().order as number) || 0
+    const maxOrder =
+      existingItems.empty || !existingItems.docs[0]
+        ? 0
+        : (existingItems.docs[0].data().order as number) || 0
 
     // Create roadmap item from recommendation
     const roadmapData = {

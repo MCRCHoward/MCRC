@@ -55,6 +55,11 @@ export default function CreateRoadmapItemModal({
     setIsSubmitting(true)
     try {
       // Convert date to ISO timestamp
+      if (!formData.date) {
+        toast.error('Please select a date')
+        setIsSubmitting(false)
+        return
+      }
       const dateISO = new Date(formData.date).toISOString()
 
       await createRoadmapItem({
