@@ -114,6 +114,22 @@
   color: var(--foreground) !important;
 }
 
+/* Ensure text-sm and font-medium work properly in dark mode */
+[data-cms-theme='dark'] .text-sm:not(.text-muted-foreground),
+[data-cms-theme='dark'] [class*='text-sm']:not([class*='text-muted-foreground']) {
+  color: var(--foreground);
+}
+
+[data-cms-theme='dark'] .font-medium {
+  color: var(--foreground);
+}
+
+/* Ensure text-sm with muted-foreground works in dark mode */
+[data-cms-theme='dark'] .text-sm.text-muted-foreground,
+[data-cms-theme='dark'] [class*='text-sm'][class*='text-muted-foreground'] {
+  color: var(--muted-foreground);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
