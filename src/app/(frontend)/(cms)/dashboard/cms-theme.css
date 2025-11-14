@@ -89,8 +89,30 @@
     --shadow-md: 0 1px 3px 0px rgb(0 0 0 / 0.10), 0 2px 4px -1px rgb(0 0 0 / 0.10);
     --shadow-lg: 0 1px 3px 0px rgb(0 0 0 / 0.10), 0 4px 6px -1px rgb(0 0 0 / 0.10);
     --shadow-xl: 0 1px 3px 0px rgb(0 0 0 / 0.10), 0 8px 10px -1px rgb(0 0 0 / 0.10);
-    --shadow-2xl: 0 1px 3px 0px rgb(0 0 0 / 0.25);
-  }
+  --shadow-2xl: 0 1px 3px 0px rgb(0 0 0 / 0.25);
+}
+
+/* Ensure text elements have proper foreground colors in dark mode */
+[data-cms-theme='dark'] h1,
+[data-cms-theme='dark'] h2,
+[data-cms-theme='dark'] h3,
+[data-cms-theme='dark'] h4,
+[data-cms-theme='dark'] h5,
+[data-cms-theme='dark'] h6 {
+  color: var(--foreground) !important;
+}
+
+/* Ensure buttons with outline variant have proper text color in dark mode */
+[data-cms-theme='dark'] button.border-border,
+[data-cms-theme='dark'] button[class*='border-border'] {
+  color: var(--foreground) !important;
+}
+
+/* Ensure sidebar trigger button has proper text color in dark mode */
+[data-cms-theme='dark'] [data-sidebar='trigger'],
+[data-cms-theme='dark'] [data-sidebar='trigger'] svg {
+  color: var(--foreground) !important;
+}
 
 @theme inline {
   --color-background: var(--background);

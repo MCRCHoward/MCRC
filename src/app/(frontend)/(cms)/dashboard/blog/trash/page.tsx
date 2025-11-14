@@ -62,7 +62,7 @@ export default async function BlogTrashPage() {
   return (
     <div className="p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Trash</h1>
+        <h1 className="text-xl font-semibold text-foreground">Trash</h1>
         <p className="text-sm text-muted-foreground">
           {deletedPosts.length} {deletedPosts.length === 1 ? 'post' : 'posts'} in trash
         </p>

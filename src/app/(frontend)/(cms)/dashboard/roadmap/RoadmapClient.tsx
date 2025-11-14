@@ -50,12 +50,12 @@ export default function RoadmapClient({
 
       <div className="space-y-8">
         <section>
-          <h2 className="mb-4 text-xl font-semibold">Timeline</h2>
+          <h2 className="mb-4 text-xl font-semibold text-foreground">Timeline</h2>
           <RoadmapTimeline items={roadmapItems} isAdmin={isAdmin} />
         </section>
 
         <section>
-          <h2 className="mb-4 text-xl font-semibold">Recommendations</h2>
+          <h2 className="mb-4 text-xl font-semibold text-foreground">Recommendations</h2>
           <RecommendationGrid
             recommendations={recommendations}
             isAdmin={isAdmin}
