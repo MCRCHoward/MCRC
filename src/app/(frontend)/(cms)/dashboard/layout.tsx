@@ -1,13 +1,9 @@
 import type { ReactNode } from 'react'
-import { Separator } from '@/components/ui/separator'
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import {
-  AppSidebar,
   type SidebarNavItem,
   type SidebarTeam,
 } from '@/components/Dashboard/app-sidebar'
 import { getCurrentUser } from '@/lib/custom-auth'
-import DashboardBreadcrumbs from '@/components/Dashboard/dashboard-breadcrumbs'
 import { CmsThemeProvider } from '@/providers/CmsTheme'
 import { DashboardLayoutContent } from './DashboardLayoutContent'
 import './cms-theme.css'

@@ -19,14 +19,12 @@ const CmsThemeContext = createContext<CmsThemeContextType>({
 
 export function CmsThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<CmsTheme>(DEFAULT_THEME)
-  const [mounted, setMounted] = useState(false)
 
   // Initialize theme from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(CMS_THEME_STORAGE_KEY)
     const initialTheme: CmsTheme = stored === 'light' || stored === 'dark' ? stored : DEFAULT_THEME
     setThemeState(initialTheme)
-    setMounted(true)
   }, [])
 
   const setTheme = (newTheme: CmsTheme) => {

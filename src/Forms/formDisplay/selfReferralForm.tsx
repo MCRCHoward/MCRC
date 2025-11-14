@@ -125,7 +125,7 @@ export function MediationSelfReferralForm() {
   }, [])
 
   const form = useForm<MediationFormValues>({
-    resolver: zodResolver(mediationFormSchema) as any,
+    resolver: zodResolver(mediationFormSchema),
     defaultValues: {
       // Section 1
       prefix: '',
