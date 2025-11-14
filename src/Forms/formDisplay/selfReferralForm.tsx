@@ -1002,13 +1002,6 @@ export function MediationSelfReferralForm() {
               </AlertDescription>
             </Alert>
           )}
-          {isMounted && hasSavedData() && !isSubmitting && !success && (
-            <Alert className="border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
-              <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
-                Your progress has been saved automatically.
-              </AlertDescription>
-            </Alert>
-          )}
 
           <div className="flex items-center justify-between gap-3">
             <Button
