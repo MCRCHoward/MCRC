@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { adminDb } from '@/lib/firebase-admin'
+import { toISOString } from '../../utils/timestamp-helpers'
 import type { Event } from '@/types'
 import EventForm from '../EventForm'
 
@@ -49,14 +50,6 @@ async function fetchEventBySlug(slug: string): Promise<EventWithVenueFields | nu
 
     const data = doc.data()
 
-    const toISOString = (value: unknown): string | undefined => {
-      if (!value) return undefined
-      if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-        return value.toDate().toISOString()
-      }
-      if (typeof value === 'string') return value
-      return undefined
-    }
 
     const startAt = data.startAt?.toDate?.() ?? (data.startAt instanceof Date ? data.startAt : null)
     const endAt = data.endAt?.toDate?.() ?? (data.endAt instanceof Date ? data.endAt : null)

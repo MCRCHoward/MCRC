@@ -1,5 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin'
 import type { Post } from '@/types'
+import { toISOString } from '../../utils/timestamp-helpers'
 import { TrashPageClient } from './TrashPageClient'
 
 export const dynamic = 'force-dynamic'
@@ -28,14 +29,6 @@ async function fetchDeletedPosts(): Promise<Post[]> {
     return snapshot.docs.map((doc) => {
       const data = doc.data()
 
-      const toISOString = (value: unknown): string | undefined => {
-        if (!value) return undefined
-        if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-          return value.toDate().toISOString()
-        }
-        if (typeof value === 'string') return value
-        return undefined
-      }
 
       return {
         id: doc.id,

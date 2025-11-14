@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { adminDb } from '@/lib/firebase-admin'
 import type { Event } from '@/types'
+import { toISOString, toDate } from '../utils/timestamp-helpers'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,24 +24,15 @@ async function fetchEvents(): Promise<Event[]> {
     return snapshot.docs.map((doc) => {
       const data = doc.data()
 
-      const toISOString = (value: unknown): string | undefined => {
-        if (!value) return undefined
-        if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-          return value.toDate().toISOString()
-        }
-        if (typeof value === 'string') return value
-        return undefined
-      }
-
-      const startAt =
-        data.startAt?.toDate?.() ?? (data.startAt instanceof Date ? data.startAt : null)
+      const startAt = toDate(data.startAt)
+      const endAt = toDate(data.endAt)
 
       return {
         id: doc.id,
         name: data.title || '',
         slug: data.slug || doc.id,
         eventStartTime: startAt?.toISOString() || '',
-        eventEndTime: data.endAt?.toDate?.()?.toISOString() || data.endAt || '',
+        eventEndTime: endAt?.toISOString() || startAt?.toISOString() || '',
         modality: data.isOnline ? 'online' : 'in_person',
         meta: {
           slug: data.slug || doc.id,

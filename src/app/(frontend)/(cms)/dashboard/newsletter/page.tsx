@@ -1,4 +1,5 @@
 import { adminDb } from '@/lib/firebase-admin'
+import { toISOString } from '../utils/timestamp-helpers'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { NewsletterTable } from './NewsletterTable'
 import type { NewsletterSubscriber } from '@/types/newsletter'
@@ -20,14 +21,6 @@ async function fetchNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
       return []
     }
 
-    const toISOString = (value: unknown): string | undefined => {
-      if (!value) return undefined
-      if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-        return value.toDate().toISOString()
-      }
-      if (typeof value === 'string') return value
-      return undefined
-    }
 
     return snapshot.docs.map((doc) => {
       const data = doc.data()

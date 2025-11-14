@@ -1,6 +1,7 @@
 import { adminDb } from '@/lib/firebase-admin'
 import { getCurrentUser } from '@/lib/custom-auth'
 import type { RoadmapItem, Recommendation } from '@/types'
+import { toISOString } from '../utils/timestamp-helpers'
 import RoadmapClient from './RoadmapClient'
 import { isAdmin } from '@/lib/user-roles'
 
@@ -9,23 +10,6 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const runtime = 'nodejs'
 
-/**
- * Helper to convert Firestore Timestamp to ISO string
- */
-function toISOString(value: unknown): string | undefined {
-  if (!value) return undefined
-  // Firestore Timestamp has toDate() method
-  if (
-    typeof value === 'object' &&
-    'toDate' in value &&
-    typeof value.toDate === 'function'
-  ) {
-    return value.toDate().toISOString()
-  }
-  // Already a string
-  if (typeof value === 'string') return value
-  return undefined
-}
 
 /**
  * Fetches all roadmap items from Firestore, ordered by order (descending).

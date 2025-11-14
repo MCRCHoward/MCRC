@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
+import { toISOString } from '../utils/timestamp-helpers'
 import { sanitizeString } from '@/utilities/sanitize'
 import { logError } from '@/utilities/error-logging'
 
@@ -38,15 +39,6 @@ export async function getDonationById(donationId: string) {
     }
 
     const data = snapshot.data()
-
-    const toISOString = (value: unknown): string | undefined => {
-      if (!value) return undefined
-      if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-        return value.toDate().toISOString()
-      }
-      if (typeof value === 'string') return value
-      return undefined
-    }
 
     return {
       id: snapshot.id,
@@ -90,15 +82,6 @@ export async function getDonations(options?: {
 
     if (snapshot.empty) {
       return []
-    }
-
-    const toISOString = (value: unknown): string | undefined => {
-      if (!value) return undefined
-      if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-        return value.toDate().toISOString()
-      }
-      if (typeof value === 'string') return value
-      return undefined
     }
 
     return snapshot.docs.map((doc) => {

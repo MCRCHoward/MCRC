@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { adminDb } from '@/lib/firebase-admin'
+import { toISOString } from '../../utils/timestamp-helpers'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,14 +28,6 @@ async function getDonationById(donationId: string) {
 
     const data = snapshot.data()
 
-    const toISOString = (value: unknown): string | undefined => {
-      if (!value) return undefined
-      if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-        return value.toDate().toISOString()
-      }
-      if (typeof value === 'string') return value
-      return undefined
-    }
 
     return {
       id: snapshot.id,

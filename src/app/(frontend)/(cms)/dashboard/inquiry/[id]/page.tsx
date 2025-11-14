@@ -10,6 +10,7 @@ import { SubmissionDetailClient } from './SubmissionDetailClient'
 import { formatDateTimeShort } from '@/utilities/formatDateTime'
 import { decodeDocPath } from '@/utilities/encodeDocPath'
 import type { Timestamp } from 'firebase-admin/firestore'
+import { toISOString } from '../../utils/timestamp-helpers'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,17 +20,6 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
-/**
- * Convert Firestore Timestamp or value to ISO string
- */
-function toISOString(value: unknown): string | undefined {
-  if (!value) return undefined
-  if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-    return (value as Timestamp).toDate().toISOString()
-  }
-  if (typeof value === 'string') return value
-  return undefined
-}
 
 /**
  * Recursively convert Firestore Timestamp objects to ISO strings
@@ -42,7 +32,7 @@ function serializeFirestoreData(data: unknown): unknown {
   
   // Handle Firestore Timestamp
   if (typeof data === 'object' && 'toDate' in data && typeof (data as Timestamp).toDate === 'function') {
-    return (data as Timestamp).toDate().toISOString()
+    return toISOString(data)
   }
   
   // Handle arrays

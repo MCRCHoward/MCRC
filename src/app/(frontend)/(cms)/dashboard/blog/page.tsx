@@ -5,6 +5,7 @@ import DeletePostButton from '@/components/Dashboard/posts/DeletePostButton'
 import { adminDb } from '@/lib/firebase-admin'
 import { deletePost } from './firebase-actions'
 import type { Post } from '@/types'
+import { toISOString } from '../utils/timestamp-helpers'
 
 // Server-side rendering configuration
 export const dynamic = 'force-dynamic'
@@ -31,21 +32,6 @@ async function fetchBlogPosts(): Promise<Post[]> {
       .map((docSnapshot) => {
         const data = docSnapshot.data()
 
-        // Helper to convert Firestore Timestamp to ISO string
-        const toISOString = (value: unknown): string | undefined => {
-          if (!value) return undefined
-          // Firestore Timestamp has toDate() method
-          if (
-            typeof value === 'object' &&
-            'toDate' in value &&
-            typeof value.toDate === 'function'
-          ) {
-            return value.toDate().toISOString()
-          }
-          // Already a string
-          if (typeof value === 'string') return value
-          return undefined
-        }
 
         return {
           id: docSnapshot.id,

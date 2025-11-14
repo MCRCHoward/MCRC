@@ -1,4 +1,5 @@
 import { adminDb } from '@/lib/firebase-admin'
+import { toISOString } from '../utils/timestamp-helpers'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DonationsTable } from './DonationsTable'
 import { formatPaymentAmount } from '@/utilities/payment-helpers'
@@ -21,14 +22,6 @@ async function fetchDonations() {
       return []
     }
 
-    const toISOString = (value: unknown): string | undefined => {
-      if (!value) return undefined
-      if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-        return value.toDate().toISOString()
-      }
-      if (typeof value === 'string') return value
-      return undefined
-    }
 
     return snapshot.docs.map((doc) => {
       const data = doc.data()
