@@ -13,6 +13,7 @@ import {
   Mail,
   PieChart,
   SquareTerminal,
+  Users,
   type LucideIcon,
 } from 'lucide-react'
 import { ChevronRight } from 'lucide-react'
@@ -41,6 +42,7 @@ const iconMap: Record<string, LucideIcon> = {
   fileText: FileText,
   mail: Mail,
   mailbox: Mail,
+  users: Users,
 }
 
 export function NavMain({

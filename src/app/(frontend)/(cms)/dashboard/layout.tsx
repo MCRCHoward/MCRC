@@ -90,6 +90,12 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         { title: 'Completed', url: '/dashboard/roadmap/completed' },
       ],
     },
+    {
+      title: 'Users',
+      url: '/dashboard/users',
+      iconKey: 'users',
+      items: [{ title: 'All Users', url: '/dashboard/users' }],
+    },
   ]
 
   const teams: SidebarTeam[] = [
