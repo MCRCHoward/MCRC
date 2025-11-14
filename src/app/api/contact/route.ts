@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     // Send notification email via Resend (non-blocking best-effort)
     const RESEND_API_KEY = process.env.RESEND_API || process.env.RESEND_API_KEY
-    const CONTACT_TO = process.env.CONTACT_TO_EMAIL || 'derrick.valentine@gmail.com'
+    const CONTACT_TO = process.env.CONTACT_TO_EMAIL || 'info@mcrchoward.org'
     const FROM_EMAIL = process.env.CONTACT_FROM_EMAIL || 'director@mcrchoward.org'
 
     if (RESEND_API_KEY) {
