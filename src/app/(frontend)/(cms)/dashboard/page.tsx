@@ -26,22 +26,76 @@ async function getRecentPosts(): Promise<Post[]> {
       return []
     }
 
+    // Helper to convert Firestore Timestamp to ISO string
+    // Handles both Admin SDK Timestamps (with toDate()) and raw Firestore Timestamps (with _seconds/_nanoseconds)
+    const toISOString = (value: unknown): string | undefined => {
+      if (!value) return undefined
+
+      // Firebase Admin SDK Timestamp has toDate() method
+      if (typeof value === 'object' && value !== null && 'toDate' in value) {
+        const toDate = (value as { toDate?: () => Date }).toDate
+        if (typeof toDate === 'function') {
+          try {
+            return toDate().toISOString()
+          } catch {
+            return undefined
+          }
+        }
+      }
+
+      // Raw Firestore Timestamp format: {_seconds: number, _nanoseconds: number}
+      if (typeof value === 'object' && value !== null) {
+        const obj = value as Record<string, unknown>
+        const seconds = obj._seconds
+        const nanoseconds = obj._nanoseconds
+
+        // Both must be defined and be numbers
+        if (
+          typeof seconds === 'number' &&
+          typeof nanoseconds === 'number' &&
+          !Number.isNaN(seconds) &&
+          !Number.isNaN(nanoseconds)
+        ) {
+          try {
+            // Convert seconds + nanoseconds to milliseconds
+            const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
+            return new Date(milliseconds).toISOString()
+          } catch {
+            return undefined
+          }
+        }
+      }
+
+      // Already a Date object
+      if (value instanceof Date) {
+        try {
+          return value.toISOString()
+        } catch {
+          return undefined
+        }
+      }
+
+      // Already a string
+      if (typeof value === 'string') {
+        return value
+      }
+
+      return undefined
+    }
+
     return snapshot.docs.map((doc) => {
       const data = doc.data()
 
-      // Helper to convert Firestore Timestamp to ISO string
-      const toISOString = (value: unknown): string | undefined => {
-        if (!value) return undefined
-        if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-          return value.toDate().toISOString()
-        }
-        if (typeof value === 'string') return value
-        return undefined
-      }
-
       return {
         id: doc.id,
-        ...data,
+        title: data.title ?? '',
+        slug: data.slug ?? '',
+        contentHtml: data.contentHtml ?? data.content ?? '',
+        excerpt: data.excerpt ?? '',
+        heroImage: data.heroImage ?? '',
+        authors: Array.isArray(data.authors) ? data.authors : [],
+        categories: Array.isArray(data.categories) ? data.categories : [],
+        _status: data._status ?? 'draft',
         createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
         updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
         publishedAt: toISOString(data.publishedAt),
@@ -77,30 +131,131 @@ async function getUpcomingEvents(): Promise<Event[]> {
       return []
     }
 
+    // Helper to convert Firestore Timestamp to ISO string
+    // Handles both Admin SDK Timestamps (with toDate()) and raw Firestore Timestamps (with _seconds/_nanoseconds)
+    const toISOString = (value: unknown): string | undefined => {
+      if (!value) return undefined
+
+      // Firebase Admin SDK Timestamp has toDate() method
+      if (typeof value === 'object' && value !== null && 'toDate' in value) {
+        const toDate = (value as { toDate?: () => Date }).toDate
+        if (typeof toDate === 'function') {
+          try {
+            return toDate().toISOString()
+          } catch {
+            return undefined
+          }
+        }
+      }
+
+      // Raw Firestore Timestamp format: {_seconds: number, _nanoseconds: number}
+      if (typeof value === 'object' && value !== null) {
+        const obj = value as Record<string, unknown>
+        const seconds = obj._seconds
+        const nanoseconds = obj._nanoseconds
+
+        // Both must be defined and be numbers
+        if (
+          typeof seconds === 'number' &&
+          typeof nanoseconds === 'number' &&
+          !Number.isNaN(seconds) &&
+          !Number.isNaN(nanoseconds)
+        ) {
+          try {
+            // Convert seconds + nanoseconds to milliseconds
+            const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
+            return new Date(milliseconds).toISOString()
+          } catch {
+            return undefined
+          }
+        }
+      }
+
+      // Already a Date object
+      if (value instanceof Date) {
+        try {
+          return value.toISOString()
+        } catch {
+          return undefined
+        }
+      }
+
+      // Already a string
+      if (typeof value === 'string') {
+        return value
+      }
+
+      return undefined
+    }
+
+    // Helper to convert Firestore Timestamp to Date object
+    const toDate = (value: unknown): Date | null => {
+      if (!value) return null
+
+      // Firebase Admin SDK Timestamp has toDate() method
+      if (typeof value === 'object' && value !== null && 'toDate' in value) {
+        const toDateMethod = (value as { toDate?: () => Date }).toDate
+        if (typeof toDateMethod === 'function') {
+          try {
+            return toDateMethod()
+          } catch {
+            return null
+          }
+        }
+      }
+
+      // Raw Firestore Timestamp format: {_seconds: number, _nanoseconds: number}
+      if (typeof value === 'object' && value !== null) {
+        const obj = value as Record<string, unknown>
+        const seconds = obj._seconds
+        const nanoseconds = obj._nanoseconds
+
+        if (
+          typeof seconds === 'number' &&
+          typeof nanoseconds === 'number' &&
+          !Number.isNaN(seconds) &&
+          !Number.isNaN(nanoseconds)
+        ) {
+          try {
+            const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
+            return new Date(milliseconds)
+          } catch {
+            return null
+          }
+        }
+      }
+
+      // Already a Date object
+      if (value instanceof Date) {
+        return value
+      }
+
+      return null
+    }
+
     const events: Event[] = []
 
     for (const doc of snapshot.docs) {
       const data = doc.data()
-      const startAt =
-        data.startAt?.toDate?.() ?? (data.startAt instanceof Date ? data.startAt : null)
+      const startAt = toDate(data.startAt)
 
       // Only include future events
       if (startAt && startAt > now) {
+        const endAt = toDate(data.endAt) || startAt
         events.push({
           id: doc.id,
           name: data.title || '',
           slug: data.slug || doc.id,
           eventStartTime: startAt.toISOString(),
-          eventEndTime:
-            data.endAt?.toDate?.()?.toISOString() || data.endAt || startAt.toISOString(),
+          eventEndTime: endAt.toISOString(),
           modality: data.isOnline ? 'online' : 'in_person',
           meta: {
             slug: data.slug || doc.id,
             status: data.status === 'published' ? 'published' : 'draft',
             eventType: data.category || data.format,
           },
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
+          updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
         } as Event)
       }
     }
