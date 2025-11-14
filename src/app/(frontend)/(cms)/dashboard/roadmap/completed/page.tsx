@@ -2,6 +2,7 @@ import { adminDb } from '@/lib/firebase-admin'
 import { getCurrentUser } from '@/lib/custom-auth'
 import type { RoadmapItem } from '@/types'
 import RoadmapTimeline from '@/components/Dashboard/RoadmapTimeline'
+import { isAdmin } from '@/lib/user-roles'
 
 // Server-side rendering configuration
 export const dynamic = 'force-dynamic'
@@ -81,7 +82,7 @@ export default async function CompletedRoadmapPage() {
     getCurrentUser(),
   ])
 
-  const isAdmin = user?.role === 'admin'
+  const userIsAdmin = isAdmin(user?.role)
 
   return (
     <div className="space-y-8">
@@ -98,7 +99,7 @@ export default async function CompletedRoadmapPage() {
             <p className="text-sm text-muted-foreground">No completed roadmap items yet.</p>
           </div>
         ) : (
-          <RoadmapTimeline items={completedItems} isAdmin={isAdmin} />
+          <RoadmapTimeline items={completedItems} isAdmin={userIsAdmin} />
         )}
       </section>
     </div>

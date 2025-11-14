@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/custom-auth'
 import { fetchAllUsers } from './user-actions'
 import UsersTable from '@/components/Dashboard/UsersTable'
+import { isAdmin } from '@/lib/user-roles'
 
 // Server-side rendering configuration
 export const dynamic = 'force-dynamic'
@@ -10,9 +11,9 @@ export const runtime = 'nodejs'
 export default async function UsersPage() {
   const [users, currentUser] = await Promise.all([fetchAllUsers(), getCurrentUser()])
 
-  const isAdmin = currentUser?.role === 'admin'
+  const userIsAdmin = isAdmin(currentUser?.role)
 
-  if (!isAdmin) {
+  if (!userIsAdmin) {
     return (
       <div className="space-y-8">
         <h1 className="text-3xl font-bold text-foreground">Access Denied</h1>

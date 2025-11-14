@@ -6,6 +6,7 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin'
 import { requireRole } from '@/lib/custom-auth'
 import type { User } from '@/types'
 import { z } from 'zod'
+import { getRoleValues, isAdmin } from '@/lib/user-roles'
 
 /**
  * Helper to convert Firestore Timestamp to ISO string
@@ -62,9 +63,10 @@ export async function fetchAllUsers(): Promise<User[]> {
 
 /**
  * Schema for updating user role
+ * Uses getRoleValues() to ensure it stays in sync with the ROLES array
  */
 const UpdateUserRoleSchema = z.object({
-  role: z.enum(['admin', 'coordinator', 'mediator', 'participant', 'volunteer']),
+  role: z.enum(getRoleValues()),
 })
 
 /**
@@ -80,7 +82,7 @@ export async function updateUserRole(userId: string, newRole: User['role']) {
     const currentUser = await requireRole('admin') // Admin only
 
     // Prevent admins from changing their own role (safety check)
-    if (currentUser.id === userId && newRole !== 'admin') {
+    if (currentUser.id === userId && !isAdmin(newRole)) {
       throw new Error('You cannot change your own role')
     }
 
@@ -106,7 +108,7 @@ export async function updateUserRole(userId: string, newRole: User['role']) {
     // Update Firebase Auth custom claims if needed
     // Note: Custom claims are used for Firestore security rules
     try {
-      if (newRole === 'admin') {
+      if (isAdmin(newRole)) {
         await adminAuth.setCustomUserClaims(userId, { admin: true, coordinator: true })
       } else if (newRole === 'coordinator') {
         await adminAuth.setCustomUserClaims(userId, { coordinator: true, admin: false })

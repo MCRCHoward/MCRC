@@ -2,6 +2,7 @@ import { adminDb } from '@/lib/firebase-admin'
 import { getCurrentUser } from '@/lib/custom-auth'
 import type { RoadmapItem, Recommendation } from '@/types'
 import RoadmapClient from './RoadmapClient'
+import { isAdmin } from '@/lib/user-roles'
 
 // Server-side rendering configuration
 export const dynamic = 'force-dynamic'
@@ -118,13 +119,13 @@ export default async function RoadmapPage() {
     getCurrentUser(),
   ])
 
-  const isAdmin = user?.role === 'admin'
+  const userIsAdmin = isAdmin(user?.role)
 
   return (
     <RoadmapClient
       roadmapItems={roadmapItems}
       recommendations={recommendations}
-      isAdmin={isAdmin}
+      isAdmin={userIsAdmin}
       currentUserId={user?.id}
     />
   )

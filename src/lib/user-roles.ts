@@ -135,3 +135,31 @@ export function isValidRoleChange(
   // Non-admins can only promote/demote one level
   return canPromoteTo(currentRole, newRole) || canDemoteTo(currentRole, newRole)
 }
+
+/**
+ * Helper functions to check role types
+ */
+export function isAdmin(role?: UserRole | null): boolean {
+  return role === 'admin'
+}
+
+export function isCoordinator(role?: UserRole | null): boolean {
+  return role === 'coordinator'
+}
+
+export function isStaff(role?: UserRole | null): boolean {
+  return role === 'admin' || role === 'coordinator'
+}
+
+/**
+ * Get all role values as a tuple for Zod enum validation
+ * This ensures the Zod schema stays in sync with the ROLES array
+ */
+export function getRoleValues(): [UserRole, ...UserRole[]] {
+  const values = ROLES.map((r) => r.value) as UserRole[]
+  // TypeScript requires at least one element for z.enum
+  if (values.length === 0) {
+    throw new Error('ROLES array must contain at least one role')
+  }
+  return [values[0]!, ...values.slice(1)]
+}
