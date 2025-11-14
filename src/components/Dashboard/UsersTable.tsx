@@ -26,17 +26,21 @@ import {
   getRoleMetadata,
   getPromotableRoles,
   getDemotableRoles,
+  ROLES,
+  isAdmin,
 } from '@/lib/user-roles'
 import { formatDateTimeShort } from '@/utilities/formatDateTime'
 
 interface UsersTableProps {
   users: User[]
   currentUserId?: string
+  currentUserRole?: User['role']
 }
 
-export default function UsersTable({ users, currentUserId }: UsersTableProps) {
+export default function UsersTable({ users, currentUserId, currentUserRole }: UsersTableProps) {
   const router = useRouter()
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
+  const currentUserIsAdmin = isAdmin(currentUserRole)
 
   const handleRoleChange = async (userId: string, newRole: User['role']) => {
     setUpdatingUserId(userId)
@@ -57,7 +61,7 @@ export default function UsersTable({ users, currentUserId }: UsersTableProps) {
   if (users.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-card p-8 text-center">
-        <p className="text-sm text-muted-foreground">No users found.</p>
+        <p className="text-sm text-muted-foreground dark:text-muted-foreground">No users found.</p>
       </div>
     )
   }
@@ -77,24 +81,29 @@ export default function UsersTable({ users, currentUserId }: UsersTableProps) {
         <TableBody>
           {users.map((user) => {
             const currentRoleMeta = getRoleMetadata(user.role)
-            const promotableRoles = getPromotableRoles(user.role)
-            const demotableRoles = getDemotableRoles(user.role)
-            const availableRoles = [...promotableRoles, ...demotableRoles].filter(
-              (r) => r.value !== user.role,
-            )
+            // If current user is admin, show all roles. Otherwise, show only promotable/demotable
+            const availableRoles = currentUserIsAdmin
+              ? ROLES.filter((r) => r.value !== user.role)
+              : [...getPromotableRoles(user.role), ...getDemotableRoles(user.role)].filter(
+                  (r) => r.value !== user.role,
+                )
             const isUpdating = updatingUserId === user.id
             const isCurrentUser = user.id === currentUserId
 
             return (
               <TableRow key={user.id}>
                 <TableCell>
-                  <div className="font-medium">{user.name}</div>
+                  <div className="font-medium text-foreground dark:text-foreground">
+                    {user.name}
+                  </div>
                   {isCurrentUser && (
-                    <span className="text-xs text-muted-foreground">(You)</span>
+                    <span className="text-xs text-muted-foreground dark:text-muted-foreground">
+                      (You)
+                    </span>
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">{user.email}</div>
+                  <div className="text-sm text-foreground dark:text-foreground">{user.email}</div>
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary" className="capitalize">
@@ -106,15 +115,13 @@ export default function UsersTable({ users, currentUserId }: UsersTableProps) {
                 </TableCell>
                 <TableCell>
                   {isCurrentUser ? (
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground dark:text-muted-foreground">
                       Cannot change your own role
                     </span>
                   ) : (
                     <Select
                       value={user.role}
-                      onValueChange={(value) =>
-                        handleRoleChange(user.id, value as User['role'])
-                      }
+                      onValueChange={(value) => handleRoleChange(user.id, value as User['role'])}
                       disabled={isUpdating}
                     >
                       <SelectTrigger className="w-[180px]" disabled={isUpdating}>
@@ -126,40 +133,57 @@ export default function UsersTable({ users, currentUserId }: UsersTableProps) {
                         <SelectItem value={user.role} disabled>
                           {currentRoleMeta.label} (Current)
                         </SelectItem>
-                        {/* Promotable roles */}
-                        {promotableRoles.length > 0 && (
+                        {/* If admin, show all roles. Otherwise, show grouped by promote/demote */}
+                        {currentUserIsAdmin ? (
+                          // Admin can assign any role
+                          availableRoles.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>
+                              <div className="flex flex-col">
+                                <span>{role.label}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {role.description}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
                           <>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                              Promote To
-                            </div>
-                            {promotableRoles.map((role) => (
-                              <SelectItem key={role.value} value={role.value}>
-                                <div className="flex flex-col">
-                                  <span>{role.label}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {role.description}
-                                  </span>
+                            {/* Promotable roles */}
+                            {getPromotableRoles(user.role).length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                  Promote To
                                 </div>
-                              </SelectItem>
-                            ))}
-                          </>
-                        )}
-                        {/* Demotable roles */}
-                        {demotableRoles.length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                              Demote To
-                            </div>
-                            {demotableRoles.map((role) => (
-                              <SelectItem key={role.value} value={role.value}>
-                                <div className="flex flex-col">
-                                  <span>{role.label}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {role.description}
-                                  </span>
+                                {getPromotableRoles(user.role).map((role) => (
+                                  <SelectItem key={role.value} value={role.value}>
+                                    <div className="flex flex-col">
+                                      <span>{role.label}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {role.description}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                            {/* Demotable roles */}
+                            {getDemotableRoles(user.role).length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                  Demote To
                                 </div>
-                              </SelectItem>
-                            ))}
+                                {getDemotableRoles(user.role).map((role) => (
+                                  <SelectItem key={role.value} value={role.value}>
+                                    <div className="flex flex-col">
+                                      <span>{role.label}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {role.description}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
                           </>
                         )}
                         {/* If no available roles, show message */}
@@ -173,7 +197,7 @@ export default function UsersTable({ users, currentUserId }: UsersTableProps) {
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground dark:text-muted-foreground">
                     {formatDateTimeShort(user.createdAt)}
                   </div>
                 </TableCell>
@@ -185,4 +209,3 @@ export default function UsersTable({ users, currentUserId }: UsersTableProps) {
     </div>
   )
 }
-
