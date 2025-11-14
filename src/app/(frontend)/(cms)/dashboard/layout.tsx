@@ -6,6 +6,7 @@ import {
 import { getCurrentUser } from '@/lib/custom-auth'
 import { CmsThemeProvider } from '@/providers/CmsTheme'
 import { DashboardLayoutContent } from './DashboardLayoutContent'
+import { isStaff } from '@/lib/user-roles'
 import './cms-theme.css'
 
 // Server-side rendering configuration
@@ -86,12 +87,17 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         { title: 'Completed', url: '/dashboard/roadmap/completed' },
       ],
     },
-    {
-      title: 'Users',
-      url: '/dashboard/users',
-      iconKey: 'users',
-      items: [{ title: 'All Users', url: '/dashboard/users' }],
-    },
+    // Only show Users section to admins and coordinators
+    ...(isStaff(user?.role)
+      ? [
+          {
+            title: 'Users',
+            url: '/dashboard/users',
+            iconKey: 'users',
+            items: [{ title: 'All Users', url: '/dashboard/users' }],
+          },
+        ]
+      : []),
   ]
 
   const teams: SidebarTeam[] = [

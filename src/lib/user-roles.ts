@@ -71,16 +71,16 @@ export function getRoleMetadata(role: UserRole): RoleMetadata {
 
 /**
  * Get all roles that can be promoted to from a given role
- * Admins can promote to any role except admin (to prevent privilege escalation)
+ * Admins can promote to any role including admin
  * Other roles can only be promoted to roles one level higher
  */
 export function canPromoteTo(currentRole: UserRole, targetRole: UserRole): boolean {
   const current = getRoleMetadata(currentRole)
   const target = getRoleMetadata(targetRole)
 
-  // Admins can promote to any role except admin (to prevent creating other admins)
+  // Admins can promote to any role including admin
   if (current.value === 'admin') {
-    return target.value !== 'admin'
+    return true
   }
 
   // Others can only promote one level up
@@ -127,9 +127,9 @@ export function isValidRoleChange(
   newRole: UserRole,
   isAdmin: boolean,
 ): boolean {
-  // Admins can change any role to any role (except creating other admins)
+  // Admins can change any role to any role including admin
   if (isAdmin) {
-    return newRole !== 'admin' || currentRole === 'admin'
+    return true
   }
 
   // Non-admins can only promote/demote one level

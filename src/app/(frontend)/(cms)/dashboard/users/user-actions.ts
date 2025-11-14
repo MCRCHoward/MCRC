@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
-import { requireRole } from '@/lib/custom-auth'
+import { requireRole, getCurrentUser } from '@/lib/custom-auth'
 import type { User } from '@/types'
 import { z } from 'zod'
 import { getRoleValues, isAdmin } from '@/lib/user-roles'
@@ -24,13 +24,17 @@ function toISOString(value: unknown): string | undefined {
 
 /**
  * Fetches all users from Firestore
- * Admin only
+ * Admin and coordinator only
  */
 export async function fetchAllUsers(): Promise<User[]> {
   console.log('[fetchAllUsers] START')
 
   try {
-    await requireRole('admin') // Admin only
+    // Allow both admin and coordinator to fetch users
+    const user = await getCurrentUser()
+    if (!user || (user.role !== 'admin' && user.role !== 'coordinator')) {
+      throw new Error('Access denied: Admin or coordinator role required')
+    }
 
     const snapshot = await adminDb.collection('users').get()
 
@@ -81,9 +85,10 @@ export async function updateUserRole(userId: string, newRole: User['role']) {
   try {
     const currentUser = await requireRole('admin') // Admin only
 
-    // Prevent admins from changing their own role (safety check)
-    if (currentUser.id === userId && !isAdmin(newRole)) {
-      throw new Error('You cannot change your own role')
+    // Admins can change any user to any role, including creating other admins
+    // Only prevent admins from changing their own role to non-admin (safety check)
+    if (currentUser.id === userId && isAdmin(currentUser.role) && !isAdmin(newRole)) {
+      throw new Error('You cannot change your own role from admin to another role')
     }
 
     // Validate the role
