@@ -1,13 +1,17 @@
 'use client'
 
 import { formatDistanceToNow } from 'date-fns'
-import { Plus, Bug, Sparkles, Calendar } from 'lucide-react'
+import { Plus, Bug, Sparkles, Calendar, CheckCircle2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { RoadmapItem } from '@/types'
-import { deleteRoadmapItem } from '@/app/(frontend)/(cms)/dashboard/roadmap/firebase-actions'
+import {
+  deleteRoadmapItem,
+  markRoadmapItemAsCompleted,
+} from '@/app/(frontend)/(cms)/dashboard/roadmap/firebase-actions'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface RoadmapTimelineProps {
   items: RoadmapItem[]
@@ -17,6 +21,7 @@ interface RoadmapTimelineProps {
 export default function RoadmapTimeline({ items, isAdmin }: RoadmapTimelineProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [completingId, setCompletingId] = useState<string | null>(null)
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this roadmap item?')) {
@@ -26,12 +31,31 @@ export default function RoadmapTimeline({ items, isAdmin }: RoadmapTimelineProps
     setDeletingId(id)
     try {
       await deleteRoadmapItem(id)
+      toast.success('Roadmap item deleted')
       router.refresh()
     } catch (error) {
       console.error('Failed to delete roadmap item:', error)
-      alert('Failed to delete roadmap item. Please try again.')
+      toast.error('Failed to delete roadmap item. Please try again.')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  const handleComplete = async (id: string) => {
+    if (!confirm('Mark this roadmap item as completed? It will be moved to the completed section.')) {
+      return
+    }
+
+    setCompletingId(id)
+    try {
+      await markRoadmapItemAsCompleted(id)
+      toast.success('Roadmap item marked as completed')
+      router.refresh()
+    } catch (error) {
+      console.error('Failed to mark roadmap item as completed:', error)
+      toast.error('Failed to mark roadmap item as completed. Please try again.')
+    } finally {
+      setCompletingId(null)
     }
   }
 
@@ -122,15 +146,31 @@ export default function RoadmapTimeline({ items, isAdmin }: RoadmapTimelineProps
                               {timeAgo}
                             </span>
                             {isAdmin && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(item.id)}
-                                disabled={deletingId === item.id}
-                                className="ml-auto text-destructive hover:text-destructive"
-                              >
-                                Delete
-                              </Button>
+                              <div className="ml-auto flex gap-2">
+                                {!item.completed && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleComplete(item.id)}
+                                    disabled={completingId === item.id || deletingId === item.id}
+                                    className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                                    title="Mark as completed"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                    Complete
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(item.id)}
+                                  disabled={deletingId === item.id || completingId === item.id}
+                                  className="text-destructive hover:text-destructive"
+                                  title="Delete roadmap item"
+                                >
+                                  Delete
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </div>

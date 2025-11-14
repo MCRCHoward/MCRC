@@ -85,7 +85,10 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       title: 'Developer Roadmap',
       url: '/dashboard/roadmap',
       iconKey: 'map',
-      items: [],
+      items: [
+        { title: 'Active Roadmap', url: '/dashboard/roadmap' },
+        { title: 'Completed', url: '/dashboard/roadmap/completed' },
+      ],
     },
   ]
 

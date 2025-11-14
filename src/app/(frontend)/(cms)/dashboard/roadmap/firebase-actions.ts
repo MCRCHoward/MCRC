@@ -39,6 +39,7 @@ export async function createRoadmapItem(data: RoadmapItemInput) {
     console.log('[createRoadmapItem] OK', { id: docRef.id })
 
     revalidatePath('/dashboard/roadmap')
+    revalidatePath('/dashboard/roadmap/completed')
     return { id: docRef.id }
   } catch (error) {
     console.error('[createRoadmapItem] FAILED:', error)
@@ -62,6 +63,7 @@ export async function updateRoadmapItem(id: string, data: Partial<RoadmapItemInp
     console.log('[updateRoadmapItem] OK')
 
     revalidatePath('/dashboard/roadmap')
+    revalidatePath('/dashboard/roadmap/completed')
     return { id }
   } catch (error) {
     console.error('[updateRoadmapItem] FAILED:', error)
@@ -81,9 +83,34 @@ export async function deleteRoadmapItem(id: string) {
     console.log('[deleteRoadmapItem] OK', { id })
 
     revalidatePath('/dashboard/roadmap')
+    revalidatePath('/dashboard/roadmap/completed')
   } catch (error) {
     console.error('[deleteRoadmapItem] FAILED:', error)
     throw new Error(`Failed to delete roadmap item ${id}: ${error}`)
+  }
+}
+
+export async function markRoadmapItemAsCompleted(id: string) {
+  console.log('[markRoadmapItemAsCompleted] START', { id })
+
+  if (!id) throw new Error('Missing roadmap item id')
+
+  try {
+    const user = await requireRole('admin') // Admin only
+
+    const roadmapRef = adminDb.doc(`roadmapItems/${id}`)
+    await roadmapRef.update({
+      completed: true,
+      completedAt: FieldValue.serverTimestamp(),
+      completedBy: user.id,
+    })
+    console.log('[markRoadmapItemAsCompleted] OK', { id })
+
+    revalidatePath('/dashboard/roadmap')
+    revalidatePath('/dashboard/roadmap/completed')
+  } catch (error) {
+    console.error('[markRoadmapItemAsCompleted] FAILED:', error)
+    throw new Error(`Failed to mark roadmap item as completed ${id}: ${error}`)
   }
 }
 

@@ -12,6 +12,9 @@ export interface RoadmapItem {
   createdAt: string // ISO timestamp
   createdBy: string // User ID
   order: number // For sorting
+  completed?: boolean // Whether the item is completed
+  completedAt?: string // ISO timestamp when completed
+  completedBy?: string // User ID who marked it as completed
 }
 
 export interface Recommendation {

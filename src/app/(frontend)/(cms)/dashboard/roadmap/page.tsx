@@ -28,6 +28,7 @@ function toISOString(value: unknown): string | undefined {
 
 /**
  * Fetches all roadmap items from Firestore, ordered by order (descending).
+ * Filters out completed items.
  */
 async function fetchRoadmapItems(): Promise<RoadmapItem[]> {
   try {
@@ -40,20 +41,25 @@ async function fetchRoadmapItems(): Promise<RoadmapItem[]> {
       return []
     }
 
-    return snapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        version: data.version || '',
-        type: data.type || 'Feature',
-        title: data.title || '',
-        description: data.description || '',
-        date: toISOString(data.date) || new Date().toISOString(),
-        createdAt: toISOString(data.createdAt) || new Date().toISOString(),
-        createdBy: data.createdBy || '',
-        order: data.order || 0,
-      } as RoadmapItem
-    })
+    return snapshot.docs
+      .map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          version: data.version || '',
+          type: data.type || 'Feature',
+          title: data.title || '',
+          description: data.description || '',
+          date: toISOString(data.date) || new Date().toISOString(),
+          createdAt: toISOString(data.createdAt) || new Date().toISOString(),
+          createdBy: data.createdBy || '',
+          order: data.order || 0,
+          completed: data.completed || false,
+          completedAt: toISOString(data.completedAt),
+          completedBy: data.completedBy,
+        } as RoadmapItem
+      })
+      .filter((item) => !item.completed) // Filter out completed items
   } catch (error) {
     console.error('[fetchRoadmapItems] Error:', error)
     return []
