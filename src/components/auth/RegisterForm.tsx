@@ -67,14 +67,62 @@ function normalizePhone(phone: string): string | null {
 }
 
 // Get browser language
+// Locale code to friendly name mapping
+const localeToFriendly: Record<string, string> = {
+  'en-US': 'English',
+  en: 'English',
+  'es-US': 'Spanish',
+  es: 'Spanish',
+  'fr-CA': 'French',
+  fr: 'French',
+  'zh-CN': 'Chinese',
+  zh: 'Chinese',
+  'ar-SA': 'Arabic',
+  ar: 'Arabic',
+  'hi-IN': 'Hindi',
+  hi: 'Hindi',
+  'pt-BR': 'Portuguese',
+  pt: 'Portuguese',
+}
+
+// Friendly name to language code mapping (for languagesSpoken field)
+const friendlyToCode: Record<string, string> = {
+  English: 'en',
+  Spanish: 'es',
+  French: 'fr',
+  Chinese: 'zh',
+  Arabic: 'ar',
+  Hindi: 'hi',
+  Portuguese: 'pt',
+}
+
 function getBrowserLocale(): string {
   if (typeof window === 'undefined') return 'en-US'
   return navigator.language || 'en-US'
 }
 
+function getBrowserLocaleFriendly(): string {
+  if (typeof window === 'undefined') return 'English'
+  const browserLocale = navigator.language || 'en-US'
+  const localeCode = browserLocale.split('-')[0]
+  return (
+    localeToFriendly[browserLocale] ||
+    (localeCode ? localeToFriendly[localeCode] : undefined) ||
+    'English'
+  )
+}
+
 // Contact preferences
 const contactMethods = ['email', 'sms', 'phone'] as const
-const languages = ['en-US', 'es-US', 'fr-CA', 'zh-CN', 'ar-SA', 'hi-IN', 'pt-BR'] as const
+const languages = [
+  'English',
+  'Spanish',
+  'French',
+  'Chinese',
+  'Arabic',
+  'Hindi',
+  'Portuguese',
+] as const
 
 const schema = z
   .object({
@@ -182,6 +230,7 @@ export function RegisterForm() {
   const [currentStep, setCurrentStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [googleUser, setGoogleUser] = useState<User | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -192,9 +241,7 @@ export function RegisterForm() {
       password: '',
       confirmPassword: '',
       phoneNumber: '',
-      preferredLocale: (languages.includes(getBrowserLocale() as (typeof languages)[number])
-        ? getBrowserLocale()
-        : 'en-US') as (typeof languages)[number],
+      preferredLocale: getBrowserLocaleFriendly() as (typeof languages)[number],
       primaryContactMethod: 'email',
       languagesSpoken: [getBrowserLocale().split('-')[0] || 'en'],
       consentsTos: false,
@@ -269,6 +316,7 @@ export function RegisterForm() {
 
   const onSubmit = async (values: FormValues) => {
     setError(null)
+    setIsSubmitting(true)
     try {
       let user: User
 
@@ -357,7 +405,36 @@ export function RegisterForm() {
       const message = err instanceof Error ? err.message : 'Registration failed.'
       toast.error(message)
       setError(message)
+    } finally {
+      setIsSubmitting(false)
     }
+  }
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+
+    // Only allow submission from the final step
+    if (currentStep !== STEPS.length - 1) {
+      return
+    }
+
+    // Validate all fields before submitting
+    const isValid = await form.trigger()
+    if (!isValid) {
+      // If validation fails, show error and scroll to first error
+      const firstError = Object.keys(form.formState.errors)[0]
+      if (firstError) {
+        const element = document.querySelector(`[name="${firstError}"], #${firstError}`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }
+      toast.error('Please fix the errors before submitting')
+      return
+    }
+
+    // Submit the form
+    form.handleSubmit(onSubmit)()
   }
 
   const password = form.watch('password')
@@ -365,7 +442,7 @@ export function RegisterForm() {
   const isAdult = form.watch('consentsIsAdult')
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleFormSubmit} className="space-y-6">
       {/* Progress indicator */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -636,7 +713,7 @@ export function RegisterForm() {
             </label>
             <div className="mt-2 space-y-2">
               {languages.map((lang) => {
-                const langCode = lang.split('-')[0] || ''
+                const langCode = friendlyToCode[lang as keyof typeof friendlyToCode] || ''
                 const languagesSpoken = form.watch('languagesSpoken') || []
                 const checked = languagesSpoken.includes(langCode)
                 return (
@@ -704,7 +781,12 @@ export function RegisterForm() {
               </div>
               <label htmlFor="consents-tos" className="text-sm text-gray-900 dark:text-gray-100">
                 I accept the{' '}
-                <Link href="/terms" className="text-indigo-600 hover:underline">
+                <Link
+                  href="/terms-of-service"
+                  className="text-indigo-600 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Terms of Service
                 </Link>{' '}
                 (required)
@@ -746,7 +828,12 @@ export function RegisterForm() {
                 className="text-sm text-gray-900 dark:text-gray-100"
               >
                 I accept the{' '}
-                <Link href="/privacy" className="text-indigo-600 hover:underline">
+                <Link
+                  href="/privacy-policy"
+                  className="text-indigo-600 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Privacy Policy
                 </Link>{' '}
                 (required)
@@ -948,10 +1035,10 @@ export function RegisterForm() {
         ) : (
           <button
             type="submit"
-            disabled={form.formState.isSubmitting}
+            disabled={isSubmitting || form.formState.isSubmitting}
             className="flex justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
           >
-            {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
+            {isSubmitting || form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
           </button>
         )}
       </div>

@@ -19,7 +19,7 @@ export default function RegisterPage() {
           />
         </Link>
 
-        <div className="w-full max-w-md">
+        <div className="mt-16 w-full max-w-md">
           <div className="bg-white rounded-lg border border-gray-200 px-6 py-8 shadow-sm dark:bg-gray-900 dark:border-gray-700">
             <h2 className="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-white">
               Create your account

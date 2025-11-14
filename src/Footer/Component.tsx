@@ -152,7 +152,7 @@ const Footer = ({
                 <NewsletterForm showNames={true} variant="default" />
                 <p className="mt-1 text-xs text-muted-foreground">
                   By submitting, you agree to our
-                  <Link href="#" className="ml-1 text-primary hover:underline">
+                  <Link href="/privacy-policy" className="ml-1 text-primary hover:underline">
                     Privacy Policy
                   </Link>
                 </p>
@@ -163,10 +163,10 @@ const Footer = ({
             <p>© {new Date().getFullYear()} MCRC Howard County. All rights reserved.</p>
             <ul className="flex gap-4">
               <li className="whitespace-nowrap underline hover:text-primary">
-                <Link href="#">Terms and Conditions</Link>
+                <Link href="/terms-of-service">Terms and Conditions</Link>
               </li>
               <li className="whitespace-nowrap underline hover:text-primary">
-                <Link href="#">Privacy Policy</Link>
+                <Link href="/privacy-policy">Privacy Policy</Link>
               </li>
             </ul>
           </div>
