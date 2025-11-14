@@ -13,12 +13,14 @@ interface RoadmapClientProps {
   roadmapItems: RoadmapItem[]
   recommendations: Recommendation[]
   isAdmin: boolean
+  currentUserId?: string
 }
 
 export default function RoadmapClient({
   roadmapItems,
   recommendations,
   isAdmin,
+  currentUserId,
 }: RoadmapClientProps) {
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -54,22 +56,19 @@ export default function RoadmapClient({
 
         <section>
           <h2 className="mb-4 text-xl font-semibold">Recommendations</h2>
-          <RecommendationGrid recommendations={recommendations} isAdmin={isAdmin} />
+          <RecommendationGrid
+            recommendations={recommendations}
+            isAdmin={isAdmin}
+            currentUserId={currentUserId}
+          />
         </section>
       </div>
 
-      <SubmitRecommendationModal
-        open={showSubmitModal}
-        onOpenChange={setShowSubmitModal}
-      />
+      <SubmitRecommendationModal open={showSubmitModal} onOpenChange={setShowSubmitModal} />
 
       {isAdmin && (
-        <CreateRoadmapItemModal
-          open={showCreateModal}
-          onOpenChange={setShowCreateModal}
-        />
+        <CreateRoadmapItemModal open={showCreateModal} onOpenChange={setShowCreateModal} />
       )}
     </div>
   )
 }
-

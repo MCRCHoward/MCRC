@@ -5,6 +5,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
 import { requireAuth, requireRole } from '@/lib/custom-auth'
 import type { RoadmapItemInput, RecommendationInput } from '@/types'
+import { z } from 'zod'
 
 /* -------------------------------------------------------------------------- */
 /* Roadmap Items (Admin Only)                                                */
@@ -242,3 +243,70 @@ export async function deleteRecommendation(recommendationId: string) {
   }
 }
 
+// Zod schema for updating recommendations
+const UpdateRecommendationSchema = z.object({
+  title: z.string().min(1, 'Title cannot be empty.'),
+  description: z.string().min(1, 'Description cannot be empty.'),
+})
+
+/**
+ * Allows a user to update their own pending recommendation.
+ */
+export async function updateRecommendation(id: string, data: Partial<RecommendationInput>) {
+  console.log('[updateRecommendation] START', { id })
+
+  // 1. Get the currently authenticated user
+  const user = await requireAuth()
+
+  // 2. Validate the incoming data
+  const validation = UpdateRecommendationSchema.safeParse({
+    title: data.title,
+    description: data.description,
+  })
+
+  if (!validation.success) {
+    throw new Error(
+      `Validation failed: ${validation.error.errors.map((e) => e.message).join(', ')}`,
+    )
+  }
+  const { title, description } = validation.data
+
+  try {
+    const recRef = adminDb.doc(`recommendations/${id}`)
+    const recDoc = await recRef.get()
+
+    if (!recDoc.exists) {
+      throw new Error('Recommendation not found.')
+    }
+
+    const recData = recDoc.data()
+    if (!recData) {
+      throw new Error('Recommendation data is empty')
+    }
+
+    // 3. Security Check: Is the current user the owner?
+    if (recData.submittedBy !== user.id) {
+      throw new Error('You are not authorized to edit this recommendation.')
+    }
+
+    // 4. Security Check: Is the recommendation still pending?
+    if (recData.status !== 'pending') {
+      throw new Error('This recommendation has already been reviewed and cannot be edited.')
+    }
+
+    // 5. All checks passed. Update the document.
+    await recRef.update({
+      title: title,
+      description: description,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+
+    console.log('[updateRecommendation] OK')
+    revalidatePath('/dashboard/roadmap')
+    return { id }
+  } catch (error) {
+    console.error('[updateRecommendation] FAILED:', error)
+    // Pass the specific error message to the client
+    throw new Error(error instanceof Error ? error.message : 'Update failed')
+  }
+}

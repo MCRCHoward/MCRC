@@ -125,6 +125,7 @@ export default async function RoadmapPage() {
       roadmapItems={roadmapItems}
       recommendations={recommendations}
       isAdmin={isAdmin}
+      currentUserId={user?.id}
     />
   )
 }
