@@ -1,8 +1,5 @@
 import type { ReactNode } from 'react'
-import {
-  type SidebarNavItem,
-  type SidebarTeam,
-} from '@/components/Dashboard/app-sidebar'
+import { type SidebarNavItem, type SidebarTeam } from '@/components/Dashboard/app-sidebar'
 import { getCurrentUser } from '@/lib/custom-auth'
 import { CmsThemeProvider } from '@/providers/CmsTheme'
 import { DashboardLayoutContent } from './DashboardLayoutContent'
@@ -60,7 +57,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     {
       title: 'Donations',
       url: '/dashboard/donations',
-      iconKey: 'heart',
+      iconKey: 'piggyBank',
       items: [{ title: 'All Donations', url: '/dashboard/donations' }],
     },
     {
@@ -71,19 +68,19 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     },
     {
       title: 'Mediation',
-      url: '/dashboard/mediation',
+      url: '/dashboard/mediation/inquiries',
       iconKey: 'handshake',
       items: [{ title: 'Inquiries', url: '/dashboard/mediation/inquiries' }],
     },
     {
       title: 'Facilitation',
-      url: '/dashboard/facilitation',
+      url: '/dashboard/facilitation/inquiries',
       iconKey: 'users',
       items: [{ title: 'Inquiries', url: '/dashboard/facilitation/inquiries' }],
     },
     {
       title: 'Restorative Practices',
-      url: '/dashboard/restorative-practices',
+      url: '/dashboard/restorative-practices/inquiries',
       iconKey: 'heart',
       items: [{ title: 'Inquiries', url: '/dashboard/restorative-practices/inquiries' }],
     },

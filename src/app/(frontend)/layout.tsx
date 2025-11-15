@@ -11,9 +11,12 @@ import { getServerSideURL } from '@/utilities/getURL'
 import { Providers } from '@/providers'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import { Toaster } from 'sonner'
+import { Analytics } from '@vercel/analytics/react'
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
   return (
     <html className={cn(GeistSans.variable, GeistMono.variable)} lang="en" suppressHydrationWarning>
@@ -36,6 +39,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {children}
           <Toaster position="top-right" richColors />
         </Providers>
+        <Analytics />
+        {gaMeasurementId && <GoogleAnalytics gaId={gaMeasurementId} />}
       </body>
     </html>
   )
