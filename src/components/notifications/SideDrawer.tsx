@@ -14,6 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import Image from 'next/image'
 
 type Props = {
   trigger: ReactNode
@@ -75,8 +76,10 @@ const SideDrawer = ({ defaultOpen = false, trigger }: Props) => {
                 <p>39 mins ago</p>
               </div>
               <div className="bg-muted flex items-center gap-1 rounded-md px-1.5 py-1">
-                <img
+                <Image
                   src="https://cdn.shadcnstudio.com/ss-assets/blocks/dashboard-application/dashboard-dialog/image-14.png"
+                  width={20}
+                  height={20}
                   className="h-5"
                   alt=""
                 />
@@ -101,8 +104,10 @@ const SideDrawer = ({ defaultOpen = false, trigger }: Props) => {
                 <p>1 hour ago</p>
               </div>
               <div className="bg-muted flex w-full items-center gap-4 rounded-md border px-4 py-2.5">
-                <img
+                <Image
                   src="https://cdn.shadcnstudio.com/ss-assets/blocks/dashboard-application/dashboard-dialog/image-13.png"
+                  width={32}
+                  height={32}
                   alt=""
                   className="size-8 rounded-sm"
                 />

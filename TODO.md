@@ -2656,3 +2656,39 @@ export interface NewsletterSubscriber {
 4. Summary cards show accurate counts
 5. Page loads quickly with proper error handling
 6. Dark mode compatible styling
+
+4) Firestore security & spam control
+
+Rules:
+
+Public create allowed for inquiries; read denied to public.
+
+Staff (admin/coordinator) can read/write within their service area.
+
+Rate limit public creates (e.g., Cloudflare Turnstile / reCAPTCHA) + basic server-side throttling by IP/email.
+
+Validation in server actions (not only client): schema check, max lengths, strip HTML.
+
+5) Indexes you’ll need (create now)
+
+submittedAt (desc) for lists.
+
+status + submittedAt (composite).
+
+reviewed + submittedAt (composite).
+
+If Option A (collection-group): set collection group indexes for inquiries.
+
+6) CMS UX improvements (operators will thank you)
+
+Sidebar badges with counts by status (e.g., “Mediation ▸ Inquiries (7)”).
+
+Saved views (e.g., “Unreviewed last 7 days”, “Spanish language”).
+
+Bulk actions: mark reviewed, assign coordinator.
+
+Quick filters: status chips, date range, language, tags.
+
+Row density toggle (comfortable/compact) for long queues.
+
+Keyboard nav: j/k to move, Enter to open details, A to assign.

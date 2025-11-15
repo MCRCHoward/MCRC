@@ -30,7 +30,6 @@ import { ImportExportPlugin } from '@/components/editor/plugins/actions/import-e
 import { MarkdownTogglePlugin } from '@/components/editor/plugins/actions/markdown-toggle-plugin'
 import { MaxLengthPlugin } from '@/components/editor/plugins/actions/max-length-plugin'
 import { ShareContentPlugin } from '@/components/editor/plugins/actions/share-content-plugin'
-import { SpeechToTextPlugin } from '@/components/editor/plugins/actions/speech-to-text-plugin'
 import { TreeViewPlugin } from '@/components/editor/plugins/actions/tree-view-plugin'
 import { AutoLinkPlugin } from '@/components/editor/plugins/auto-link-plugin'
 import { AutocompletePlugin } from '@/components/editor/plugins/autocomplete-plugin'
@@ -275,7 +274,6 @@ export function Plugins({}) {
             <CounterCharacterPlugin charset="UTF-16" />
           </div>
           <div className="flex flex-1 justify-end">
-            <SpeechToTextPlugin />
             <ShareContentPlugin />
             <ImportExportPlugin />
             <MarkdownTogglePlugin

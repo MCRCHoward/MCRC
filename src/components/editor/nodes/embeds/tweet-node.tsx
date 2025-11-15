@@ -59,8 +59,12 @@ function TweetComponent({
 
   const createTweet = useCallback(async () => {
     try {
-      // @ts-expect-error Twitter is attached to the window.
-      await window.twttr.widgets.createTweet(tweetID, containerRef.current)
+      // Twitter widget is loaded dynamically
+      const twttr = (window as { twttr?: { widgets: { createTweet: (id: string, container: HTMLDivElement | null) => Promise<void> } } }).twttr
+      if (!twttr) {
+        throw new Error('Twitter widget not loaded')
+      }
+      await twttr.widgets.createTweet(tweetID, containerRef.current)
 
       setIsTweetLoading(false)
       isTwitterScriptLoading = false

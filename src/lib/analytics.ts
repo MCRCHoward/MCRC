@@ -34,7 +34,7 @@ export function trackEvent(
     sendGAEvent('event', eventName, {
       ...eventParams,
     })
-  } catch (error) {
+  } catch (_error) {
     // Silently fail in development or if GA is not available
     if (process.env.NODE_ENV === 'development') {
       console.log('[Analytics] Event tracked:', eventName, eventParams)
