@@ -78,6 +78,7 @@ const SideDrawer = ({ defaultOpen = false, trigger }: Props) => {
                 <img
                   src="https://cdn.shadcnstudio.com/ss-assets/blocks/dashboard-application/dashboard-dialog/image-14.png"
                   className="h-5"
+                  alt=""
                 />
                 <span className="text-sm font-medium">invoices.pdf</span>
               </div>
@@ -102,6 +103,7 @@ const SideDrawer = ({ defaultOpen = false, trigger }: Props) => {
               <div className="bg-muted flex w-full items-center gap-4 rounded-md border px-4 py-2.5">
                 <img
                   src="https://cdn.shadcnstudio.com/ss-assets/blocks/dashboard-application/dashboard-dialog/image-13.png"
+                  alt=""
                   className="size-8 rounded-sm"
                 />
                 <span className="text-sm font-medium">Launcher-Uikit.fig</span>
