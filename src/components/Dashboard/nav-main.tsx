@@ -8,6 +8,7 @@ import {
   FileText,
   Frame,
   GalleryVerticalEnd,
+  Handshake,
   Heart,
   Map,
   Mail,
@@ -43,6 +44,7 @@ const iconMap: Record<string, LucideIcon> = {
   mail: Mail,
   mailbox: Mail,
   users: Users,
+  handshake: Handshake,
 }
 
 export function NavMain({

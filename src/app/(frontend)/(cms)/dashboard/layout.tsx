@@ -70,13 +70,22 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       items: [{ title: 'All Subscribers', url: '/dashboard/newsletter' }],
     },
     {
-      title: 'Inquiries',
-      url: '/dashboard/inquiry',
-      iconKey: 'fileText',
-      items: [
-        { title: 'All Submissions', url: '/dashboard/inquiry' },
-        { title: 'Mediation', url: '/dashboard/inquiry/mediation' },
-      ],
+      title: 'Mediation',
+      url: '/dashboard/mediation',
+      iconKey: 'handshake',
+      items: [{ title: 'Inquiries', url: '/dashboard/mediation/inquiries' }],
+    },
+    {
+      title: 'Facilitation',
+      url: '/dashboard/facilitation',
+      iconKey: 'users',
+      items: [{ title: 'Inquiries', url: '/dashboard/facilitation/inquiries' }],
+    },
+    {
+      title: 'Restorative Practices',
+      url: '/dashboard/restorative-practices',
+      iconKey: 'heart',
+      items: [{ title: 'Inquiries', url: '/dashboard/restorative-practices/inquiries' }],
     },
     {
       title: 'Developer Roadmap',

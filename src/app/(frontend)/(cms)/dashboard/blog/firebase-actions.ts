@@ -11,7 +11,7 @@ import type { PostInput } from '@/types'
 /* -------------------------------------------------------------------------- */
 
 type FileDebug = { name?: string; type?: string; size?: number } | null
-function fileDebug(file: File | null): FileDebug {
+function _fileDebug(file: File | null): FileDebug {
   if (!file) return null
   return { name: file.name, type: file.type, size: file.size }
 }

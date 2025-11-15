@@ -1,7 +1,7 @@
 import { getCurrentUser } from '@/lib/custom-auth'
 import { fetchAllUsers } from './user-actions'
 import UsersTable from '@/components/Dashboard/UsersTable'
-import { isAdmin, isStaff } from '@/lib/user-roles'
+import { isStaff } from '@/lib/user-roles'
 
 // Server-side rendering configuration
 export const dynamic = 'force-dynamic'
