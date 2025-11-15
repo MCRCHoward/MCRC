@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db, auth } from '@/firebase/client'
 import { signInAnonymously } from 'firebase/auth'
+import type { FormType } from '@/lib/service-area-config'
+import { getServiceAreaFromFormType } from '@/lib/service-area-config'
 
 /**
  * Custom React hook for submitting form data to Firestore
@@ -14,7 +16,7 @@ import { signInAnonymously } from 'firebase/auth'
  * that request.auth is never null (satisfying Firestore security rules).
  * Automatically adds metadata to submitted documents.
  *
- * @param collectionPath - The Firestore collection path to submit data to
+ * @param formType - The form type identifier (maps to service area)
  * @returns Object containing submission state and submit function
  */
 
@@ -33,7 +35,7 @@ interface UseFirestoreFormSubmitReturn {
   reset: () => void // Function to reset the submission state
 }
 
-export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreFormSubmitReturn {
+export function useFirestoreFormSubmit(formType: FormType): UseFirestoreFormSubmitReturn {
   // State management for form submission status
   const [status, setStatus] = useState<FormStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -41,6 +43,10 @@ export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreForm
   // Derived state for easier consumption in components
   const isSubmitting = status === 'submitting'
   const success = status === 'success'
+
+  // Map form type to service area and build collection path
+  const serviceArea = getServiceAreaFromFormType(formType)
+  const collectionPath = `serviceAreas/${serviceArea}/inquiries`
 
   /**
    * Ensures user is authenticated (either existing user or anonymous)
@@ -94,16 +100,29 @@ export function useFirestoreFormSubmit(collectionPath: string): UseFirestoreForm
       if (processedData.deadline instanceof Date) {
         processedData.deadline = processedData.deadline.toISOString()
       }
+      if (processedData.incidentDate instanceof Date) {
+        processedData.incidentDate = processedData.incidentDate.toISOString()
+      }
+      if (processedData.participantDob instanceof Date) {
+        processedData.participantDob = processedData.participantDob.toISOString()
+      }
 
       // Add a new document with the form data and metadata
       await addDoc(colRef, {
-        ...processedData,
+        // Store all form data in formData field
+        formData: processedData,
+        // Service area and form type metadata
+        formType,
+        serviceArea,
+        status: 'submitted',
         // Add server timestamp for when the document was created
         submittedAt: serverTimestamp(),
         // Track which user submitted the form
         submittedBy: auth.currentUser?.uid ?? 'anonymous',
         // Track submission method
         submissionType: auth.currentUser ? 'authenticated' : 'anonymous',
+        // Review tracking
+        reviewed: false,
       })
 
       // Mark submission as successful

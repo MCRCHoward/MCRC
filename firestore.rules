@@ -146,6 +146,44 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---------- SERVICE AREAS (Mediation, Facilitation, Restorative Practices) ----------
+    match /serviceAreas/{serviceArea} {
+      // Service area documents are metadata only, staff can read
+      allow read: if isStaff();
+      allow create, update, delete: if false; // Managed via Admin SDK only
+
+      // Inquiries subcollection
+      match /inquiries/{inquiryId} {
+        // Authenticated users can create inquiries (form submissions)
+        allow create: if isSignedIn() &&
+          request.resource.data.submittedBy == request.auth.uid &&
+          request.resource.data.serviceArea == serviceArea &&
+          request.resource.data.status == 'submitted';
+
+        // Users can read their own inquiries, staff can read all
+        allow read: if isSignedIn() && (
+          resource.data.submittedBy == request.auth.uid ||
+          isStaff()
+        );
+
+        // Staff can update inquiries (mark as reviewed, update status)
+        allow update: if isStaff() &&
+          request.resource.data.serviceArea == serviceArea;
+
+        // Only admins can delete inquiries
+        allow delete: if isAdmin();
+      }
+
+      // Future subcollections (participants, sessions, etc.)
+      match /participants/{participantId} {
+        allow read, write: if isStaff();
+      }
+
+      match /sessions/{sessionId} {
+        allow read, write: if isStaff();
+      }
+    }
+
     // ---------- Catch-all deny ----------
     match /{document=**} {
       allow read, write: if false;
