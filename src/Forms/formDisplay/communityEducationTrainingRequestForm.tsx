@@ -100,7 +100,7 @@ export function CommunityEducationTrainingRequestForm() {
     error,
     success: _success,
     submitData,
-  } = useFirestoreFormSubmit('forms/communityEducationTrainingRequest/submissions')
+  } = useFirestoreFormSubmit('community-education-training-request')
 
   const form = useForm<TrainingRequestValues>({
     resolver: zodResolver(trainingRequestSchema),
@@ -119,7 +119,7 @@ export function CommunityEducationTrainingRequestForm() {
   })
 
   // Auto-save form data
-  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'community-education-training')
+  const { clearSavedData, hasSavedData: _hasSavedData } = useFormAutoSave(form, 'community-education-training')
 
   const goBack = () => setCurrentStep((s) => Math.max(0, s - 1))
 

@@ -142,7 +142,7 @@ export function GroupFacilitationInquiryForm() {
   const [currentStep, setCurrentStep] = React.useState(0)
 
   const { isSubmitting, error, submitData } = useFirestoreFormSubmit(
-    'forms/groupFacilitationInquiry/submissions',
+    'group-facilitation-inquiry',
   )
 
   const form = useForm<FacilitationValues>({
@@ -168,7 +168,7 @@ export function GroupFacilitationInquiryForm() {
   })
 
   // Auto-save form data
-  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'group-facilitation-inquiry')
+  const { clearSavedData, hasSavedData: _hasSavedData } = useFormAutoSave(form, 'group-facilitation-inquiry')
 
   const goBack = () => setCurrentStep((s) => Math.max(0, s - 1))
 

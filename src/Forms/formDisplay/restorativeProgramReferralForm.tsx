@@ -156,7 +156,7 @@ export function RestorativeProgramReferralForm() {
   const [currentStep, setCurrentStep] = React.useState(0)
 
   const { isSubmitting, error, submitData } = useFirestoreFormSubmit(
-    'forms/restorativeProgramReferral/submissions',
+    'restorative-program-referral',
   )
 
   const form = useForm<ReferralValues>({
@@ -198,7 +198,7 @@ export function RestorativeProgramReferralForm() {
   })
 
   // Auto-save form data
-  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'restorative-program-referral')
+  const { clearSavedData, hasSavedData: _hasSavedData } = useFormAutoSave(form, 'restorative-program-referral')
 
   const goBack = () => setCurrentStep((s) => Math.max(0, s - 1))
 

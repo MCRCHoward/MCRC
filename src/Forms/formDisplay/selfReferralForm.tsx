@@ -107,7 +107,6 @@ const STEP_FIELDS: Array<(keyof MediationFormValues)[]> = [
 export function MediationSelfReferralForm() {
   const TOTAL_STEPS = STEP_TITLES.length
   const [currentStep, setCurrentStep] = React.useState(0)
-  const [isMounted, setIsMounted] = React.useState(false)
   const [hasInteractedWithStep4, setHasInteractedWithStep4] = React.useState(false)
   const formRef = React.useRef<HTMLFormElement>(null)
 
@@ -117,12 +116,7 @@ export function MediationSelfReferralForm() {
     success,
     submitData,
     reset: resetSubmission,
-  } = useFirestoreFormSubmit('forms/mediationSelfReferral/submissions')
-
-  // Track mount state to prevent hydration mismatch with localStorage
-  React.useEffect(() => {
-    setIsMounted(true)
-  }, [])
+  } = useFirestoreFormSubmit('mediation-self-referral')
 
   const form = useForm<MediationFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -163,7 +157,7 @@ export function MediationSelfReferralForm() {
   })
 
   // Auto-save form data
-  const { clearSavedData, hasSavedData } = useFormAutoSave(form, 'mediation-self-referral')
+  const { clearSavedData, hasSavedData: _hasSavedData } = useFormAutoSave(form, 'mediation-self-referral')
 
   // Manage additional contacts array
   const { fields, append, remove } = useFieldArray({
