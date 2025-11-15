@@ -68,8 +68,6 @@ export async function uploadMedia(file: File, alt?: string): Promise<UploadedMed
 
   const trimmedAlt = (alt ?? defaultAltFromFile(file)).toString().trim() || 'Uploaded image'
 
-  console.log('[uploadMedia] INIT', { file: fileDebug(file), alt: trimmedAlt })
-
   try {
     // Convert File to Buffer for Admin SDK
     const arrayBuffer = await file.arrayBuffer()
@@ -97,7 +95,6 @@ export async function uploadMedia(file: File, alt?: string): Promise<UploadedMed
     const encodedPath = encodeURIComponent(objectPath)
     const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media`
 
-    console.log('[uploadMedia] OK (Firebase Admin):', { url: downloadURL })
     return { id: fileName, url: downloadURL }
   } catch (error) {
     console.error('[uploadMedia] FAILED:', error)
@@ -110,8 +107,6 @@ export async function uploadMedia(file: File, alt?: string): Promise<UploadedMed
 /* -------------------------------------------------------------------------- */
 
 export async function createPost(data: PostInput) {
-  console.log('[createPost] START', { title: data?.title })
-
   try {
     const user = await requireAuth() // Get authenticated user
 
@@ -132,7 +127,6 @@ export async function createPost(data: PostInput) {
     // Use Admin SDK to create post (bypasses Firestore rules)
     // Authentication is enforced via requireAuth() above
     const docRef = await adminDb.collection('posts').add(postData)
-    console.log('[createPost] OK', { id: docRef.id })
 
     // Generate blog post URL
     const blogPostUrl = `/blog/${postData.slug}`
@@ -154,11 +148,6 @@ export async function createPost(data: PostInput) {
       await userRef.update({
         blogPosts: FieldValue.arrayUnion(blogPostData),
         updatedAt: FieldValue.serverTimestamp(),
-      })
-
-      console.log('[createPost] Updated user blogPosts array', {
-        userId: user.id,
-        postId: docRef.id,
       })
     } catch (userUpdateError) {
       // Log error but don't fail the post creation
@@ -186,10 +175,6 @@ export async function createPost(data: PostInput) {
             blogPosts: FieldValue.arrayUnion(categoryBlogPostData),
             updatedAt: FieldValue.serverTimestamp(),
           })
-          console.log('[createPost] Updated category blogPosts', {
-            categoryId,
-            postId: docRef.id,
-          })
         } catch (categoryError) {
           // Log error but don't fail the post creation
           console.error(
@@ -214,8 +199,6 @@ export async function createPost(data: PostInput) {
 }
 
 export async function updatePost(id: string, data: PostInput) {
-  console.log('[updatePost] START', { id })
-
   try {
     const user = await requireAuth() // Get authenticated user
 
@@ -238,7 +221,6 @@ export async function updatePost(id: string, data: PostInput) {
     }
 
     await postRef.update(updateData)
-    console.log('[updatePost] OK')
 
     revalidatePath('/dashboard/blog')
     revalidatePath(`/dashboard/blog/${id}/edit`)
@@ -255,8 +237,6 @@ export async function updatePost(id: string, data: PostInput) {
  * The post will appear in the trash and can be restored later
  */
 export async function deletePost(id: string) {
-  console.log('[deletePost] START', { id })
-
   if (!id) throw new Error('Missing blog post id')
 
   try {
@@ -281,7 +261,6 @@ export async function deletePost(id: string) {
 
     // Soft delete: set _status to 'deleted' instead of actually deleting
     await postRef.update(updateData)
-    console.log('[deletePost] OK (soft delete)', { id, previousStatus: currentStatus })
 
     revalidatePath('/dashboard/blog')
     revalidatePath('/dashboard/blog/trash')
@@ -321,7 +300,6 @@ export async function restorePost(id: string) {
       _status: restoredStatus,
       updatedAt: FieldValue.serverTimestamp(),
     })
-    console.log('[restorePost] OK', { id, restoredStatus })
 
     revalidatePath('/dashboard/blog')
     revalidatePath('/dashboard/blog/trash')
@@ -338,8 +316,6 @@ export async function restorePost(id: string) {
  * This action cannot be undone
  */
 export async function permanentlyDeletePost(id: string) {
-  console.log('[permanentlyDeletePost] START', { id })
-
   if (!id) throw new Error('Missing blog post id')
 
   try {
@@ -347,7 +323,6 @@ export async function permanentlyDeletePost(id: string) {
 
     // Permanently delete the post document
     await adminDb.doc(`posts/${id}`).delete()
-    console.log('[permanentlyDeletePost] OK', { id })
 
     revalidatePath('/dashboard/blog')
     revalidatePath('/dashboard/blog/trash')
@@ -406,8 +381,6 @@ type SectionOut = {
 }
 
 export async function createPostFromForm(fd: FormData) {
-  console.log('[createPostFromForm] START')
-
   try {
     await requireAuth() // Ensure user is authenticated
 
@@ -421,14 +394,11 @@ export async function createPostFromForm(fd: FormData) {
       categoryIds?: Array<string>
       authorIds?: Array<string>
     }
-    console.log('[createPostFromForm] Parsed data keys:', Object.keys(data))
 
     // HERO IMAGE
     const hero = fd.get('heroImage') as File | null
-    console.log('[createPostFromForm] Hero file present:', Boolean(hero))
     let heroUrl: string | undefined = undefined
     if (hero && typeof hero === 'object') {
-      console.log('[createPostFromForm] Uploading hero (Firebase)…', fileDebug(hero))
       const uploaded = await uploadMedia(hero, data.title || hero.name)
       heroUrl = uploaded.url
     }
@@ -439,10 +409,8 @@ export async function createPostFromForm(fd: FormData) {
 
     for (let i = 0; i < 3; i++) {
       const f = fd.get(`sectionImage-${i}`) as File | null
-      console.log(`[createPostFromForm] Section ${i + 1} file present:`, Boolean(f))
       if (f && typeof f === 'object') {
         const alt = sectionsInput[i]?.title || `Section ${i + 1} image`
-        console.log(`[createPostFromForm] Uploading section ${i + 1} (Firebase)…`, fileDebug(f))
         const uploaded = await uploadMedia(f, alt)
         sectionImageUrls[i] = uploaded.url
       } else {
@@ -452,7 +420,6 @@ export async function createPostFromForm(fd: FormData) {
 
     // COMBINED HTML
     const combinedHTML = buildCombinedHTMLFromSections(data)
-    console.log('[createPostFromForm] combinedHTML length:', combinedHTML.length)
 
     const sections: SectionOut[] = sectionsInput.map((s, i) => {
       const title = coerceTitle(s?.title, s?.content, i)
@@ -476,10 +443,7 @@ export async function createPostFromForm(fd: FormData) {
       slug: data.title ? slugify(data.title) : undefined,
     }
 
-    console.log('[createPostFromForm] Creating post with data keys:', Object.keys(postData))
-
     const result = await createPost(postData)
-    console.log('[createPostFromForm] OK')
     return result
   } catch (error) {
     console.error('[createPostFromForm] FAILED:', error)
@@ -488,8 +452,6 @@ export async function createPostFromForm(fd: FormData) {
 }
 
 export async function updatePostFromForm(id: string, fd: FormData) {
-  console.log('[updatePostFromForm] START', { id })
-
   try {
     await requireAuth() // Ensure user is authenticated
 
@@ -501,14 +463,11 @@ export async function updatePostFromForm(id: string, fd: FormData) {
       categoryIds?: Array<string>
       authorIds?: Array<string>
     }
-    console.log('[updatePostFromForm] Parsed data keys:', Object.keys(data))
 
     // Optional hero update
     const hero = fd.get('heroImage') as File | null
     let heroUrl: string | undefined
-    console.log('[updatePostFromForm] Hero file present:', Boolean(hero))
     if (hero && typeof hero === 'object') {
-      console.log('[updatePostFromForm] Uploading hero (Firebase)…', fileDebug(hero))
       const uploaded = await uploadMedia(hero, data.title || hero.name)
       heroUrl = uploaded.url
     }
@@ -519,10 +478,8 @@ export async function updatePostFromForm(id: string, fd: FormData) {
 
     for (let i = 0; i < 3; i++) {
       const f = fd.get(`sectionImage-${i}`) as File | null
-      console.log(`[updatePostFromForm] Section ${i + 1} file present:`, Boolean(f))
       if (f && typeof f === 'object') {
         const alt = sectionsInput[i]?.title || `Section ${i + 1} image`
-        console.log(`[updatePostFromForm] Uploading section ${i + 1} (Firebase)…`, fileDebug(f))
         const uploaded = await uploadMedia(f, alt)
         sectionImageUrls[i] = uploaded.url
       } else {
@@ -531,7 +488,6 @@ export async function updatePostFromForm(id: string, fd: FormData) {
     }
 
     const combinedHTML = buildCombinedHTMLFromSections(data)
-    console.log('[updatePostFromForm] combinedHTML length:', combinedHTML.length)
 
     const sections: SectionOut[] = sectionsInput.map((s, i) => {
       const title = coerceTitle(s?.title, s?.content, i)
@@ -555,10 +511,7 @@ export async function updatePostFromForm(id: string, fd: FormData) {
     if (combinedHTML) updateData.contentHtml = combinedHTML
     if (typeof heroUrl !== 'undefined') updateData.heroImage = heroUrl
 
-    console.log('[updatePostFromForm] Updating post with data keys:', Object.keys(updateData))
-
     const result = await updatePost(id, updateData as PostInput)
-    console.log('[updatePostFromForm] OK')
     return result
   } catch (error) {
     console.error('[updatePostFromForm] FAILED:', error)

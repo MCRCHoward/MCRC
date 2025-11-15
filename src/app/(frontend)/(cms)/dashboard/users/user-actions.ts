@@ -7,73 +7,13 @@ import { requireRole, getCurrentUser } from '@/lib/custom-auth'
 import type { User } from '@/types'
 import { z } from 'zod'
 import { getRoleValues, isAdmin } from '@/lib/user-roles'
-
-/**
- * Helper to convert Firestore Timestamp to ISO string
- * Handles both Admin SDK Timestamps (with toDate()) and raw Firestore Timestamps (with _seconds/_nanoseconds)
- */
-function toISOString(value: unknown): string | undefined {
-  if (!value) return undefined
-
-  // Firebase Admin SDK Timestamp has toDate() method
-  if (typeof value === 'object' && value !== null && 'toDate' in value) {
-    const toDate = (value as { toDate?: () => Date }).toDate
-    if (typeof toDate === 'function') {
-      try {
-        return toDate().toISOString()
-      } catch {
-        return undefined
-      }
-    }
-  }
-
-  // Raw Firestore Timestamp format: {_seconds: number, _nanoseconds: number}
-  if (typeof value === 'object' && value !== null) {
-    const obj = value as Record<string, unknown>
-    const seconds = obj._seconds
-    const nanoseconds = obj._nanoseconds
-
-    // Both must be defined and be numbers
-    if (
-      typeof seconds === 'number' &&
-      typeof nanoseconds === 'number' &&
-      !Number.isNaN(seconds) &&
-      !Number.isNaN(nanoseconds)
-    ) {
-      try {
-        // Convert seconds + nanoseconds to milliseconds
-        const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
-        return new Date(milliseconds).toISOString()
-      } catch {
-        return undefined
-      }
-    }
-  }
-
-  // Already a Date object
-  if (value instanceof Date) {
-    try {
-      return value.toISOString()
-    } catch {
-      return undefined
-    }
-  }
-
-  // Already a string
-  if (typeof value === 'string') {
-    return value
-  }
-
-  return undefined
-}
+import { toISOString } from '../utils/timestamp-helpers'
 
 /**
  * Fetches all users from Firestore
  * Admin and coordinator only
  */
 export async function fetchAllUsers(): Promise<User[]> {
-  console.log('[fetchAllUsers] START')
-
   try {
     // Allow both admin and coordinator to fetch users
     const user = await getCurrentUser()
@@ -102,7 +42,6 @@ export async function fetchAllUsers(): Promise<User[]> {
     // Sort by name alphabetically
     users.sort((a, b) => a.name.localeCompare(b.name))
 
-    console.log('[fetchAllUsers] OK', { count: users.length })
     return users
   } catch (error) {
     console.error('[fetchAllUsers] FAILED:', error)
@@ -125,8 +64,6 @@ const UpdateUserRoleSchema = z.object({
  * you'll need to call adminAuth.setCustomUserClaims() separately.
  */
 export async function updateUserRole(userId: string, newRole: User['role']) {
-  console.log('[updateUserRole] START', { userId, newRole })
-
   try {
     const currentUser = await requireRole('admin') // Admin only
 
@@ -166,13 +103,11 @@ export async function updateUserRole(userId: string, newRole: User['role']) {
         // Remove custom claims for non-admin/coordinator roles
         await adminAuth.setCustomUserClaims(userId, { admin: false, coordinator: false })
       }
-      console.log('[updateUserRole] Custom claims updated', { userId, newRole })
     } catch (claimsError) {
       console.error('[updateUserRole] Failed to update custom claims:', claimsError)
       // Don't throw - Firestore update succeeded, claims can be fixed later
     }
 
-    console.log('[updateUserRole] OK', { userId, newRole })
     revalidatePath('/dashboard/users')
     return { success: true }
   } catch (error) {

@@ -110,7 +110,6 @@ export default async function SubmissionDetailPage({ params }: RouteParams) {
   let docPath: string
   try {
     docPath = decodeDocPath(id)
-    console.log('[SubmissionDetailPage] Decoded path:', docPath)
   } catch (error) {
     console.error('[SubmissionDetailPage] Error decoding path:', error)
     console.error('[SubmissionDetailPage] Encoded id:', id)

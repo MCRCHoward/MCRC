@@ -20,8 +20,6 @@ const UpdateAccountSchema = z.object({
  * Users can only update their own account
  */
 export async function updateAccount(data: { name: string; email: string }) {
-  console.log('[updateAccount] START')
-
   try {
     const user = await requireAuth()
 
@@ -58,20 +56,17 @@ export async function updateAccount(data: { name: string; email: string }) {
           email,
           displayName: name,
         })
-        console.log('[updateAccount] Firebase Auth email updated', { userId: user.id })
       } else if (currentUser.displayName !== name) {
         // Only update display name if email didn't change
         await adminAuth.updateUser(user.id, {
           displayName: name,
         })
-        console.log('[updateAccount] Firebase Auth display name updated', { userId: user.id })
       }
     } catch (authError) {
       console.error('[updateAccount] Failed to update Firebase Auth:', authError)
       // Don't throw - Firestore update succeeded, auth update can be fixed later
     }
 
-    console.log('[updateAccount] OK', { userId: user.id })
     revalidatePath('/dashboard/account')
     return { success: true }
   } catch (error) {

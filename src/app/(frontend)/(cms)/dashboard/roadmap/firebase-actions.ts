@@ -12,8 +12,6 @@ import { z } from 'zod'
 /* -------------------------------------------------------------------------- */
 
 export async function createRoadmapItem(data: RoadmapItemInput) {
-  console.log('[createRoadmapItem] START', { version: data?.version })
-
   try {
     const user = await requireRole('admin') // Admin only
 
@@ -37,7 +35,6 @@ export async function createRoadmapItem(data: RoadmapItemInput) {
     }
 
     const docRef = await adminDb.collection('roadmapItems').add(roadmapData)
-    console.log('[createRoadmapItem] OK', { id: docRef.id })
 
     revalidatePath('/dashboard/roadmap')
     revalidatePath('/dashboard/roadmap/completed')
@@ -49,8 +46,6 @@ export async function createRoadmapItem(data: RoadmapItemInput) {
 }
 
 export async function updateRoadmapItem(id: string, data: Partial<RoadmapItemInput>) {
-  console.log('[updateRoadmapItem] START', { id })
-
   try {
     await requireRole('admin') // Admin only
 
@@ -61,7 +56,6 @@ export async function updateRoadmapItem(id: string, data: Partial<RoadmapItemInp
     }
 
     await roadmapRef.update(updateData)
-    console.log('[updateRoadmapItem] OK')
 
     revalidatePath('/dashboard/roadmap')
     revalidatePath('/dashboard/roadmap/completed')
@@ -73,15 +67,12 @@ export async function updateRoadmapItem(id: string, data: Partial<RoadmapItemInp
 }
 
 export async function deleteRoadmapItem(id: string) {
-  console.log('[deleteRoadmapItem] START', { id })
-
   if (!id) throw new Error('Missing roadmap item id')
 
   try {
     await requireRole('admin') // Admin only
 
     await adminDb.doc(`roadmapItems/${id}`).delete()
-    console.log('[deleteRoadmapItem] OK', { id })
 
     revalidatePath('/dashboard/roadmap')
     revalidatePath('/dashboard/roadmap/completed')
@@ -92,8 +83,6 @@ export async function deleteRoadmapItem(id: string) {
 }
 
 export async function markRoadmapItemAsCompleted(id: string) {
-  console.log('[markRoadmapItemAsCompleted] START', { id })
-
   if (!id) throw new Error('Missing roadmap item id')
 
   try {
@@ -105,7 +94,6 @@ export async function markRoadmapItemAsCompleted(id: string) {
       completedAt: FieldValue.serverTimestamp(),
       completedBy: user.id,
     })
-    console.log('[markRoadmapItemAsCompleted] OK', { id })
 
     revalidatePath('/dashboard/roadmap')
     revalidatePath('/dashboard/roadmap/completed')
@@ -120,8 +108,6 @@ export async function markRoadmapItemAsCompleted(id: string) {
 /* -------------------------------------------------------------------------- */
 
 export async function submitRecommendation(data: RecommendationInput) {
-  console.log('[submitRecommendation] START', { title: data?.title })
-
   try {
     const user = await requireAuth() // All authenticated users can submit
 
@@ -147,7 +133,6 @@ export async function submitRecommendation(data: RecommendationInput) {
     }
 
     const docRef = await adminDb.collection('recommendations').add(recommendationData)
-    console.log('[submitRecommendation] OK', { id: docRef.id })
 
     revalidatePath('/dashboard/roadmap')
     return { id: docRef.id }
@@ -158,8 +143,6 @@ export async function submitRecommendation(data: RecommendationInput) {
 }
 
 export async function acceptRecommendation(recommendationId: string) {
-  console.log('[acceptRecommendation] START', { recommendationId })
-
   try {
     const user = await requireRole('admin') // Admin only
 
@@ -211,11 +194,6 @@ export async function acceptRecommendation(recommendationId: string) {
       order: FieldValue.increment(10000), // Large increment to ensure it's last
     })
 
-    console.log('[acceptRecommendation] OK', {
-      recommendationId,
-      roadmapItemId: roadmapRef.id,
-    })
-
     revalidatePath('/dashboard/roadmap')
     return { recommendationId, roadmapItemId: roadmapRef.id }
   } catch (error) {
@@ -225,8 +203,6 @@ export async function acceptRecommendation(recommendationId: string) {
 }
 
 export async function deleteRecommendation(recommendationId: string) {
-  console.log('[deleteRecommendation] START', { recommendationId })
-
   if (!recommendationId) throw new Error('Missing recommendation id')
 
   try {
@@ -234,7 +210,6 @@ export async function deleteRecommendation(recommendationId: string) {
 
     // Permanently delete the recommendation
     await adminDb.doc(`recommendations/${recommendationId}`).delete()
-    console.log('[deleteRecommendation] OK', { recommendationId })
 
     revalidatePath('/dashboard/roadmap')
   } catch (error) {
@@ -253,8 +228,6 @@ const UpdateRecommendationSchema = z.object({
  * Allows a user to update their own pending recommendation.
  */
 export async function updateRecommendation(id: string, data: Partial<RecommendationInput>) {
-  console.log('[updateRecommendation] START', { id })
-
   // 1. Get the currently authenticated user
   const user = await requireAuth()
 
@@ -301,7 +274,6 @@ export async function updateRecommendation(id: string, data: Partial<Recommendat
       updatedAt: FieldValue.serverTimestamp(),
     })
 
-    console.log('[updateRecommendation] OK')
     revalidatePath('/dashboard/roadmap')
     return { id }
   } catch (error) {

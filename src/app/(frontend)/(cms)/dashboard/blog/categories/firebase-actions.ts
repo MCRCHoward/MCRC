@@ -15,8 +15,6 @@ import slugify from 'slugify'
  * Creates a new category in Firestore
  */
 export async function createCategory(data: CategoryInput) {
-  console.log('[createCategory] START', { name: data?.name })
-
   try {
     await requireAuth() // Ensure user is authenticated
 
@@ -44,7 +42,6 @@ export async function createCategory(data: CategoryInput) {
     }
 
     const docRef = await adminDb.collection('categories').add(categoryData)
-    console.log('[createCategory] OK', { id: docRef.id })
 
     revalidatePath('/dashboard/blog/categories')
     revalidateTag('categories')
@@ -59,8 +56,6 @@ export async function createCategory(data: CategoryInput) {
  * Updates an existing category in Firestore
  */
 export async function updateCategory(id: string, data: CategoryInput) {
-  console.log('[updateCategory] START', { id })
-
   try {
     await requireAuth() // Ensure user is authenticated
 
@@ -96,7 +91,6 @@ export async function updateCategory(id: string, data: CategoryInput) {
     }
 
     await categoryRef.update(updateData)
-    console.log('[updateCategory] OK')
 
     revalidatePath('/dashboard/blog/categories')
     revalidateTag('categories')
@@ -111,8 +105,6 @@ export async function updateCategory(id: string, data: CategoryInput) {
  * Deletes a category from Firestore
  */
 export async function deleteCategory(id: string) {
-  console.log('[deleteCategory] START', { id })
-
   try {
     await requireAuth() // Ensure user is authenticated
 
@@ -131,7 +123,6 @@ export async function deleteCategory(id: string) {
 
     const categoryRef = adminDb.doc(`categories/${id}`)
     await categoryRef.delete()
-    console.log('[deleteCategory] OK')
 
     revalidatePath('/dashboard/blog/categories')
     revalidateTag('categories')
