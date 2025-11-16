@@ -140,6 +140,87 @@ Add new collections/documents:
 - Different forms route to correct event types
 - Admin can configure event type mappings
 
+## Implementation Status
+
+### Completed Foundation (Current Phase)
+- ✅ Environment configuration and documentation
+- ✅ TypeScript types for Calendly API
+- ✅ Configuration helpers and form-to-event-type mapping
+- ✅ Encryption utilities for token storage
+- ✅ Calendly service layer with token management
+- ✅ OAuth flow (authorize, callback, refresh routes)
+- ✅ Scheduling link generation API
+- ✅ Webhook endpoint with signature verification
+- ✅ Firestore settings actions (encrypted token storage)
+- ✅ Inquiry documents include calendlyScheduling placeholder
+- ✅ Admin settings page with connection status
+
+### API Endpoints
+
+#### OAuth Endpoints
+- `GET /api/calendly/authorize` - Initiates OAuth flow (admin only)
+- `GET /api/calendly/callback` - Handles OAuth callback
+- `POST /api/calendly/refresh` - Manually refresh tokens (admin only)
+
+#### Scheduling Endpoint
+- `POST /api/forms/[formType]/schedule` - Generate scheduling link
+  - Body: `{ inquiryId: string }`
+  - Returns: `{ schedulingUrl: string, eventUri?: string }`
+
+#### Webhook Endpoint
+- `POST /api/calendly/webhook` - Receives Calendly webhook events
+  - Verifies signature automatically
+  - Currently logs events (TODO: Update inquiry records)
+
+### Next Steps (Future Implementation)
+
+1. **Custom Thank You Pages**
+   - Create thank you page components for each form type
+   - Embed Calendly widget with pre-filled data
+   - Display scheduling link after form submission
+
+2. **Webhook Event Handling**
+   - Implement `invitee.created` handler to update inquiry records
+   - Implement `invitee.canceled` handler
+   - Implement `invitee.rescheduled` handler
+
+3. **Event Type Mapping UI**
+   - Add admin UI to map forms to event types
+   - Store mappings in Firestore settings
+
+4. **Calendly Widget Component**
+   - Create reusable Calendly embed component
+   - Support inline and popup modes
+   - Handle scheduling completion callbacks
+
+## QA Checklist
+
+### OAuth Flow
+- [ ] Admin can initiate OAuth connection
+- [ ] OAuth callback successfully stores encrypted tokens
+- [ ] Connection status displays correctly in settings page
+- [ ] Admin can disconnect Calendly
+
+### Token Management
+- [ ] Tokens automatically refresh when expired
+- [ ] Manual refresh endpoint works
+- [ ] Encrypted tokens stored securely in Firestore
+
+### Scheduling Links
+- [ ] Scheduling link generation works for each form type
+- [ ] Pre-filled data includes name, email, phone
+- [ ] Inquiry ID passed as salesforce_uuid for tracking
+
+### Webhooks
+- [ ] Webhook signature verification works
+- [ ] Webhook endpoint receives events (check logs)
+- [ ] Events are logged for debugging
+
+### Settings Page
+- [ ] Connection status displays correctly
+- [ ] Event types list loads and displays
+- [ ] Webhook URL is shown correctly
+
 Your plan is comprehensive, logical, and covers all the key areas: UI (sidebar), data structure (Firestore), and logic (form hooks & server actions).
 
 I have one critical recommendation to fix a flaw in your Firestore structure, and a few minor optimizations to make your plan even cleaner and more professional.
