@@ -167,11 +167,12 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <Link href={`/dashboard/${metadata.slug}/inquiries/${inquiry.id}`}>
-                      <Button variant="ghost" size="sm" title="View details">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </Link>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/dashboard/${metadata.slug}/inquiries/${inquiry.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View
+                      </Link>
+                    </Button>
                     {!inquiry.reviewed && (
                       <Button
                         variant="ghost"

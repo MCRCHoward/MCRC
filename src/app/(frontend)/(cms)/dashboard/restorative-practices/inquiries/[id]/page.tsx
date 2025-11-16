@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getInquiryById } from '@/lib/actions/inquiry-actions'
 import { InquiryDetailCard } from '@/components/Dashboard/Inquiries/InquiryDetailCard'
+import { formatDate } from '@/utilities/formatDateTime'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,7 +30,7 @@ export default async function RestorativePracticesInquiryDetailPage({ params }: 
       <Card>
         <CardHeader>
           <CardTitle>Inquiry #{id.slice(0, 8)}</CardTitle>
-          <CardDescription>Submitted on {new Date(inquiry.submittedAt).toLocaleDateString()}</CardDescription>
+          <CardDescription>Submitted on {formatDate(inquiry.submittedAt)}</CardDescription>
         </CardHeader>
         <CardContent>
           <InquiryDetailCard inquiry={inquiry} serviceArea="restorativePractices" />

@@ -1,7 +1,9 @@
-import React from 'react'
+import { redirect } from 'next/navigation'
 
-const InqueryMediationPage = () => {
-  return <div>See all mediation self-referrals here.</div>
+/**
+ * Redirect to the new mediation inquiries page
+ * This page is deprecated in favor of /dashboard/mediation/inquiries
+ */
+export default function MediationInquiryPage() {
+  redirect('/dashboard/mediation/inquiries')
 }
-
-export default InqueryMediationPage
