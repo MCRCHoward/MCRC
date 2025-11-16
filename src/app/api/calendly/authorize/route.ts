@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
  * Initiates Calendly OAuth flow (admin only)
  * Redirects user to Calendly authorization page
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Require admin role
     await requireRole('admin')
