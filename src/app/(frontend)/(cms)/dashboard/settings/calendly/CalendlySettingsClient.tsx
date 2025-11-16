@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   disconnectCalendly,
   createCalendlyWebhookAction,
@@ -12,7 +11,7 @@ import {
 } from '@/lib/actions/calendly-settings-actions'
 import type { CalendlySettings, CalendlyWebhookSubscription } from '@/types/calendly'
 import { toast } from 'sonner'
-import { Link2, X, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react'
+import { Link2, X, Plus, Trash2, Loader2 } from 'lucide-react'
 
 interface CalendlySettingsClientProps {
   settings: CalendlySettings | null
