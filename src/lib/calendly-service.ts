@@ -34,7 +34,6 @@ import type {
   CalendlyWebhookSubscriptionsResponse,
   CreateWebhookSubscriptionRequest,
   CreateWebhookSubscriptionResponse,
-  CalendlyWebhookEvent,
 } from '@/types/calendly'
 
 /**

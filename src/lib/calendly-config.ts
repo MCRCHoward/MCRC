@@ -55,7 +55,7 @@ export function isValidEventTypeUri(uri: string): boolean {
  */
 export function extractEventTypeUuid(uri: string): string | null {
   const match = uri.match(/event_types\/([a-f0-9-]+)$/i)
-  return match ? match[1] : null
+  return match && match[1] ? match[1] : null
 }
 
 /**

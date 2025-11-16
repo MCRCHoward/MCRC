@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { getCalendlyCredentials } from '@/lib/calendly-config'
-import { adminDb } from '@/lib/firebase-admin'
 import type { CalendlyWebhookPayload } from '@/types/calendly'
 
 export const runtime = 'nodejs'
@@ -79,12 +78,12 @@ export async function POST(request: NextRequest) {
         break
       }
 
-      case 'invitee.rescheduled': {
-        // TODO: Implement invitee.rescheduled handling
-        // Update inquiry with new scheduled time
-        console.log('[CalendlyWebhook] invitee.rescheduled - TODO: Handle reschedule')
+      case 'invitee_no_show.created':
+      case 'invitee_no_show.deleted':
+      case 'routing_form_submission.created':
+        // TODO: Implement handling for these event types if needed
+        console.log('[CalendlyWebhook] Unhandled event type:', payload.event)
         break
-      }
 
       default:
         console.log('[CalendlyWebhook] Unhandled event type:', payload.event)

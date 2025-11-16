@@ -12,35 +12,28 @@ import type { Inquiry, InquiryStatus } from '@/types/inquiry'
 /**
  * Recursively serializes an object, converting any Firestore Timestamps to ISO strings.
  * This is necessary for passing data from Server Components to Client Components.
+ * Uses toISOString helper to detect and convert all Timestamp formats reliably.
  */
 function serializeFormData(data: unknown): unknown {
   if (!data) return data
 
-  // Handle Firestore Timestamp objects
+  // First, attempt to convert using toISOString helper
+  // This will catch all Timestamp formats (Admin SDK, raw Firestore, Date objects, ISO strings)
+  const isoString = toISOString(data)
+  if (isoString !== undefined) {
+    // toISOString returned a string, meaning it was a Timestamp or Date
+    return isoString
+  }
+
+  // Not a Timestamp - continue with recursive processing
   if (typeof data === 'object' && data !== null) {
-    // Check if it's a Firestore Timestamp (has _seconds and _nanoseconds)
-    const obj = data as Record<string, unknown>
-    if (
-      typeof obj._seconds === 'number' &&
-      typeof obj._nanoseconds === 'number' &&
-      !('toDate' in obj) // Not an Admin SDK Timestamp
-    ) {
-      const isoString = toISOString(obj)
-      return isoString ?? data
-    }
-
-    // Check if it's an Admin SDK Timestamp (has toDate method)
-    if ('toDate' in obj && typeof (obj as { toDate?: () => Date }).toDate === 'function') {
-      const isoString = toISOString(obj)
-      return isoString ?? data
-    }
-
     // Handle arrays
     if (Array.isArray(data)) {
       return data.map(serializeFormData)
     }
 
     // Handle plain objects - recursively serialize all properties
+    const obj = data as Record<string, unknown>
     const serialized: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(obj)) {
       serialized[key] = serializeFormData(value)
@@ -48,6 +41,7 @@ function serializeFormData(data: unknown): unknown {
     return serialized
   }
 
+  // Primitive value (string, number, boolean, etc.) - return as-is
   return data
 }
 

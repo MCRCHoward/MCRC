@@ -85,6 +85,12 @@ export async function decrypt(encryptedText: string): Promise<string> {
     }
 
     const [saltHex, ivHex, encrypted, authTagHex] = parts
+    
+    // Validate all parts exist (TypeScript safety check)
+    if (!saltHex || !ivHex || !encrypted || !authTagHex) {
+      throw new Error('Invalid encrypted format: missing components')
+    }
+    
     const salt = Buffer.from(saltHex, 'hex')
     const iv = Buffer.from(ivHex, 'hex')
     const authTag = Buffer.from(authTagHex, 'hex')
