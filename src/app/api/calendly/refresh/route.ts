@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
  * Manually refresh Calendly access token (admin only)
  * Useful for testing or manual refresh
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Require admin role
     await requireRole('admin')
