@@ -104,6 +104,17 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           },
         ]
       : []),
+    // Settings section (admin only)
+    ...(user?.role === 'admin'
+      ? [
+          {
+            title: 'Settings',
+            url: '/dashboard/settings/calendly',
+            iconKey: 'frame',
+            items: [{ title: 'Calendly', url: '/dashboard/settings/calendly' }],
+          },
+        ]
+      : []),
   ]
 
   const teams: SidebarTeam[] = [
