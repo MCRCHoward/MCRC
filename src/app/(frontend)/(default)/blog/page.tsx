@@ -2,6 +2,8 @@ import { fetchFeaturedPost, fetchPosts, fetchCategories } from '@/lib/firebase-a
 import type { Post, Category } from '@/types'
 import { default as BlogPageClient } from '@/components/clients/BlogPageClient'
 import { verifyAdminSDKInitialization, healthCheckAdminSDK } from '@/lib/firebase-admin'
+import { normalizeToFirebaseDownloadURL } from '@/utilities/image-helpers'
+import { logError, logWarning } from '@/utilities/error-logging'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -21,75 +23,6 @@ type UIHelperCategory = { label: string; value: string }
 type UIBreadcrumbItem = { label: string; link: string }
 
 const FALLBACK_THUMB = 'https://deifkwefumgah.cloudfront.net/shadcnblocks/block/placeholder-1.svg'
-
-// Get bucket name from environment variable
-const BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || ''
-
-/**
- * Convert various image URL formats to Firebase Storage download URL.
- * Firebase download URLs honor Storage rules, unlike raw GCS URLs.
- *
- * Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media
- */
-function normalizeToFirebaseDownloadURL(input?: unknown): string {
-  if (!input) return FALLBACK_THUMB
-
-  // Handle object with url property
-  if (typeof input === 'object' && input && 'url' in input) {
-    const u = (input as { url?: string }).url
-    if (u) return normalizeToFirebaseDownloadURL(u)
-  }
-
-  if (typeof input !== 'string' || input.length < 4) return FALLBACK_THUMB
-
-  // Already a Firebase download endpoint
-  if (input.startsWith('https://firebasestorage.googleapis.com/')) {
-    return input
-  }
-
-  try {
-    // Raw GCS URL → storage.googleapis.com/<bucket>/<objectPath>
-    if (input.startsWith('https://storage.googleapis.com/')) {
-      const url = new URL(input)
-      // pathname like "/<bucket>/<objectPath...>"
-      const parts = url.pathname.split('/').filter(Boolean)
-      const bucket = parts[0]
-      const objectPath = parts.slice(1).join('/')
-      if (bucket && objectPath) {
-        const encodedPath = encodeURIComponent(objectPath)
-        return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodedPath}?alt=media`
-      }
-    }
-
-    // If the string includes a known path prefix (e.g., ".../blog/media/..."),
-    // rebuild using our configured bucket.
-    const BLOG_PREFIX = '/blog/media/'
-    const EVENTS_PREFIX = '/events/media/'
-    const TRAININGS_PREFIX = '/trainings/media/'
-
-    let objectPath: string | null = null
-    if (input.includes(BLOG_PREFIX)) {
-      const idx = input.indexOf(BLOG_PREFIX)
-      objectPath = input.slice(idx + 1) // drop leading slash
-    } else if (input.includes(EVENTS_PREFIX)) {
-      const idx = input.indexOf(EVENTS_PREFIX)
-      objectPath = input.slice(idx + 1)
-    } else if (input.includes(TRAININGS_PREFIX)) {
-      const idx = input.indexOf(TRAININGS_PREFIX)
-      objectPath = input.slice(idx + 1)
-    }
-
-    if (objectPath && BUCKET) {
-      const encodedPath = encodeURIComponent(objectPath)
-      return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(BUCKET)}/o/${encodedPath}?alt=media`
-    }
-
-    // Otherwise, return the original URL (could be CloudFront, etc.)
-    return input
-  } catch {
-    return FALLBACK_THUMB
-  }
-}
 
 function toUICategories(docs: Category[]): UIHelperCategory[] {
   const cats = docs.map((c) => ({
@@ -143,18 +76,17 @@ export default async function BlogPage() {
 
     if (!initializationCheck.initialized) {
       const errorMessage = `Admin SDK initialization failed: ${initializationCheck.errors.join(', ')}`
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('[BlogPage]', errorMessage)
-      } else {
-        // In production, log without exposing sensitive details
-        console.error('[BlogPage] Admin SDK initialization failed. Check environment variables.')
-      }
+      logError('[BlogPage] Admin SDK initialization failed', new Error(errorMessage), {
+        errors: initializationCheck.errors,
+      })
       // Continue execution - let individual fetch functions handle errors
     } else if (process.env.NODE_ENV !== 'production') {
       // In development, run health check for diagnostics
       const healthCheck = await healthCheckAdminSDK()
       if (!healthCheck.healthy) {
-        console.warn('[BlogPage] Admin SDK health check failed:', healthCheck.error)
+        logWarning('[BlogPage] Admin SDK health check failed', {
+          error: healthCheck.error,
+        })
       }
     }
 
@@ -170,73 +102,57 @@ export default async function BlogPage() {
       featured = fetchResults[0].value
     } else {
       const error = fetchResults[0].reason
-      console.error('[BlogPage] Error fetching featured post:', {
-        error: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
-      })
+      logError('[BlogPage] Error fetching featured post', error)
     }
 
     if (fetchResults[1].status === 'fulfilled') {
       posts = fetchResults[1].value
     } else {
       const error = fetchResults[1].reason
-      console.error('[BlogPage] Error fetching posts:', {
-        error: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
-      })
+      logError('[BlogPage] Error fetching posts', error)
     }
 
     if (fetchResults[2].status === 'fulfilled') {
       categories = fetchResults[2].value
     } else {
       const error = fetchResults[2].reason
-      console.error('[BlogPage] Error fetching categories:', {
-        error: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
-      })
+      logError('[BlogPage] Error fetching categories', error)
     }
 
     // Validate fetched data
     const invalidPosts = posts.filter((post) => !validatePostData(post).valid)
-    if (invalidPosts.length > 0 && process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[BlogPage] Found invalid posts:',
-        invalidPosts.map((p) => ({
+    if (invalidPosts.length > 0) {
+      logWarning('[BlogPage] Found invalid posts', {
+        count: invalidPosts.length,
+        invalidPosts: invalidPosts.map((p) => ({
           id: p.id,
           errors: validatePostData(p).errors,
         })),
-      )
+      })
     }
 
     // Log warnings for empty results with actionable guidance
     if (posts.length === 0) {
-      const warningMessage = '[BlogPage] No posts fetched. Possible issues:'
       const possibleIssues = [
         'No posts with _status="published" in Firestore',
         'Missing Firestore indexes (check firestore.indexes.json)',
         'Admin SDK connection issues',
         'Posts missing required fields (id, slug, _status, title)',
       ]
-
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(warningMessage)
-        possibleIssues.forEach((issue) => console.warn(`  - ${issue}`))
-      } else {
-        // Production: log a single concise warning
-        console.warn('[BlogPage] No posts available. Check Firestore data and indexes.')
-      }
+      logWarning('[BlogPage] No posts fetched', {
+        possibleIssues,
+      })
     }
 
     // Log warnings for missing categories
-    if (categories.length === 0 && process.env.NODE_ENV !== 'production') {
-      console.warn('[BlogPage] No categories fetched. This may affect post categorization.')
+    if (categories.length === 0) {
+      logWarning('[BlogPage] No categories fetched', {
+        message: 'This may affect post categorization.',
+      })
     }
   } catch (error) {
     const duration = Date.now() - startTime
-    const errorDetails = {
-      error: error instanceof Error ? error.message : String(error),
-      errorStack:
-        process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined,
+    logError('[BlogPage] Fatal error fetching blog data', error, {
       duration: `${duration}ms`,
       postsFetched: posts.length,
       categoriesFetched: categories.length,
@@ -249,19 +165,7 @@ export default async function BlogPage() {
             errorCount: initializationCheck.errors.length,
           }
         : 'not checked',
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[BlogPage] Fatal error fetching blog data:', errorDetails)
-    } else {
-      // Production: log without stack traces
-      console.error('[BlogPage] Error fetching blog data:', {
-        error: error instanceof Error ? error.message : String(error),
-        duration: `${duration}ms`,
-        postsFetched: posts.length,
-        categoriesFetched: categories.length,
-      })
-    }
+    })
   }
 
   // Create a category map for efficient lookups
@@ -271,12 +175,10 @@ export default async function BlogPage() {
   const toCardPostWithCategories = (p: Post): CardPost | null => {
     // Validate required fields
     if (!p.slug || typeof p.slug !== 'string') {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('[BlogPage] Post missing slug, filtering out:', {
-          id: p.id,
-          title: p.title,
-        })
-      }
+      logWarning('[BlogPage] Post missing slug, filtering out', {
+        id: p.id,
+        title: p.title,
+      })
       return null
     }
 
@@ -291,7 +193,7 @@ export default async function BlogPage() {
         : 'Uncategorized'
 
     // Normalize heroImage to Firebase download URL (honors Firebase Storage rules)
-    const thumbnail = normalizeToFirebaseDownloadURL(p.heroImage) || FALLBACK_THUMB
+    const thumbnail = normalizeToFirebaseDownloadURL(p.heroImage, FALLBACK_THUMB)
 
     return {
       category: categoryLabel,

@@ -7,6 +7,7 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useState } from 'react
 import { ControllerRenderProps, useForm } from 'react-hook-form'
 import Image from 'next/image'
 import { z } from 'zod'
+import { BlogEmptyState } from '@/components/blog/BlogEmptyState'
 
 import { AspectRatio } from '@/components/ui/aspect-ratio'
 import { Badge } from '@/components/ui/badge'
@@ -522,7 +523,6 @@ export default function BlogPageClient({
   categories,
   breadcrumb,
 }: BlogPageClientProps) {
-  console.log('BlogPageClient: posts', posts)
   return (
     <section className="pb-32">
       <div className="bg-muted bg-[url('https://deifkwefumgah.cloudfront.net/shadcnblocks/block/patterns/dot-pattern-2.svg')] bg-[length:3.125rem_3.125rem] bg-repeat">
@@ -555,7 +555,11 @@ export default function BlogPageClient({
             All Posts & Guides
           </h2>
           <div>
-            <ResourcesResult posts={posts} categories={categories} />
+            {posts.length === 0 ? (
+              <BlogEmptyState />
+            ) : (
+              <ResourcesResult posts={posts} categories={categories} />
+            )}
           </div>
         </div>
       </div>

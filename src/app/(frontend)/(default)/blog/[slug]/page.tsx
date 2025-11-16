@@ -4,31 +4,10 @@ import type { Metadata } from 'next'
 import { fetchPostBySlug, fetchPosts, fetchCategories } from '@/lib/firebase-api-blog'
 import { BlogPostPageClient } from '@/components/clients/BlogPostPageClient'
 import { getServerSideURL } from '@/utilities/getURL'
+import { normalizeImageUrl } from '@/utilities/image-helpers'
+import { logError } from '@/utilities/error-logging'
 
 type RouteParams = Promise<{ slug: string }>
-
-/**
- * Helper to normalize image URLs to Firebase download URLs
- */
-function normalizeImageUrl(url?: string): string | undefined {
-  if (!url) return undefined
-  if (url.startsWith('https://firebasestorage.googleapis.com/')) return url
-  if (url.startsWith('https://storage.googleapis.com/')) {
-    try {
-      const urlObj = new URL(url)
-      const parts = urlObj.pathname.split('/').filter(Boolean)
-      const bucket = parts[0]
-      const objectPath = parts.slice(1).join('/')
-      if (bucket && objectPath) {
-        const encodedPath = encodeURIComponent(objectPath)
-        return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodedPath}?alt=media`
-      }
-    } catch {
-      return url
-    }
-  }
-  return url
-}
 
 // --- SEO ---
 export async function generateMetadata({ params }: { params: RouteParams }): Promise<Metadata> {
@@ -86,7 +65,7 @@ export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
       .filter((slug): slug is string => typeof slug === 'string' && slug.length > 0)
       .map((slug) => ({ slug }))
   } catch (error) {
-    console.error('Error generating static params for blog posts:', error)
+    logError('Error generating static params for blog posts', error)
     return []
   }
 }

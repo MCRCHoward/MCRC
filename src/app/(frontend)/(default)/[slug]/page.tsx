@@ -1,9 +1,12 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
 import { fetchPageBySlug, fetchAllPages } from '@/lib/firebase-api'
 import { RenderHero } from '@/heros/RenderHero'
 import { getServerSideURL } from '@/utilities/getURL'
+import { Button } from '@/components/ui/button'
+import { logError } from '@/utilities/error-logging'
 import PageClient from './page.client'
 import type { Page } from '@/types'
 
@@ -33,9 +36,38 @@ export default async function Page({ params: paramsPromise }: Args) {
   // Ensure page has required fields
   if (!page.hero || !page.layout) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <h1 className="text-4xl font-bold">Page Error</h1>
-        <p className="text-gray-600 mt-4">This page is missing required content.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16">
+        <div className="mx-auto max-w-md text-center">
+          <div className="mb-6 flex justify-center">
+            <div className="rounded-full bg-destructive/10 p-4">
+              <svg
+                className="h-12 w-12 text-destructive"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+          </div>
+          <h1 className="mb-2 text-3xl font-bold">Page Error</h1>
+          <p className="mb-6 text-muted-foreground">
+            This page is missing required content and cannot be displayed.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button asChild variant="default">
+              <Link href="/">Go Home</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/contact">Contact Support</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -128,7 +160,7 @@ export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
       )
       .map((slug) => ({ slug }))
   } catch (error) {
-    console.error('Error generating static params for pages:', error)
+    logError('Error generating static params for pages', error)
     return []
   }
 }
