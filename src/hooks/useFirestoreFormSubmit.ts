@@ -123,6 +123,8 @@ export function useFirestoreFormSubmit(formType: FormType): UseFirestoreFormSubm
         submissionType: auth.currentUser ? 'authenticated' : 'anonymous',
         // Review tracking
         reviewed: false,
+        // Calendly scheduling placeholder (will be updated by webhook)
+        calendlyScheduling: null,
       })
 
       // Mark submission as successful

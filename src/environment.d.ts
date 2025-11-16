@@ -38,6 +38,20 @@ declare global {
       NEXT_PUBLIC_PAYPAL_PRODUCTION_CLIENT_ID?: string
       NEXT_PUBLIC_PAYPAL_SANDBOX_CLIENT_ID?: string
       NEXT_PUBLIC_PAYPAL_ENVIRONMENT?: 'sandbox' | 'production'
+
+      // Calendly OAuth Configuration
+      PRODUCTION_CALENDLY_CLIENT_ID?: string
+      PRODUCTION_CALENDLY_CLIENT_SECRET?: string
+      PRODUCTION_CALENDLY_REDIRECT_URI?: string
+      PRODUCTION_CALENDLY_WEBHOOK_SIGNING_KEY?: string
+      SANDBOX_CALENDLY_CLIENT_ID?: string
+      SANDBOX_CALENDLY_CLIENT_SECRET?: string
+      SANDBOX_CALENDLY_REDIRECT_URI?: string
+      SANDBOX_CALENDLY_WEBHOOK_SIGNING_KEY?: string
+      CALENDLY_ENCRYPTION_KEY?: string
+      CALENDLY_ENVIRONMENT?: 'production' | 'sandbox'
+      CALENDLY_PERSONAL_ACCESS_TOKEN?: string // Personal access token for webhook management
+      NEXT_PUBLIC_SERVER_URL?: string // Public server URL for webhook callbacks (ngrok URL for local dev)
     }
   }
 }

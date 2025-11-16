@@ -10,6 +10,48 @@ import { SERVICE_AREA_METADATA } from '@/lib/service-area-config'
 import type { Inquiry, InquiryStatus } from '@/types/inquiry'
 
 /**
+ * Recursively serializes an object, converting any Firestore Timestamps to ISO strings.
+ * This is necessary for passing data from Server Components to Client Components.
+ */
+function serializeFormData(data: unknown): unknown {
+  if (!data) return data
+
+  // Handle Firestore Timestamp objects
+  if (typeof data === 'object' && data !== null) {
+    // Check if it's a Firestore Timestamp (has _seconds and _nanoseconds)
+    const obj = data as Record<string, unknown>
+    if (
+      typeof obj._seconds === 'number' &&
+      typeof obj._nanoseconds === 'number' &&
+      !('toDate' in obj) // Not an Admin SDK Timestamp
+    ) {
+      const isoString = toISOString(obj)
+      return isoString ?? data
+    }
+
+    // Check if it's an Admin SDK Timestamp (has toDate method)
+    if ('toDate' in obj && typeof (obj as { toDate?: () => Date }).toDate === 'function') {
+      const isoString = toISOString(obj)
+      return isoString ?? data
+    }
+
+    // Handle arrays
+    if (Array.isArray(data)) {
+      return data.map(serializeFormData)
+    }
+
+    // Handle plain objects - recursively serialize all properties
+    const serialized: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(obj)) {
+      serialized[key] = serializeFormData(value)
+    }
+    return serialized
+  }
+
+  return data
+}
+
+/**
  * Fetches inquiries for a specific service area
  */
 export async function fetchInquiries(
@@ -33,11 +75,14 @@ export async function fetchInquiries(
 
   return snapshot.docs.map((doc) => {
     const data = doc.data()
+    // Recursively serialize formData to convert any Timestamp objects to ISO strings
+    const serializedFormData = serializeFormData(data.formData ?? {}) as Record<string, unknown>
+    
     return {
       id: doc.id,
       formType: data.formType ?? '',
       serviceArea: data.serviceArea ?? serviceArea,
-      formData: data.formData ?? {},
+      formData: serializedFormData,
       submittedAt: toISOString(data.submittedAt) ?? new Date().toISOString(),
       submittedBy: data.submittedBy ?? '',
       submissionType: data.submissionType ?? 'anonymous',
@@ -45,7 +90,7 @@ export async function fetchInquiries(
       reviewedAt: toISOString(data.reviewedAt),
       reviewedBy: data.reviewedBy,
       status: (data.status as InquiryStatus) ?? 'submitted',
-      calendlyScheduling: data.calendlyScheduling,
+      calendlyScheduling: serializeFormData(data.calendlyScheduling) as Inquiry['calendlyScheduling'],
     } as Inquiry
   })
 }
@@ -67,11 +112,14 @@ export async function getInquiryById(
   }
 
   const data = doc.data()
+  // Recursively serialize formData to convert any Timestamp objects to ISO strings
+  const serializedFormData = serializeFormData(data?.formData ?? {}) as Record<string, unknown>
+  
   return {
     id: doc.id,
     formType: data?.formType ?? '',
     serviceArea: data?.serviceArea ?? serviceArea,
-    formData: data?.formData ?? {},
+    formData: serializedFormData,
     submittedAt: toISOString(data?.submittedAt) ?? new Date().toISOString(),
     submittedBy: data?.submittedBy ?? '',
     submissionType: data?.submissionType ?? 'anonymous',
@@ -79,7 +127,7 @@ export async function getInquiryById(
     reviewedAt: toISOString(data?.reviewedAt),
     reviewedBy: data?.reviewedBy,
     status: (data?.status as InquiryStatus) ?? 'submitted',
-    calendlyScheduling: data?.calendlyScheduling,
+    calendlyScheduling: serializeFormData(data?.calendlyScheduling) as Inquiry['calendlyScheduling'],
   } as Inquiry
 }
 
