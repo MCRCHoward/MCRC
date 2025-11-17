@@ -33,6 +33,7 @@ if (!currentApps.length) {
   const app = currentApps[0]
   auth = getAuth(app)
   storage = getStorage(app)
+  db = getFirestore(app)
 }
 
 // Export the instances to be used in other parts of your app
