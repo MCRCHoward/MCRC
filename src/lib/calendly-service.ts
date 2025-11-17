@@ -123,10 +123,7 @@ export async function refreshAccessToken(): Promise<boolean> {
 /**
  * Make an authenticated request to Calendly API
  */
-async function calendlyApiRequest<T>(
-  endpoint: string,
-  options?: RequestInit,
-): Promise<T | null> {
+async function calendlyApiRequest<T>(endpoint: string, options?: RequestInit): Promise<T | null> {
   try {
     const accessToken = await getAccessToken()
     if (!accessToken) {
@@ -197,7 +194,7 @@ export async function getCalendlyUserWithPAT(): Promise<CalendlyUser | null> {
   // DEBUG: Get user info via PAT (required for webhook management)
   console.log('[DEBUG] getCalendlyUserWithPAT - Starting user info fetch')
   const user = await calendlyApiRequestWithPAT<CalendlyUser>('/users/me')
-  
+
   if (user) {
     console.log('[DEBUG] getCalendlyUserWithPAT - Success', {
       hasResource: !!user.resource,
@@ -209,7 +206,7 @@ export async function getCalendlyUserWithPAT(): Promise<CalendlyUser | null> {
   } else {
     console.error('[DEBUG] getCalendlyUserWithPAT - Failed to get user info')
   }
-  
+
   return user
 }
 
@@ -252,7 +249,9 @@ export async function getEventTypes(): Promise<CalendlyEventType[]> {
  * Get a specific event type by URI
  */
 export async function getEventType(eventTypeUri: string): Promise<CalendlyEventType | null> {
-  return calendlyApiRequest<CalendlyEventType>(eventTypeUri.replace(CALENDLY_API_BASE.production, ''))
+  return calendlyApiRequest<CalendlyEventType>(
+    eventTypeUri.replace(CALENDLY_API_BASE.production, ''),
+  )
 }
 
 /**
@@ -358,11 +357,11 @@ export async function listUserEvents(options?: {
 function getPersonalAccessToken(): string | null {
   // DEBUG: Check if PAT is set
   const token = process.env.CALENDLY_PERSONAL_ACCESS_TOKEN
-  
+
   // PRODUCTION DEBUG: Log environment detection
   const isProduction = process.env.NODE_ENV === 'production'
   const isLocalhost = process.env.NODE_ENV === 'development'
-  
+
   console.log('[DEBUG] Environment check:', {
     NODE_ENV: process.env.NODE_ENV,
     isProduction,
@@ -371,7 +370,7 @@ function getPersonalAccessToken(): string | null {
     tokenLength: token?.length || 0,
     tokenPrefix: token?.substring(0, 20) || 'N/A', // First 20 chars for debugging
   })
-  
+
   if (!token) {
     console.error('[CalendlyService] CALENDLY_PERSONAL_ACCESS_TOKEN not set')
     console.error('[DEBUG] Available env vars:', {
@@ -381,7 +380,7 @@ function getPersonalAccessToken(): string | null {
     })
     return null
   }
-  
+
   // DEBUG: Log successful token retrieval (without exposing full token)
   console.log('[DEBUG] Personal Access Token retrieved successfully')
   return token
@@ -407,7 +406,7 @@ async function calendlyApiRequestWithPAT<T>(
     // DEBUG: Step 2 - Determine environment and build URL
     const env = getCalendlyEnvironment()
     const url = `${CALENDLY_API_BASE[env]}${endpoint}`
-    
+
     console.log('[DEBUG] calendlyApiRequestWithPAT - Step 2: Building request', {
       env,
       endpoint,
@@ -439,7 +438,7 @@ async function calendlyApiRequestWithPAT<T>(
       // DEBUG: Log detailed error information
       const errorText = await response.text()
       let error: CalendlyErrorResponse
-      
+
       try {
         error = JSON.parse(errorText) as CalendlyErrorResponse
       } catch {
@@ -450,7 +449,7 @@ async function calendlyApiRequestWithPAT<T>(
           details: [],
         }
       }
-      
+
       console.error('[CalendlyService] API request failed:', {
         url,
         status: response.status,
@@ -471,7 +470,7 @@ async function calendlyApiRequestWithPAT<T>(
       hasData: !!data,
       dataKeys: typeof data === 'object' && data !== null ? Object.keys(data) : 'N/A',
     })
-    
+
     return data
   } catch (error) {
     // DEBUG: Log full error details
@@ -502,7 +501,7 @@ export async function createWebhookSubscription(
       scope: request.scope,
       user: request.user,
     })
-    
+
     // DEBUG: Validate request payload
     if (!request.url) {
       console.error('[DEBUG] createWebhookSubscription - Missing URL')
@@ -516,9 +515,14 @@ export async function createWebhookSubscription(
       console.error('[DEBUG] createWebhookSubscription - Missing organization or user')
       return null
     }
-    
+
     // DEBUG: Step 2 - Make API request
-    console.log('[DEBUG] createWebhookSubscription - Step 2: Making API request')
+    console.log('[DEBUG] createWebhookSubscription - Step 2: Making API request to Calendly')
+    console.log(
+      '[DEBUG] createWebhookSubscription - Request body:',
+      JSON.stringify(request, null, 2),
+    )
+
     const response = await calendlyApiRequestWithPAT<CreateWebhookSubscriptionResponse>(
       '/webhook_subscriptions',
       {
@@ -529,15 +533,20 @@ export async function createWebhookSubscription(
 
     if (!response) {
       console.error('[DEBUG] createWebhookSubscription - Step 3: API request returned null')
+      console.error(
+        '[DEBUG] createWebhookSubscription - This usually means the API call failed. Check logs above for error details.',
+      )
       return null
     }
 
     // DEBUG: Step 4 - Extract resource
-    console.log('[DEBUG] createWebhookSubscription - Step 4: Success', {
+    console.log('[DEBUG] createWebhookSubscription - Step 4: Success - Webhook created', {
       hasResource: !!response.resource,
       webhookUri: response.resource?.uri,
       webhookState: response.resource?.state,
       webhookCallbackUrl: response.resource?.callback_url,
+      webhookEvents: response.resource?.events,
+      webhookCreatedAt: response.resource?.created_at,
     })
 
     return response.resource
@@ -633,4 +642,3 @@ export async function deleteWebhookSubscription(webhookUri: string): Promise<boo
     return false
   }
 }
-

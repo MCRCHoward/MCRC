@@ -26,6 +26,18 @@ function verifyWebhookSignature(
 }
 
 /**
+ * GET /api/calendly/webhook
+ *
+ * Webhook endpoint verification
+ * Calendly sends a GET request to verify the endpoint is accessible
+ */
+export async function GET(_request: NextRequest) {
+  // Return 200 OK to confirm endpoint is accessible
+  // Calendly uses this to verify the webhook URL before sending events
+  return NextResponse.json({ status: 'ok', message: 'Webhook endpoint is active' }, { status: 200 })
+}
+
+/**
  * POST /api/calendly/webhook
  *
  * Handles Calendly webhook events
