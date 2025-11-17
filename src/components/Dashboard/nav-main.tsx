@@ -15,6 +15,7 @@ import {
   PieChart,
   SquareTerminal,
   Users,
+  PiggyBank,
   type LucideIcon,
 } from 'lucide-react'
 import { ChevronRight } from 'lucide-react'
@@ -45,6 +46,7 @@ const iconMap: Record<string, LucideIcon> = {
   mailbox: Mail,
   users: Users,
   handshake: Handshake,
+  piggyBank: PiggyBank,
 }
 
 export function NavMain({
