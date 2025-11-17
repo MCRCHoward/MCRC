@@ -26,7 +26,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { AddressAutocomplete } from '@/components/Forms/AddressAutocomplete'
+import { AddressAutocomplete } from '@/Forms/components/AddressAutocomplete'
 
 // Define Zod schemas for each step of the form
 const stepOneSchema = z.object({

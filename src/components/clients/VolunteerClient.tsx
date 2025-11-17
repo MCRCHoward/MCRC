@@ -4,7 +4,7 @@ import { PageHero } from '@/heros/PageHero'
 
 import { FAQ } from '@/components/sections/FAQ'
 
-import VolunteerForm from '../Forms/VolunteerForm'
+import VolunteerForm from '@/Forms/components/VolunteerForm'
 import { ScrollInViewTitleAndDescription } from '@/components/sections/ScrollInViewTitleAndDescription'
 
 const VolunteerClient = () => {

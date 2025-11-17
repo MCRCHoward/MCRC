@@ -15,7 +15,7 @@ import { handlePhoneInputChange, handlePhoneKeyPress } from '@/utilities/phoneUt
 import { useFormAutoSave } from '@/hooks/useFormAutoSave'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
-import { AddressAutocomplete } from '@/components/Forms/AddressAutocomplete'
+import { AddressAutocomplete } from '@/Forms/components/AddressAutocomplete'
 
 // --- shadcn/ui ---
 import { Button } from '@/components/ui/button'
@@ -157,7 +157,10 @@ export function MediationSelfReferralForm() {
   })
 
   // Auto-save form data
-  const { clearSavedData, hasSavedData: _hasSavedData } = useFormAutoSave(form, 'mediation-self-referral')
+  const { clearSavedData, hasSavedData: _hasSavedData } = useFormAutoSave(
+    form,
+    'mediation-self-referral',
+  )
 
   // Manage additional contacts array
   const { fields, append, remove } = useFieldArray({
