@@ -72,12 +72,39 @@ export async function fetchInquiries(
     // Recursively serialize formData to convert any Timestamp objects to ISO strings
     const serializedFormData = serializeFormData(data.formData ?? {}) as Record<string, unknown>
     
+    // Convert submittedAt - handle various timestamp formats
+    // DEBUG: Log raw submittedAt value to help diagnose date issues
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEBUG] Raw submittedAt for inquiry:', doc.id, {
+        submittedAt: data.submittedAt,
+        submittedAtType: typeof data.submittedAt,
+        hasToDate: data.submittedAt && typeof data.submittedAt === 'object' && 'toDate' in data.submittedAt,
+        submittedAtKeys: data.submittedAt && typeof data.submittedAt === 'object' ? Object.keys(data.submittedAt) : null,
+      })
+    }
+    
+    // Only use current date fallback if submittedAt is truly missing (null/undefined)
+    // If submittedAt exists but conversion fails, log warning
+    const submittedAtISO = data.submittedAt 
+      ? toISOString(data.submittedAt) ?? (() => {
+          console.warn('[fetchInquiries] Failed to convert submittedAt for inquiry:', doc.id, {
+            submittedAt: data.submittedAt,
+            submittedAtType: typeof data.submittedAt,
+            submittedAtValue: JSON.stringify(data.submittedAt),
+            hasToDate: data.submittedAt && typeof data.submittedAt === 'object' && 'toDate' in data.submittedAt,
+          })
+          return undefined // Return undefined so we can detect conversion failures
+        })()
+      : undefined
+    
     return {
       id: doc.id,
       formType: data.formType ?? '',
       serviceArea: data.serviceArea ?? serviceArea,
       formData: serializedFormData,
-      submittedAt: toISOString(data.submittedAt) ?? new Date().toISOString(),
+      // Only use current date fallback if submittedAt is truly missing
+      // If conversion failed, we'll still use current date but log a warning
+      submittedAt: submittedAtISO ?? new Date().toISOString(),
       submittedBy: data.submittedBy ?? '',
       submissionType: data.submissionType ?? 'anonymous',
       reviewed: data.reviewed ?? false,
@@ -109,12 +136,28 @@ export async function getInquiryById(
   // Recursively serialize formData to convert any Timestamp objects to ISO strings
   const serializedFormData = serializeFormData(data?.formData ?? {}) as Record<string, unknown>
   
+  // Convert submittedAt - handle various timestamp formats
+  // Only use current date fallback if submittedAt is truly missing (null/undefined)
+  // If submittedAt exists but conversion fails, log warning
+  const submittedAtISO = data?.submittedAt 
+    ? toISOString(data.submittedAt) ?? (() => {
+        console.warn('[getInquiryById] Failed to convert submittedAt for inquiry:', doc.id, {
+          submittedAt: data.submittedAt,
+          submittedAtType: typeof data.submittedAt,
+          submittedAtValue: JSON.stringify(data.submittedAt),
+        })
+        return undefined // Return undefined so we can detect conversion failures
+      })()
+    : undefined
+  
   return {
     id: doc.id,
     formType: data?.formType ?? '',
     serviceArea: data?.serviceArea ?? serviceArea,
     formData: serializedFormData,
-    submittedAt: toISOString(data?.submittedAt) ?? new Date().toISOString(),
+    // Only use current date fallback if submittedAt is truly missing
+    // If conversion failed, we'll still use current date but log a warning
+    submittedAt: submittedAtISO ?? new Date().toISOString(),
     submittedBy: data?.submittedBy ?? '',
     submissionType: data?.submissionType ?? 'anonymous',
     reviewed: data?.reviewed ?? false,
