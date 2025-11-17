@@ -195,31 +195,65 @@ export async function createCalendlyWebhookAction(
 ): Promise<CalendlyWebhookSubscription | null> {
   await requireRole('admin') // Admin only
 
+  // DEBUG: Log function entry
+  console.log('[DEBUG] createCalendlyWebhookAction - Entry', {
+    webhookUrl,
+    NODE_ENV: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  })
+
   try {
-    // Get user info using Personal Access Token (required for webhook management)
+    // DEBUG: Step 1 - Get user info using Personal Access Token
+    console.log('[DEBUG] createCalendlyWebhookAction - Step 1: Getting user info via PAT')
     const user = await getCalendlyUserWithPAT()
+    
     if (!user?.resource?.uri) {
+      console.error('[DEBUG] createCalendlyWebhookAction - Step 1 FAILED: No user URI', {
+        hasUser: !!user,
+        hasResource: !!user?.resource,
+        userUri: user?.resource?.uri,
+      })
       throw new Error(
         'Could not get Calendly user information. Make sure CALENDLY_PERSONAL_ACCESS_TOKEN is set correctly.',
       )
     }
 
     if (!user.resource.current_organization) {
+      console.error('[DEBUG] createCalendlyWebhookAction - Step 1 FAILED: No organization', {
+        userUri: user.resource.uri,
+        hasOrganization: !!user.resource.current_organization,
+        organizationUri: user.resource.current_organization,
+      })
       throw new Error(
         'Could not get Calendly organization information. Make sure your Personal Access Token has organization access.',
       )
     }
 
-    // Determine webhook URL based on environment
+    console.log('[DEBUG] createCalendlyWebhookAction - Step 1 SUCCESS', {
+      userUri: user.resource.uri,
+      organizationUri: user.resource.current_organization,
+    })
+
+    // DEBUG: Step 2 - Determine webhook URL based on environment
+    console.log('[DEBUG] createCalendlyWebhookAction - Step 2: Determining base URL')
     const env = getCalendlyEnvironment()
     let baseUrl: string
 
+    console.log('[DEBUG] Environment check', {
+      env,
+      NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
+      NODE_ENV: process.env.NODE_ENV,
+    })
+
     if (process.env.NEXT_PUBLIC_SERVER_URL) {
       baseUrl = process.env.NEXT_PUBLIC_SERVER_URL
+      console.log('[DEBUG] Using NEXT_PUBLIC_SERVER_URL:', baseUrl)
     } else if (env === 'production') {
       baseUrl = 'https://mcrchoward.org'
+      console.log('[DEBUG] Using production fallback:', baseUrl)
     } else {
       // For local development, require NEXT_PUBLIC_SERVER_URL (should be ngrok URL)
+      console.error('[DEBUG] Missing NEXT_PUBLIC_SERVER_URL for local development')
       throw new Error(
         'NEXT_PUBLIC_SERVER_URL must be set for local development. Use ngrok to expose your local server and set the ngrok URL as NEXT_PUBLIC_SERVER_URL.',
       )
@@ -227,20 +261,41 @@ export async function createCalendlyWebhookAction(
 
     // Ensure baseUrl doesn't end with a slash
     baseUrl = baseUrl.replace(/\/$/, '')
+    console.log('[DEBUG] Final baseUrl (after slash removal):', baseUrl)
 
-    // Build full webhook URL
+    // DEBUG: Step 3 - Build full webhook URL
+    console.log('[DEBUG] createCalendlyWebhookAction - Step 3: Building full webhook URL')
     const fullWebhookUrl = webhookUrl.startsWith('http')
       ? webhookUrl
       : `${baseUrl}${webhookUrl.startsWith('/') ? webhookUrl : `/${webhookUrl}`}`
 
-    // Validate URL format
+    console.log('[DEBUG] Webhook URL construction', {
+      inputWebhookUrl: webhookUrl,
+      baseUrl,
+      fullWebhookUrl,
+      isAbsolute: webhookUrl.startsWith('http'),
+    })
+
+    // DEBUG: Step 4 - Validate URL format
+    console.log('[DEBUG] createCalendlyWebhookAction - Step 4: Validating URL format')
     try {
-      new URL(fullWebhookUrl)
-    } catch {
+      const urlObj = new URL(fullWebhookUrl)
+      console.log('[DEBUG] URL validation SUCCESS', {
+        protocol: urlObj.protocol,
+        host: urlObj.host,
+        pathname: urlObj.pathname,
+        fullUrl: fullWebhookUrl,
+      })
+    } catch (urlError) {
+      console.error('[DEBUG] URL validation FAILED', {
+        fullWebhookUrl,
+        error: urlError instanceof Error ? urlError.message : String(urlError),
+      })
       throw new Error(`Invalid webhook URL format: ${fullWebhookUrl}`)
     }
 
-    // Create webhook subscription
+    // DEBUG: Step 5 - Create webhook subscription request
+    console.log('[DEBUG] createCalendlyWebhookAction - Step 5: Creating webhook subscription request')
     // Calendly API requires organization (not user) and scope: 'organization'
     // Events must match Calendly's allowed list: invitee.created, invitee.canceled, etc.
     // Note: invitee.rescheduled is NOT in the allowed list, so we only use created and canceled
@@ -251,9 +306,24 @@ export async function createCalendlyWebhookAction(
       scope: 'organization', // Must be 'organization' when using organization parameter
     }
 
+    console.log('[DEBUG] Webhook request payload', {
+      url: request.url,
+      events: request.events,
+      organization: request.organization,
+      scope: request.scope,
+    })
+
+    // DEBUG: Step 6 - Call createWebhookSubscription
+    console.log('[DEBUG] createCalendlyWebhookAction - Step 6: Calling createWebhookSubscription')
     const subscription = await createWebhookSubscription(request)
 
     if (subscription) {
+      console.log('[DEBUG] createCalendlyWebhookAction - Step 7: Webhook created, updating Firestore', {
+        webhookUri: subscription.uri,
+        webhookState: subscription.state,
+        callbackUrl: subscription.callback_url,
+      })
+      
       // Update settings to mark webhook as configured
       const docRef = adminDb.doc(SETTINGS_DOC_PATH)
       await docRef.set(
@@ -264,13 +334,28 @@ export async function createCalendlyWebhookAction(
         { merge: true },
       )
       revalidatePath('/dashboard/settings/calendly')
+      
+      console.log('[DEBUG] createCalendlyWebhookAction - Step 8: Firestore updated successfully')
+    } else {
+      console.error('[DEBUG] createCalendlyWebhookAction - Step 7 FAILED: createWebhookSubscription returned null')
     }
 
     return subscription
   } catch (error) {
-    console.error('[createCalendlyWebhookAction] FAILED:', error)
+    // DEBUG: Log full error details
+    console.error('[createCalendlyWebhookAction] FAILED:', {
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      webhookUrl,
+      NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
+      CALENDLY_ENVIRONMENT: process.env.CALENDLY_ENVIRONMENT,
+      NODE_ENV: process.env.NODE_ENV,
+      hasPAT: !!process.env.CALENDLY_PERSONAL_ACCESS_TOKEN,
+    })
+    
     throw new Error(
-      `Failed to create webhook: ${error instanceof Error ? error.message : String(error)}`,
+      'Failed to create webhook. Check server logs for details. Make sure CALENDLY_PERSONAL_ACCESS_TOKEN is set and NEXT_PUBLIC_SERVER_URL is configured (use ngrok for local development).',
     )
   }
 }
