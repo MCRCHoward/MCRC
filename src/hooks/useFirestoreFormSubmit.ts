@@ -27,11 +27,17 @@ import { getServiceAreaFromFormType } from '@/lib/service-area-config'
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error'
 
 // Define the return type of the hook for better autocompletion
+interface SubmitResult {
+  success: boolean
+  submissionId: string | null
+}
+
 interface UseFirestoreFormSubmitReturn {
   isSubmitting: boolean // True when form is being submitted
   error: string | null // Error message if submission fails
   success: boolean // True when submission succeeds
-  submitData: (data: Record<string, unknown>) => Promise<void> // Function to submit data
+  submissionId: string | null // The Firestore document ID that was created
+  submitData: (data: Record<string, unknown>) => Promise<SubmitResult> // Function to submit data
   reset: () => void // Function to reset the submission state
 }
 
@@ -39,6 +45,7 @@ export function useFirestoreFormSubmit(formType: FormType): UseFirestoreFormSubm
   // State management for form submission status
   const [status, setStatus] = useState<FormStatus>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [submissionId, setSubmissionId] = useState<string | null>(null)
 
   // Derived state for easier consumption in components
   const isSubmitting = status === 'submitting'
@@ -72,10 +79,11 @@ export function useFirestoreFormSubmit(formType: FormType): UseFirestoreFormSubm
    *
    * @param data - The form data to submit (flexible object structure)
    */
-  const submitData = async (data: Record<string, unknown>) => {
+  const submitData = async (data: Record<string, unknown>): Promise<SubmitResult> => {
     // Set loading state and clear any previous errors
     setStatus('submitting')
     setError(null)
+    setSubmissionId(null)
 
     try {
       // Validate Firestore and auth initialization
@@ -108,7 +116,7 @@ export function useFirestoreFormSubmit(formType: FormType): UseFirestoreFormSubm
       }
 
       // Add a new document with the form data and metadata
-      await addDoc(colRef, {
+      const docRef = await addDoc(colRef, {
         // Store all form data in formData field
         formData: processedData,
         // Service area and form type metadata
@@ -129,12 +137,16 @@ export function useFirestoreFormSubmit(formType: FormType): UseFirestoreFormSubm
 
       // Mark submission as successful
       setStatus('success')
+      setSubmissionId(docRef.id)
+      return { success: true, submissionId: docRef.id }
     } catch (error) {
       // Handle any errors during submission
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.error('Error adding document: ', error)
       setError(errorMessage)
       setStatus('error')
+      setSubmissionId(null)
+      return { success: false, submissionId: null }
     }
   }
 
@@ -145,8 +157,9 @@ export function useFirestoreFormSubmit(formType: FormType): UseFirestoreFormSubm
   const reset = () => {
     setStatus('idle')
     setError(null)
+    setSubmissionId(null)
   }
 
   // Return the hook's interface for use in components
-  return { isSubmitting, error, success, submitData, reset }
+  return { isSubmitting, error, success, submissionId, submitData, reset }
 }
