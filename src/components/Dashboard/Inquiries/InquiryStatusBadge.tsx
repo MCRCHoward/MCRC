@@ -12,6 +12,7 @@ const statusConfig: Record<
   { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
 > = {
   submitted: { label: 'Submitted', variant: 'default' },
+  'intake-scheduled': { label: 'Intake Scheduled', variant: 'secondary' },
   scheduled: { label: 'Scheduled', variant: 'secondary' },
   'in-progress': { label: 'In Progress', variant: 'outline' },
   completed: { label: 'Completed', variant: 'default' },
