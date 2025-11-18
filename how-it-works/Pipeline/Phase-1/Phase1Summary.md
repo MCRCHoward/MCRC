@@ -189,6 +189,20 @@ So staff always know:
 
 ---
 
+### Step 7: Tasks stay organized with filters and sharing
+
+We also added new tools that make the Intake Coordinator’s task board easier to use:
+
+* There is now a **task list page** that shows open and recently finished tasks.
+* Staff can **search** their tasks or **filter** by service area, task type, or priority.
+* The filters now live in the page link (the URL). That means staff can **share a link** like `/dashboard/tasks?service=mediation&priority=high` and everyone will see the same filtered view.
+* A **sort button** lets them pick how the list is ordered, such as “Due soon,” “Priority high to low,” or “Most recently assigned.”
+* The main dashboard now has **quick stat cards** that show how many tasks are pending, how many new inquiries came in this week, and how many intakes got scheduled.
+
+These updates help the IC spot urgent work fast and keep teammates on the same page.
+
+---
+
 ## 6. What will come later (Future Phases)
 
 Future phases will build on this system to handle:

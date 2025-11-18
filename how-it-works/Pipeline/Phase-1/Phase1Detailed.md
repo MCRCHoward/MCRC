@@ -87,8 +87,8 @@ Full client-side experience for the Notifications drawer:
 ### 2.10 `src/app/(frontend)/(cms)/dashboard/layout.tsx` + supporting files
 Updated to pass `user.id` and `user.role` to `NavUser`, so the SideDrawer has context. The Phase 1 UI refresh also:
 
-- Adds a **My Tasks** nav entry (points to `/dashboard/tasks`) so ICs have a home for their queue.
-- Groups all service area inquiry links under a single “Service Areas” section (frees room in the sidebar as phases grow).
+- Adds a **My Tasks** nav entry and page header badge (with live count) so ICs can jump straight to their queue.
+- Groups all service area inquiry links under “Service Areas” so the sidebar stays compact as we layer in more case tooling.
 - Hides CMS-centric entries (Blog, Events, Newsletter, Donations, Roadmap) unless you’re an admin, keeping the coordinator view focused on case work.
 
 ### 2.11 Documentation Companion Files
@@ -165,3 +165,12 @@ If additional regions are introduced later, duplicate the Artifact Registry + Ev
 - `npm run deploy` → chains `lint → test → build → firebase deploy --only functions`
 
 Every Gen 2 deploy now fails fast if the TypeScript layer regresses, keeping Cloud Functions aligned with the monorepo’s stricter standards.
+
+---
+
+## 9. Task Board & Dashboard Iteration
+
+- **New `/dashboard/tasks` route** fetches pending + recently completed tasks server-side, then renders a client-side board with search, service area/type/priority filters, inline priority editing, and “mark done” actions.
+- **Filters are URL-aware** via `nuqs`, so ICs can share deep links such as `/dashboard/tasks?service=mediation&priority=high`. Search text syncs (debounced) to `?q=`, dropdowns to `?service`, `?type`, `?priority`, and the sort control to `?sort`.
+- **Sorting presets** keep the list actionable: we default to “Due date (soonest)” and let ICs toggle “Priority (High → Low)” or “Recently assigned”. Additional toggles (e.g., due-date ranges) can piggyback off the same query-state plumbing if staff requests it.
+- **Dashboard stats cards** now highlight intake health: “My Pending Tasks” (staff-only), “New Inquiries (7d)”, and “Intakes Scheduled (7d)” — all backed by Firestore snapshots so Phase 1 data surfaces immediately when staff lands on `/dashboard`.
