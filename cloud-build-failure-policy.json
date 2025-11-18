@@ -1,0 +1,28 @@
+{
+  "displayName": "Cloud Build Failure Alert",
+  "combiner": "OR",
+  "enabled": true,
+  "conditions": [
+    {
+      "displayName": "Cloud Build failure > 0",
+      "conditionThreshold": {
+        "filter": "resource.type=\"build\" AND metric.type=\"logging.googleapis.com/user/cloud_build_failures\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_DELTA"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "notificationChannels": [
+    "projects/mcrc-54adb/notificationChannels/3518902315284297647"
+  ]
+}
