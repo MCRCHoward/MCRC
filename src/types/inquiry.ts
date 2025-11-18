@@ -5,6 +5,7 @@ import type { ServiceArea } from '@/lib/service-area-config'
  */
 export type InquiryStatus =
   | 'submitted'
+  | 'intake-scheduled'
   | 'scheduled'
   | 'in-progress'
   | 'completed'
