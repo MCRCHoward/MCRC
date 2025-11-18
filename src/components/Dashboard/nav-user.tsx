@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -22,6 +23,7 @@ import { toast } from 'sonner'
 import { auth } from '@/firebase/client'
 import { signOut } from 'firebase/auth'
 import { useCmsTheme } from '@/providers/CmsTheme'
+import SideDrawer from '@/components/notifications/SideDrawer'
 
 function getInitials(name?: string) {
   if (!name) return 'U'
@@ -38,8 +40,10 @@ export function NavUser({
   user,
 }: {
   user: {
+    id: string
     name: string
     email: string
+    role?: string
     avatar?: string
   }
 }) {
@@ -129,10 +133,21 @@ export function NavUser({
                 {theme === 'light' ? <Moon /> : <Sun />}
                 {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Bell />
-                Notifications
-              </DropdownMenuItem>
+              <SideDrawer
+                userId={user.id}
+                renderTrigger={({ unreadCount }) => (
+                  <DropdownMenuItem
+                    onSelect={(event) => event.preventDefault()}
+                    className="cursor-pointer"
+                  >
+                    <Bell />
+                    Notifications
+                    {unreadCount > 0 && (
+                      <Badge className="ml-auto bg-primary/10 text-primary">{unreadCount}</Badge>
+                    )}
+                  </DropdownMenuItem>
+                )}
+              />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>

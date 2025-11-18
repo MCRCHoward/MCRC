@@ -5,17 +5,19 @@ import {
   Bot,
   BookOpen,
   Calendar,
+  CheckSquare,
   FileText,
   Frame,
   GalleryVerticalEnd,
   Handshake,
   Heart,
+  Layers,
   Map,
   Mail,
   PieChart,
+  PiggyBank,
   SquareTerminal,
   Users,
-  PiggyBank,
   type LucideIcon,
 } from 'lucide-react'
 import { ChevronRight } from 'lucide-react'
@@ -47,6 +49,8 @@ const iconMap: Record<string, LucideIcon> = {
   users: Users,
   handshake: Handshake,
   piggyBank: PiggyBank,
+  checkSquare: CheckSquare,
+  layers: Layers,
 }
 
 export function NavMain({
