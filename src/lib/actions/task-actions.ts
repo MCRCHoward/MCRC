@@ -2,7 +2,6 @@
 
 import { FieldValue } from 'firebase-admin/firestore'
 import { revalidatePath } from 'next/cache'
-import { revalidatePath } from 'next/cache'
 
 import { toISOString } from '@/app/(frontend)/(cms)/dashboard/utils/timestamp-helpers'
 import { adminDb } from '@/lib/firebase-admin'
