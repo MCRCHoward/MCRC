@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { format } from 'date-fns'
 import { CalendarIcon, Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 import { useFirestoreFormSubmit } from '@/hooks/useFirestoreFormSubmit'
 import {
@@ -109,6 +110,8 @@ export function MediationSelfReferralForm() {
   const [currentStep, setCurrentStep] = React.useState(0)
   const [hasInteractedWithStep4, setHasInteractedWithStep4] = React.useState(false)
   const formRef = React.useRef<HTMLFormElement>(null)
+  const router = useRouter()
+  const SERVICE_AREA = 'mediation'
 
   const {
     isSubmitting,
@@ -207,8 +210,12 @@ export function MediationSelfReferralForm() {
     })
     if (!okay) return
 
-    await submitData(data)
-    // The success state will trigger the "Thank You" view
+    const result = await submitData(data)
+    if (result.success && result.submissionId) {
+      router.push(
+        `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.submissionId}`,
+      )
+    }
   }
 
   // Handle resetting the form after successful submission

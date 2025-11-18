@@ -35,7 +35,7 @@ import { Progress } from '@/components/ui/progress'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 // ---------------- Schema & Types ----------------
 const trainingOptions = [
@@ -94,6 +94,8 @@ const STEP_FIELDS: Array<(keyof TrainingRequestValues)[]> = [
 export function CommunityEducationTrainingRequestForm() {
   const TOTAL_STEPS = STEP_TITLES.length
   const [currentStep, setCurrentStep] = React.useState(0)
+  const router = useRouter()
+  const SERVICE_AREA = 'facilitation'
 
   const {
     isSubmitting,
@@ -138,15 +140,13 @@ export function CommunityEducationTrainingRequestForm() {
     )
     if (!okay) return
 
-    await submitData(data)
-
-    setTimeout(() => {
-      if (form.formState.isSubmitSuccessful && !error) {
-        clearSavedData() // Clear auto-saved data on successful submission
-        toast.success("Thank you! Your training request was submitted. We'll follow up shortly.")
-        setCurrentStep(TOTAL_STEPS - 1)
-      }
-    }, 0)
+    const result = await submitData(data)
+    if (result.success && result.submissionId) {
+      clearSavedData()
+      router.push(
+        `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.submissionId}`,
+      )
+    }
   }
 
   const progressPct = ((currentStep + 1) / TOTAL_STEPS) * 100
