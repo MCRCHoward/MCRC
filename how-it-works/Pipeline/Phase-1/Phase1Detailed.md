@@ -25,16 +25,17 @@ Compiles the functions project with strict settings (`ES2021`, `CommonJS`, `root
 ### 2.3 `firebase-functions/src/index.ts`
 > The automation brain for Phase 1
 
+- **Gen 2 Migration:** Functions were migrated from Gen 1 (`firebase-functions/v1`) to Gen 2 (`firebase-functions/v2/firestore`) for improved scalability, better regional control, and alignment with Firebase's modern runtime. Global options are set via `setGlobalOptions({ region: 'us-central1', maxInstances: 20 })`.
 - Initializes Admin SDK (shared across all functions).
 - `getStaffUserIds()` scans `/users` for roles `admin` + `coordinator`.
 - `createAdminTask()` and `createAdminActivity()` fan out tasks/activity feed entries.
 - `onInquiryCreated` trigger (fires on `serviceAreas/{serviceId}/inquiries/{inquiryId}` `onCreate`):
   - Formats the participant name and service label.
-  - Creates a “New inquiry” task and corresponding activity notice for every staff member.
+  - Creates a "New inquiry" task and corresponding activity notice for every staff member.
 - `onInquiryUpdated` trigger (fires `onUpdate`):
   - Detects status change to `intake-scheduled`.
-  - Marks pending “new-inquiry” tasks as done.
-  - Creates a future-dated “Intake call with …” task.
+  - Marks pending "new-inquiry" tasks as done.
+  - Creates a future-dated "Intake call with …" task.
   - Posts an activity update quoting the participant name.
 
 ### 2.4 `src/lib/actions/calendly-actions.ts`
@@ -66,8 +67,9 @@ Client component that wraps Calendly’s inline widget script. It:
 Admin-only server actions for the dashboard UI (future phases) to read/update tasks:
 
 - `fetchTasks(userId, { status, limit })` – ensures requester is either the owner or an admin, returns serialized task models.
-- `markTaskComplete(userId, taskId)` – sets `status: 'done'` and `completedAt`.
-- `updateTaskPriority(userId, taskId, priority)` – lets staff re-triage tasks from the UI.
+- `markTaskComplete(userId, taskId)` – sets `status: 'done'` and `completedAt`, then revalidates `/dashboard/tasks` and `/dashboard` paths to refresh UI.
+- `updateTaskPriority(userId, taskId, priority)` – lets staff re-triage tasks from the UI, then revalidates `/dashboard/tasks` to refresh UI.
+- `getPendingTaskCount(userId)` – returns the count of pending tasks for a user, used by the dashboard stats card and header badge.
 
 ### 2.8 `src/lib/actions/activity-actions.ts`
 Mirrors the structure of `task-actions`, but for the activity feed:
@@ -88,10 +90,29 @@ Full client-side experience for the Notifications drawer:
 Updated to pass `user.id` and `user.role` to `NavUser`, so the SideDrawer has context. The Phase 1 UI refresh also:
 
 - Adds a **My Tasks** nav entry and page header badge (with live count) so ICs can jump straight to their queue.
-- Groups all service area inquiry links under “Service Areas” so the sidebar stays compact as we layer in more case tooling.
-- Hides CMS-centric entries (Blog, Events, Newsletter, Donations, Roadmap) unless you’re an admin, keeping the coordinator view focused on case work.
+- **Service Pipeline Structure:** Each service (Mediation, Facilitation, Restorative Practices) is now its own top-level sidebar item with five pipeline stages as sub-items:
+  - Overview (landing page for the service)
+  - Inquiries (existing inquiry management)
+  - Intake Queue (placeholder for Phase 2+)
+  - Scheduling (placeholder for Phase 2+)
+  - Activity Log (placeholder for Phase 2+)
+- Hides CMS-centric entries (Blog, Events, Newsletter, Donations, Roadmap) unless you're an admin, keeping the coordinator view focused on case work.
+- **Sidebar Header:** Replaced the TeamSwitcher dropdown with a direct link to `/dashboard`. The header subtitle dynamically displays the user's formatted role (e.g., "Intake Coordinator") when on `/dashboard`, and "Back to dashboard" on all other routes.
 
-### 2.11 Documentation Companion Files
+### 2.11 `src/components/Dashboard/ServicePipelinePlaceholder.tsx`
+Reusable placeholder component for pipeline stages that aren't yet implemented:
+
+- Accepts `serviceName`, `stageName`, and optional `description`/`children` props.
+- Renders a consistent "Coming soon" card with service-specific messaging.
+- Used across all three services for Intake Queue, Scheduling, and Activity Log pages until those workflows are built in future phases.
+
+### 2.12 `src/app/(frontend)/(cms)/layout.tsx` (CMS Root Layout)
+Parent layout that wraps all CMS routes:
+
+- Enforces authentication (redirects to `/login` if unauthenticated).
+- Wraps children with `NuqsAdapter` from `nuqs/adapters/next/app` to enable URL-aware query state hooks (`useQueryState`, `useQueryStates`) throughout the CMS section. This powers the task board's shareable filter URLs and other query-parameter-driven features.
+
+### 2.13 Documentation Companion Files
 - `how-it-works/masterList.md` – canonical overview + status table for the whole pipeline.
 - `how-it-works/Pipeline/Phase-1/Phase1Summary.md` – plain-language summary (5th-grade reading level).
 - `how-it-works/Pipeline/Phase-1/Phase1Detailed.md` (this file) – deep technical log.
@@ -106,6 +127,8 @@ Updated to pass `user.id` and `user.role` to `NavUser`, so the SideDrawer has co
 | **Thank You + Scheduling** | `src/app/(frontend)/(default)/getting-started/thank-you/page.tsx`, `src/lib/actions/calendly-actions.ts`, `src/components/CalendlyWidget.tsx` | The page calls the action, receives the Calendly URL, and hands it to the widget. If the action fails (settings missing, inquiry missing), the page shows a fallback message. |
 | **Automation (Tasks & Activity)** | `firebase-functions/src/index.ts`, `firebase-functions/package.json`, `firebase-functions/tsconfig.json` | When a document is created/updated, the functions run. They depend on the consistent Firestore schema set up by the hook/forms. The output is written to `users/{userId}/tasks` and `users/{userId}/activity`. |
 | **Dashboard Consumption** | `src/lib/actions/task-actions.ts`, `src/lib/actions/activity-actions.ts`, `src/components/notifications/SideDrawer.tsx`, `src/components/Dashboard/nav-user.tsx` | Server actions read/write the collections populated by the Cloud Functions. `NavUser` provides the authenticated `user.id`, and `SideDrawer` renders the data, letting staff acknowledge notifications. |
+| **Service Pipeline UI** | `src/app/(frontend)/(cms)/dashboard/layout.tsx`, `src/components/Dashboard/ServicePipelinePlaceholder.tsx`, service-specific pages under `/dashboard/{service}/{stage}/` | The layout defines the navigation structure (each service as a top-level item with pipeline stages as sub-items). Placeholder pages use the shared component to provide consistent "coming soon" experiences until future phases implement the workflows. |
+| **URL State Management** | `src/app/(frontend)/(cms)/layout.tsx` (NuqsAdapter), `nuqs` package, `use-debounce` package | `NuqsAdapter` enables URL-aware query state hooks throughout the CMS. The task board uses `useQueryState` for filters/search/sort, syncing to URL params so views are shareable. Debounced search input prevents excessive URL updates. |
 | **Docs** | `how-it-works/masterList.md`, `Phase1Summary.md`, `Phase1Detailed.md` | Provide stakeholder-friendly (summary) and engineer-friendly (detailed) descriptions of everything above, ensuring onboarding for future phases is trivial. |
 
 ---
@@ -113,9 +136,10 @@ Updated to pass `user.id` and `user.role` to `NavUser`, so the SideDrawer has co
 ## 4. Development & Deployment Checklist
 
 1. **Local install:** `pnpm install` (Node 20.11+ recommended).
-2. **Firebase Functions:** `cd firebase-functions && npm install && npm run build && firebase deploy --only functions`.
-3. **App build:** `pnpm build` (Next.js 15). Warnings for dynamic routes are expected due to authenticated dashboards.
-4. **Testing to run after deploy:**
+2. **Firestore indexes:** `firebase deploy --only firestore:indexes` (required before dashboard queries will work).
+3. **Firebase Functions:** `cd firebase-functions && npm install && npm run build && firebase deploy --only functions`.
+4. **App build:** `pnpm build` (Next.js 15). Warnings for dynamic routes are expected due to authenticated dashboards.
+5. **Testing to run after deploy:**
    - Submit each public form → verify a new document appears under the proper service area.
    - Confirm tasks/activity documents are created for admin + coordinator accounts.
    - Ensure `/getting-started/thank-you?serviceArea=...&inquiryId=...` loads and renders Calendly.
@@ -133,7 +157,18 @@ Phase 1 gives us the always-on foundation. Everything else (intake outcomes, par
 
 ---
 
-## 6. Cloud IAM Reference (Gen 2 Functions)
+## 6. Firestore Indexes
+
+Phase 1 queries require specific indexes to avoid `FAILED_PRECONDITION` errors. All indexes are defined in `firestore.indexes.json` and deployed via `firebase deploy --only firestore:indexes`:
+
+- **Tasks collection group index:** `status` (ASC) + `createdAt` (DESC) + `__name__` (DESC) — enables efficient filtering and sorting of user tasks by status and creation date.
+- **Inquiries collection group field override:** `submittedAt` with both ASC and DESC single-field indexes at `COLLECTION_GROUP` scope — required for the dashboard stats query that aggregates inquiries from the last 7 days across all service areas.
+
+The `fieldOverrides` section explicitly defines the `inquiries.submittedAt` indexes because Firestore requires explicit collection group indexes for queries that span multiple collections (e.g., `collectionGroup('inquiries').where('submittedAt', '>=', threshold)`).
+
+---
+
+## 7. Cloud IAM Reference (Gen 2 Functions)
 
 Keeping the Firebase Functions deploys healthy now requires a few extra service-account roles (due to Cloud Build, Artifact Registry, Eventarc, and Cloud Run). If someone rotates permissions, reapply this table.
 
@@ -148,7 +183,7 @@ If additional regions are introduced later, duplicate the Artifact Registry + Ev
 
 ---
 
-## 7. Observability & Alerts
+## 8. Observability & Alerts
 
 - **Log-based metric:** `logging.googleapis.com/user/cloud_build_failures` tracks build errors (`resource.type="build"` + `severity>=ERROR`).
 - **Notification channel:** email to `derrick@digitaldog.io` (Notification Channel ID `3518902315284297647`).
@@ -156,7 +191,7 @@ If additional regions are introduced later, duplicate the Artifact Registry + Ev
 
 ---
 
-## 8. CI Guard Rails for Functions
+## 9. CI Guard Rails for Functions
 
 `firebase-functions/package.json` now includes:
 
@@ -168,9 +203,24 @@ Every Gen 2 deploy now fails fast if the TypeScript layer regresses, keeping Clo
 
 ---
 
-## 9. Task Board & Dashboard Iteration
+## 10. Task Board & Dashboard Iteration
 
-- **New `/dashboard/tasks` route** fetches pending + recently completed tasks server-side, then renders a client-side board with search, service area/type/priority filters, inline priority editing, and “mark done” actions.
-- **Filters are URL-aware** via `nuqs`, so ICs can share deep links such as `/dashboard/tasks?service=mediation&priority=high`. Search text syncs (debounced) to `?q=`, dropdowns to `?service`, `?type`, `?priority`, and the sort control to `?sort`.
-- **Sorting presets** keep the list actionable: we default to “Due date (soonest)” and let ICs toggle “Priority (High → Low)” or “Recently assigned”. Additional toggles (e.g., due-date ranges) can piggyback off the same query-state plumbing if staff requests it.
-- **Dashboard stats cards** now highlight intake health: “My Pending Tasks” (staff-only), “New Inquiries (7d)”, and “Intakes Scheduled (7d)” — all backed by Firestore snapshots so Phase 1 data surfaces immediately when staff lands on `/dashboard`.
+- **New `/dashboard/tasks` route** fetches pending + recently completed tasks server-side, then renders a client-side board with search, service area/type/priority filters, inline priority editing, and "mark done" actions.
+- **Filters are URL-aware** via `nuqs`, so ICs can share deep links such as `/dashboard/tasks?service=mediation&priority=high`. Search text syncs (debounced via `use-debounce`) to `?q=`, dropdowns to `?service`, `?type`, `?priority`, and the sort control to `?sort`. The `NuqsAdapter` in the CMS root layout enables these hooks throughout the section.
+- **Sorting presets** keep the list actionable: we default to "Due date (soonest)" and let ICs toggle "Priority (High → Low)" or "Recently assigned". Additional toggles (e.g., due-date ranges) can piggyback off the same query-state plumbing if staff requests it.
+- **Dashboard stats cards** now highlight intake health: "My Pending Tasks" (staff-only, powered by `getPendingTaskCount()`), "New Inquiries (7d)", and "Intakes Scheduled (7d)" — all backed by Firestore snapshots so Phase 1 data surfaces immediately when staff lands on `/dashboard`.
+- **Task action revalidation:** `markTaskComplete` and `updateTaskPriority` call `revalidatePath('/dashboard/tasks')` and `revalidatePath('/dashboard')` to ensure the UI reflects changes immediately without manual refresh.
+
+---
+
+## 11. Service Pipeline Structure & Placeholder Pages
+
+Each service (Mediation, Facilitation, Restorative Practices) now has a dedicated navigation structure with five pipeline stages:
+
+1. **Overview** (`/dashboard/{service}`) – Landing page for the service, currently using `ServicePipelinePlaceholder` with service-specific messaging.
+2. **Inquiries** (`/dashboard/{service}/inquiries`) – Existing inquiry management tables (functional).
+3. **Intake Queue** (`/dashboard/{service}/intake`) – Placeholder page for Phase 2+ intake workflow.
+4. **Scheduling** (`/dashboard/{service}/scheduling`) – Placeholder page for Phase 2+ scheduling management.
+5. **Activity Log** (`/dashboard/{service}/activity`) – Placeholder page for Phase 2+ activity timeline.
+
+All placeholder pages use the shared `ServicePipelinePlaceholder` component for consistency. The navigation structure is defined in `src/app/(frontend)/(cms)/dashboard/layout.tsx` as `serviceNavItems`, which are spread into the main navigation array. This structure makes it clear where future pipeline features will live and provides a consistent UX pattern across all three services.

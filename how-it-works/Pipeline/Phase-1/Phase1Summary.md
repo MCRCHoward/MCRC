@@ -203,6 +203,28 @@ These updates help the IC spot urgent work fast and keep teammates on the same p
 
 ---
 
+### Step 8: Dashboard is organized by service type
+
+The staff dashboard (the main page where staff work) is now set up to show each type of service separately:
+
+* **Mediation** — has its own section
+* **Facilitation** — has its own section  
+* **Restorative Practices** — has its own section
+
+Each service section has five parts:
+
+1. **Overview** — a landing page for that service
+2. **Inquiries** — where staff can see all the people who asked for help (this is working now)
+3. **Intake Queue** — where staff will manage intake calls (coming in future phases)
+4. **Scheduling** — where staff will manage appointments (coming in future phases)
+5. **Activity Log** — where staff will see a timeline of what happened (coming in future phases)
+
+Right now, only the **Inquiries** part is fully built. The other four parts show a "coming soon" message. This way, staff know where everything will be when we build those features later.
+
+The dashboard also shows each staff member's **role** (like "Intake Coordinator" or "Admin") at the top, so it's clear who is logged in.
+
+---
+
 ## 6. What will come later (Future Phases)
 
 Future phases will build on this system to handle:
