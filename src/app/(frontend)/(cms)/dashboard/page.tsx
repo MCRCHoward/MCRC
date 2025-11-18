@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Timestamp } from 'firebase-admin/firestore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -122,18 +123,38 @@ function formatDate(dateString?: string) {
 }
 
 async function getInquiryStats() {
+  console.log('[getInquiryStats] Starting aggregation')
   try {
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    const snapshot = await adminDb
-      .collectionGroup('inquiries')
-      .where('submittedAt', '>=', weekAgo)
-      .get()
+    const threshold = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+    console.log('[getInquiryStats] Threshold calculated', {
+      thresholdIso: threshold.toDate().toISOString(),
+      timestampSeconds: threshold.seconds,
+    })
 
+    const query = adminDb.collectionGroup('inquiries').where('submittedAt', '>=', threshold)
+    console.log('[getInquiryStats] Query definition', {
+      collectionGroup: 'inquiries',
+      filters: [{ field: 'submittedAt', op: '>=', value: threshold.toDate().toISOString() }],
+    })
+
+    const snapshot = await query.get()
+    console.log('[getInquiryStats] Query completed', {
+      documentCount: snapshot.size,
+      readTime: snapshot.readTime.toDate().toISOString(),
+    })
+
+    const statusCounts = new Map<string, number>()
     let scheduled = 0
     snapshot.forEach((doc) => {
-      if ((doc.get('status') as string) === 'intake-scheduled') {
+      const status = (doc.get('status') as string | undefined) ?? 'missing'
+      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1)
+      if (status === 'intake-scheduled') {
         scheduled += 1
       }
+    })
+    console.log('[getInquiryStats] Aggregation complete', {
+      scheduledIntakes: scheduled,
+      statusCounts: Object.fromEntries(statusCounts.entries()),
     })
 
     return {
@@ -141,7 +162,12 @@ async function getInquiryStats() {
       scheduledIntakes: scheduled,
     }
   } catch (error) {
-    console.error('[getInquiryStats] Error:', error)
+    console.error('[getInquiryStats] Error captured', {
+      message: (error as Error).message,
+      code: (error as { code?: string }).code,
+      details: (error as { details?: string }).details,
+      stack: (error as Error).stack,
+    })
     return { newInquiries: 0, scheduledIntakes: 0 }
   }
 }
@@ -153,10 +179,32 @@ export default async function DashboardPage() {
   const user = await getCurrentUser()
   const isStaffUser = isStaff(user?.role)
   const [recentPosts, upcomingEvents, inquiryStats, pendingTaskCount] = await Promise.all([
-    getRecentPosts(),
-    getUpcomingEvents(),
-    getInquiryStats(),
-    isStaffUser && user ? getPendingTaskCount(user.id) : Promise.resolve(undefined),
+    (async () => {
+      console.log('[DashboardPage] Fetching recent posts')
+      const posts = await getRecentPosts()
+      console.log('[DashboardPage] Recent posts resolved', { count: posts.length })
+      return posts
+    })(),
+    (async () => {
+      console.log('[DashboardPage] Fetching upcoming events')
+      const events = await getUpcomingEvents()
+      console.log('[DashboardPage] Upcoming events resolved', { count: events.length })
+      return events
+    })(),
+    (async () => {
+      console.log('[DashboardPage] Fetching inquiry stats')
+      const stats = await getInquiryStats()
+      console.log('[DashboardPage] Inquiry stats resolved', stats)
+      return stats
+    })(),
+    isStaffUser && user
+      ? (async () => {
+          console.log('[DashboardPage] Fetching pending task count', { userId: user.id })
+          const count = await getPendingTaskCount(user.id)
+          console.log('[DashboardPage] Pending task count resolved', { userId: user.id, count })
+          return count
+        })()
+      : Promise.resolve(undefined),
   ])
 
   console.log(`[DASHBOARD] All data fetched: ${(performance.now() - pageStartTime).toFixed(2)}ms`)

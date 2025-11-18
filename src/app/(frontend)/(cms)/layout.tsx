@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { getCurrentUser } from '@/lib/custom-auth'
 
 /**
@@ -19,5 +20,5 @@ export default async function CmsLayout({ children }: { children: ReactNode }) {
   }
 
   // Render the dashboard (all authenticated users can access)
-  return <>{children}</>
+  return <NuqsAdapter>{children}</NuqsAdapter>
 }

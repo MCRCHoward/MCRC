@@ -37,16 +37,44 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   const isStaffUser = isStaff(user?.role)
   const pendingTaskCount = isStaffUser && user ? await getPendingTaskCount(user.id) : undefined
 
-  const serviceAreaNav: SidebarNavItem = {
-    title: 'Service Areas',
-    url: '/dashboard/mediation/inquiries',
-    iconKey: 'layers',
-    items: [
-      { title: 'Mediation', url: '/dashboard/mediation/inquiries' },
-      { title: 'Facilitation', url: '/dashboard/facilitation/inquiries' },
-      { title: 'Restorative Practices', url: '/dashboard/restorative-practices/inquiries' },
-    ],
-  }
+  const serviceNavItems: SidebarNavItem[] = [
+    {
+      title: 'Mediation',
+      url: '/dashboard/mediation',
+      iconKey: 'handshake',
+      items: [
+        { title: 'Overview', url: '/dashboard/mediation' },
+        { title: 'Inquiries', url: '/dashboard/mediation/inquiries' },
+        { title: 'Intake Queue', url: '/dashboard/mediation/intake' },
+        { title: 'Scheduling', url: '/dashboard/mediation/scheduling' },
+        { title: 'Activity Log', url: '/dashboard/mediation/activity' },
+      ],
+    },
+    {
+      title: 'Facilitation',
+      url: '/dashboard/facilitation',
+      iconKey: 'layers',
+      items: [
+        { title: 'Overview', url: '/dashboard/facilitation' },
+        { title: 'Inquiries', url: '/dashboard/facilitation/inquiries' },
+        { title: 'Intake Queue', url: '/dashboard/facilitation/intake' },
+        { title: 'Scheduling', url: '/dashboard/facilitation/scheduling' },
+        { title: 'Activity Log', url: '/dashboard/facilitation/activity' },
+      ],
+    },
+    {
+      title: 'Restorative Practices',
+      url: '/dashboard/restorative-practices',
+      iconKey: 'heart',
+      items: [
+        { title: 'Overview', url: '/dashboard/restorative-practices' },
+        { title: 'Inquiries', url: '/dashboard/restorative-practices/inquiries' },
+        { title: 'Intake Queue', url: '/dashboard/restorative-practices/intake' },
+        { title: 'Scheduling', url: '/dashboard/restorative-practices/scheduling' },
+        { title: 'Activity Log', url: '/dashboard/restorative-practices/activity' },
+      ],
+    },
+  ]
 
   const cmsNavItems: SidebarNavItem[] = [
     {
@@ -105,7 +133,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           },
         ]
       : []),
-    serviceAreaNav,
+    ...serviceNavItems,
     ...(isAdmin ? cmsNavItems : []),
     ...(isStaffUser
       ? [
