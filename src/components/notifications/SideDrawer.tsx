@@ -1,11 +1,12 @@
-import type { ReactNode } from 'react'
+'use client'
 
-import { ImageIcon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { Loader2, CheckCircle2, Bell, RefreshCcw, Inbox } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Sheet,
   SheetContent,
@@ -14,166 +15,161 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import Image from 'next/image'
+import type { ActivityItem } from '@/types/activity'
+import {
+  fetchActivity,
+  markActivityRead,
+  markAllActivityRead,
+} from '@/lib/actions/activity-actions'
+import { cn } from '@/lib/utils'
 
-type Props = {
-  trigger: ReactNode
+interface SideDrawerProps {
+  userId: string
   defaultOpen?: boolean
+  renderTrigger: (context: { unreadCount: number }) => React.ReactNode
 }
 
-const SideDrawer = ({ defaultOpen = false, trigger }: Props) => {
+const listItemBase =
+  'flex w-full items-start gap-3 rounded-lg border border-transparent p-3 text-left transition hover:border-border hover:bg-muted'
+
+export function SideDrawer({ userId, defaultOpen = false, renderTrigger }: SideDrawerProps) {
+  const router = useRouter()
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+  const [activity, setActivity] = useState<ActivityItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isPending, startTransition] = useTransition()
+
+  const loadActivity = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const items = await fetchActivity(userId, { limit: 25 })
+      setActivity(items)
+    } catch (error) {
+      console.error('[SideDrawer] Failed to load activity', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    void loadActivity()
+  }, [loadActivity])
+
+  const unreadCount = useMemo(() => activity.filter((item) => !item.read).length, [activity])
+
+  const handleRefresh = () => {
+    startTransition(() => {
+      void loadActivity()
+    })
+  }
+
+  const handleMarkAll = () => {
+    startTransition(async () => {
+      try {
+        await markAllActivityRead(userId)
+        await loadActivity()
+      } catch (error) {
+        console.error('[SideDrawer] Failed to mark activity read', error)
+      }
+    })
+  }
+
+  const handleItemClick = async (item: ActivityItem) => {
+    try {
+      if (!item.read) {
+        await markActivityRead(userId, item.id)
+        setActivity((prev) =>
+          prev.map((row) => (row.id === item.id ? { ...row, read: true } : row)),
+        )
+      }
+      setIsOpen(false)
+      if (item.link) {
+        router.push(item.link)
+      }
+    } catch (error) {
+      console.error('[SideDrawer] Failed to update activity item', error)
+    }
+  }
+
   return (
-    <Sheet defaultOpen={defaultOpen}>
-      <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent className="gap-0 sm:max-w-112 [&>button]:top-2.75 [&>button>svg]:size-5">
-        <SheetHeader className="border-b py-2.25">
-          <SheetTitle className="text-lg leading-6">Activity</SheetTitle>
+    <Sheet open={isOpen} onOpenChange={setIsOpen} defaultOpen={defaultOpen}>
+      <SheetTrigger asChild>{renderTrigger({ unreadCount })}</SheetTrigger>
+      <SheetContent className="flex flex-col gap-0 sm:max-w-112">
+        <SheetHeader className="border-b py-2">
+          <SheetTitle className="flex items-center gap-2 text-lg">
+            <Bell className="h-4 w-4" /> Notifications
+            {unreadCount > 0 && (
+              <Badge className="ml-2 bg-primary/10 text-primary">{unreadCount}</Badge>
+            )}
+          </SheetTitle>
           <SheetDescription hidden />
         </SheetHeader>
 
-        <div className="overflow-y-auto">
-          <div className="flex gap-4 px-4 py-3">
-            <Avatar>
-              <AvatarImage src="https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-1.png" />
-              <AvatarFallback>JL</AvatarFallback>
-            </Avatar>
-            <div className="flex w-full flex-col items-start gap-2.5">
-              <div className="text-muted-foreground flex flex-col items-start text-sm">
-                <p>
-                  <span className="text-foreground font-semibold">Joe Lincoln</span> mentioned you
-                  in last trends topic
-                </p>
-                <p>18 mins ago</p>
+        <div className="flex items-center justify-between border-b px-4 py-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            {(isLoading || isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
+            <span>{isLoading ? 'Loading activity...' : 'Latest updates from the intake team'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleRefresh}>
+              <RefreshCcw className="h-4 w-4" />
+              <span className="sr-only">Refresh</span>
+            </Button>
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={handleMarkAll}>
+                Mark all read
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="space-y-4 px-4 py-6 text-sm text-muted-foreground">
+              <p>Fetching your latest activity...</p>
+            </div>
+          ) : activity.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 px-4 py-16 text-center text-muted-foreground">
+              <Inbox className="h-10 w-10" />
+              <div>
+                <p className="font-medium text-foreground">You&apos;re all caught up</p>
+                <p className="text-sm">New intake tasks and updates will appear here.</p>
               </div>
-              <div className="bg-muted flex flex-col gap-4 rounded-md border px-4 py-2.5">
-                <p className="text-sm font-medium">
-                  @ShadcnStudio For an expert opinion, check out what Mike has to say on this topic!
-                </p>
-                <div className="relative">
-                  <Input placeholder="Reply" className="peer bg-card pr-9" />
-                  <div className="text-muted-foreground pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center pr-3 peer-disabled:opacity-50">
-                    <ImageIcon className="size-4" />
-                    <span className="sr-only">Email</span>
+            </div>
+          ) : (
+            <div className="space-y-2 px-4 py-4">
+              {activity.map((item) => (
+                <button
+                  key={item.id}
+                  className={cn(listItemBase, item.read ? 'bg-transparent' : 'bg-primary/5')}
+                  type="button"
+                  onClick={() => void handleItemClick(item)}
+                >
+                  <div className="mt-1">
+                    {item.read ? (
+                      <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <Badge className="bg-primary/80 text-white">New</Badge>
+                    )}
                   </div>
-                </div>
-              </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-foreground">{item.message}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(item.createdAt).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                    </p>
+                  </div>
+                </button>
+              ))}
             </div>
-          </div>
+          )}
+        </div>
 
-          <Separator />
-
-          <div className="flex gap-4 px-4 py-3">
-            <Avatar>
-              <AvatarImage src="https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-2.png" />
-              <AvatarFallback>JP</AvatarFallback>
-            </Avatar>
-            <div className="flex w-full flex-col items-start gap-2.5">
-              <div className="text-muted-foreground flex flex-col items-start text-sm">
-                <p>
-                  <span className="text-foreground font-semibold">Jane Perez</span> invites you to
-                  review a file
-                </p>
-                <p>39 mins ago</p>
-              </div>
-              <div className="bg-muted flex items-center gap-1 rounded-md px-1.5 py-1">
-                <Image
-                  src="https://cdn.shadcnstudio.com/ss-assets/blocks/dashboard-application/dashboard-dialog/image-14.png"
-                  width={20}
-                  height={20}
-                  className="h-5"
-                  alt=""
-                />
-                <span className="text-sm font-medium">invoices.pdf</span>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="flex gap-4 px-4 py-3">
-            <Avatar>
-              <AvatarImage src="https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-3.png" />
-              <AvatarFallback>TH</AvatarFallback>
-            </Avatar>
-            <div className="flex w-full flex-col items-start gap-2.5">
-              <div className="text-muted-foreground flex flex-col items-start text-sm">
-                <p>
-                  <span className="text-foreground font-semibold">Tyler Hero</span> wants to view
-                  your design project
-                </p>
-                <p>1 hour ago</p>
-              </div>
-              <div className="bg-muted flex w-full items-center gap-4 rounded-md border px-4 py-2.5">
-                <Image
-                  src="https://cdn.shadcnstudio.com/ss-assets/blocks/dashboard-application/dashboard-dialog/image-13.png"
-                  width={32}
-                  height={32}
-                  alt=""
-                  className="size-8 rounded-sm"
-                />
-                <span className="text-sm font-medium">Launcher-Uikit.fig</span>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="flex gap-4 px-4 py-3">
-            <Avatar>
-              <AvatarImage src="https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-5.png" />
-              <AvatarFallback>D</AvatarFallback>
-            </Avatar>
-            <div className="text-muted-foreground flex flex-col items-start text-sm">
-              <p>
-                <span className="text-foreground font-semibold">Denial</span> invites you to review
-                the new design
-              </p>
-              <p>3 hours ago</p>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="flex gap-4 px-4 py-3">
-            <Avatar>
-              <AvatarImage src="https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-6.png" />
-              <AvatarFallback>LA</AvatarFallback>
-            </Avatar>
-            <div className="flex w-full flex-col items-start gap-2.5">
-              <div className="text-muted-foreground flex flex-col items-start text-sm">
-                <p>
-                  <span className="text-foreground font-semibold">Leslie Alexander</span> new tags
-                  to Web Redesign
-                </p>
-                <p>8 hours ago</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-primary/10 text-primary font-normal">Client-Request</Badge>
-                <Badge className="bg-sky-600/10 font-normal text-sky-600 dark:bg-sky-400/10 dark:text-sky-400">
-                  Figma
-                </Badge>
-                <Badge className="bg-amber-600/10 font-normal text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
-                  Redesign
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="flex gap-4 px-4 py-3">
-            <Avatar>
-              <AvatarImage src="https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-8.png" />
-              <AvatarFallback>M</AvatarFallback>
-            </Avatar>
-            <div className="text-muted-foreground flex flex-col items-start text-sm">
-              <p>
-                <span className="text-foreground font-semibold">Miya</span> invites you to review a
-                file
-              </p>
-              <p>10 hours ago</p>
-            </div>
-          </div>
+        <Separator />
+        <div className="px-4 py-3 text-xs text-muted-foreground">
+          Notifications are generated automatically from intake tasks and scheduling activity.
         </div>
       </SheetContent>
     </Sheet>
