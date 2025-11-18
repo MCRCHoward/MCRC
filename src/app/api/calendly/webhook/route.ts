@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
+import { FieldPath } from 'firebase-admin/firestore'
+
 import { getCalendlyCredentials } from '@/lib/calendly-config'
 import type { CalendlyWebhookPayload } from '@/types/calendly'
+import { adminDb } from '@/lib/firebase-admin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,6 +26,56 @@ function verifyWebhookSignature(
     console.error('[CalendlyWebhook] Signature verification error:', error)
     return false
   }
+}
+
+async function findInquiryDocument(inquiryId: string) {
+  const snapshot = await adminDb
+    .collectionGroup('inquiries')
+    .where(FieldPath.documentId(), '==', inquiryId)
+    .limit(1)
+    .get()
+
+  if (snapshot.empty) {
+    return null
+  }
+
+  return snapshot.docs[0]
+}
+
+function extractScheduledTime(payload: CalendlyWebhookPayload): string | undefined {
+  const scheduledEvent = (payload.payload as { scheduled_event?: { start_time?: string } })
+    .scheduled_event
+  return scheduledEvent?.start_time ?? payload.created_at
+}
+
+async function handleInviteeCreated(payload: CalendlyWebhookPayload) {
+  const inquiryId = payload.payload.tracking?.salesforce_uuid
+  if (!inquiryId) {
+    console.warn('[CalendlyWebhook] invitee.created missing salesforce_uuid')
+    return
+  }
+
+  const inquiryDoc = await findInquiryDocument(inquiryId)
+  if (!inquiryDoc) {
+    console.warn('[CalendlyWebhook] Inquiry not found for invitee.created', { inquiryId })
+    return
+  }
+
+  const scheduledTime = extractScheduledTime(payload)
+  await inquiryDoc.ref.update({
+    status: 'intake-scheduled',
+    calendlyScheduling: {
+      eventUri: payload.payload.event,
+      inviteeUri: payload.payload.invitee,
+      scheduledTime,
+    },
+  })
+
+  console.log('[CalendlyWebhook] Updated inquiry with scheduling info', {
+    inquiryId,
+    serviceArea: inquiryDoc.get('serviceArea'),
+    scheduledTime,
+  })
 }
 
 /**
@@ -70,16 +123,7 @@ export async function POST(request: NextRequest) {
     // Handle different event types
     switch (payload.event) {
       case 'invitee.created': {
-        // TODO: Implement invitee.created handling
-        // 1. Extract inquiry ID from tracking.salesforce_uuid
-        // 2. Find inquiry document in Firestore
-        // 3. Update inquiry with:
-        //    - calendlyScheduling.eventUri
-        //    - calendlyScheduling.inviteeUri
-        //    - calendlyScheduling.scheduledTime (from event)
-        //    - status: 'scheduled'
-        console.log('[CalendlyWebhook] invitee.created - TODO: Update inquiry record')
-        console.log('[CalendlyWebhook] Payload:', JSON.stringify(payload, null, 2))
+        await handleInviteeCreated(payload)
         break
       }
 
