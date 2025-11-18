@@ -59,6 +59,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@react-email/components": "^0.5.7",
+    "@tanstack/react-table": "^8.21.3",
     "@tiptap/core": "^2.26.1",
     "@tiptap/extension-character-count": "^2.26.1",
     "@tiptap/extension-code-block-lowlight": "^2.26.1",
@@ -114,6 +115,7 @@
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "tippy.js": "^6.3.7",
+    "use-debounce": "^10.0.6",
     "zod": "^3.25.40"
   },
   "devDependencies": {
