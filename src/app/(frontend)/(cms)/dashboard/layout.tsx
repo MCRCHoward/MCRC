@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/custom-auth'
 import { CmsThemeProvider } from '@/providers/CmsTheme'
 import { DashboardLayoutContent } from './DashboardLayoutContent'
 import { isStaff } from '@/lib/user-roles'
+import { getPendingTaskCount } from '@/lib/actions/task-actions'
 import './cms-theme.css'
 
 // Server-side rendering configuration
@@ -25,17 +26,33 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   // User is guaranteed to exist due to parent layout auth check
   const sidebarUser = {
+    id: user?.id ?? 'anonymous',
     name: user?.name ?? 'Staff User',
     email: user?.email ?? 'staff@example.com',
+    role: user?.role ?? 'participant',
     avatar: undefined as string | undefined,
   }
 
-  const navMain: SidebarNavItem[] = [
+  const isAdmin = user?.role === 'admin'
+  const isStaffUser = isStaff(user?.role)
+  const pendingTaskCount = isStaffUser && user ? await getPendingTaskCount(user.id) : undefined
+
+  const serviceAreaNav: SidebarNavItem = {
+    title: 'Service Areas',
+    url: '/dashboard/mediation/inquiries',
+    iconKey: 'layers',
+    items: [
+      { title: 'Mediation', url: '/dashboard/mediation/inquiries' },
+      { title: 'Facilitation', url: '/dashboard/facilitation/inquiries' },
+      { title: 'Restorative Practices', url: '/dashboard/restorative-practices/inquiries' },
+    ],
+  }
+
+  const cmsNavItems: SidebarNavItem[] = [
     {
       title: 'Blog Posts',
       url: '/dashboard/blog',
       iconKey: 'squareTerminal',
-      isActive: true,
       items: [
         { title: 'New Blog Post', url: '/dashboard/blog/new' },
         { title: 'All Blog Posts', url: '/dashboard/blog' },
@@ -67,24 +84,6 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       items: [{ title: 'All Subscribers', url: '/dashboard/newsletter' }],
     },
     {
-      title: 'Mediation',
-      url: '/dashboard/mediation/inquiries',
-      iconKey: 'handshake',
-      items: [{ title: 'Inquiries', url: '/dashboard/mediation/inquiries' }],
-    },
-    {
-      title: 'Facilitation',
-      url: '/dashboard/facilitation/inquiries',
-      iconKey: 'users',
-      items: [{ title: 'Inquiries', url: '/dashboard/facilitation/inquiries' }],
-    },
-    {
-      title: 'Restorative Practices',
-      url: '/dashboard/restorative-practices/inquiries',
-      iconKey: 'heart',
-      items: [{ title: 'Inquiries', url: '/dashboard/restorative-practices/inquiries' }],
-    },
-    {
       title: 'Developer Roadmap',
       url: '/dashboard/roadmap',
       iconKey: 'map',
@@ -93,8 +92,22 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         { title: 'Completed', url: '/dashboard/roadmap/completed' },
       ],
     },
-    // Only show Users section to admins and coordinators
-    ...(isStaff(user?.role)
+  ]
+
+  const navMain: SidebarNavItem[] = [
+    ...(isStaffUser
+      ? [
+          {
+            title: 'My Tasks',
+            url: '/dashboard/tasks',
+            iconKey: 'checkSquare',
+            items: [{ title: 'My Queue', url: '/dashboard/tasks' }],
+          },
+        ]
+      : []),
+    serviceAreaNav,
+    ...(isAdmin ? cmsNavItems : []),
+    ...(isStaffUser
       ? [
           {
             title: 'Users',
@@ -104,8 +117,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           },
         ]
       : []),
-    // Settings section (admin only)
-    ...(user?.role === 'admin'
+    ...(isAdmin
       ? [
           {
             title: 'Settings',
@@ -123,7 +135,12 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   return (
     <CmsThemeProvider>
-      <DashboardLayoutContent sidebarUser={sidebarUser} navMain={navMain} teams={teams}>
+      <DashboardLayoutContent
+        sidebarUser={sidebarUser}
+        navMain={navMain}
+        teams={teams}
+        pendingTaskCount={pendingTaskCount}
+      >
         {children}
       </DashboardLayoutContent>
     </CmsThemeProvider>

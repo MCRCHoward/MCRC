@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, type ReactNode } from 'react'
+
 import { Separator } from '@/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import {
@@ -10,16 +12,21 @@ import {
 } from '@/components/Dashboard/app-sidebar'
 import DashboardBreadcrumbs from '@/components/Dashboard/dashboard-breadcrumbs'
 import { useCmsTheme } from '@/providers/CmsTheme'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 interface DashboardLayoutContentProps {
   children: ReactNode
   sidebarUser: {
+    id: string
     name: string
     email: string
+    role?: string
     avatar?: string
   }
   navMain: SidebarNavItem[]
   teams: SidebarTeam[]
+  pendingTaskCount?: number
 }
 
 export function DashboardLayoutContent({
@@ -27,6 +34,7 @@ export function DashboardLayoutContent({
   sidebarUser,
   navMain,
   teams,
+  pendingTaskCount,
 }: DashboardLayoutContentProps) {
   const { theme } = useCmsTheme()
 
@@ -50,6 +58,21 @@ export function DashboardLayoutContent({
               <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
               {/* Dynamic breadcrumbs */}
               <DashboardBreadcrumbs />
+            </div>
+            <div className="ml-auto flex items-center gap-2 px-4">
+              {typeof pendingTaskCount === 'number' && typeof pendingTaskCount !== 'undefined' && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/dashboard/tasks" className="flex items-center gap-2">
+                    My Tasks
+                    <Badge
+                      variant={pendingTaskCount > 0 ? 'default' : 'secondary'}
+                      className="min-w-[2rem] justify-center"
+                    >
+                      {pendingTaskCount}
+                    </Badge>
+                  </Link>
+                </Button>
+              )}
             </div>
           </header>
 

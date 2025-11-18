@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button'
 import { adminDb } from '@/lib/firebase-admin'
 import type { Event, Post } from '@/types'
 import { toISOString, toDate } from './utils/timestamp-helpers'
+import { getCurrentUser } from '@/lib/custom-auth'
+import { getPendingTaskCount } from '@/lib/actions/task-actions'
+import { isStaff } from '@/lib/user-roles'
 
 // Server-side rendering configuration
 export const runtime = 'nodejs'
@@ -118,19 +121,87 @@ function formatDate(dateString?: string) {
   })
 }
 
+async function getInquiryStats() {
+  try {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const snapshot = await adminDb
+      .collectionGroup('inquiries')
+      .where('submittedAt', '>=', weekAgo)
+      .get()
+
+    let scheduled = 0
+    snapshot.forEach((doc) => {
+      if ((doc.get('status') as string) === 'intake-scheduled') {
+        scheduled += 1
+      }
+    })
+
+    return {
+      newInquiries: snapshot.size,
+      scheduledIntakes: scheduled,
+    }
+  } catch (error) {
+    console.error('[getInquiryStats] Error:', error)
+    return { newInquiries: 0, scheduledIntakes: 0 }
+  }
+}
+
 export default async function DashboardPage() {
   const pageStartTime = performance.now()
   console.log('[DASHBOARD] Page rendering started')
 
-  const [recentPosts, upcomingEvents] = await Promise.all([getRecentPosts(), getUpcomingEvents()])
+  const user = await getCurrentUser()
+  const isStaffUser = isStaff(user?.role)
+  const [recentPosts, upcomingEvents, inquiryStats, pendingTaskCount] = await Promise.all([
+    getRecentPosts(),
+    getUpcomingEvents(),
+    getInquiryStats(),
+    isStaffUser && user ? getPendingTaskCount(user.id) : Promise.resolve(undefined),
+  ])
 
   console.log(`[DASHBOARD] All data fetched: ${(performance.now() - pageStartTime).toFixed(2)}ms`)
 
   return (
     <>
-      {/* Quick tiles */}
-      <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-        {/* ... your quick cards (Manage Events, Manage Blog Posts, etc.) ... */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {isStaffUser && typeof pendingTaskCount === 'number' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Tasks</CardTitle>
+              <CardDescription>Work items assigned to you</CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <span className="text-3xl font-semibold">{pendingTaskCount}</span>
+              <Button asChild variant="outline">
+                <Link href="/dashboard/tasks">View tasks</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        <Card>
+          <CardHeader>
+            <CardTitle>New Inquiries (7d)</CardTitle>
+            <CardDescription>Submissions across all service areas</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <span className="text-3xl font-semibold">{inquiryStats.newInquiries}</span>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/mediation/inquiries">View inquiries</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Intakes Scheduled (7d)</CardTitle>
+            <CardDescription>Cases moved to intake-scheduled</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <span className="text-3xl font-semibold">{inquiryStats.scheduledIntakes}</span>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/tasks">Jump to tasks</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Recent activity */}
