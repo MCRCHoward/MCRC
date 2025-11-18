@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { useDebouncedCallback } from 'use-debounce'
 import { Check, Search } from 'lucide-react'
+import { parseAsString, useQueryState } from 'nuqs'
 
 import type { Task, TaskPriority } from '@/types/task'
 import { markTaskComplete, updateTaskPriority } from '@/lib/actions/task-actions'
@@ -36,18 +38,40 @@ function formatDate(value?: string | null) {
 }
 
 const priorityOptions: TaskPriority[] = ['low', 'medium', 'high']
+const sortOptionConfig = [
+  { value: 'dueSoon', label: 'Due date (soonest)' },
+  { value: 'priorityHigh', label: 'Priority (High → Low)' },
+  { value: 'recentlyAssigned', label: 'Recently assigned' },
+] as const
+type SortOption = (typeof sortOptionConfig)[number]['value']
 
 export function TasksTable({ tasks, userId }: { tasks: Task[]; userId: string }) {
   const [taskList, setTaskList] = useState<Task[]>(tasks)
   const [isPending, startTransition] = useTransition()
-  const [search, setSearch] = useState('')
-  const [serviceFilter, setServiceFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('all')
-  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useQueryState('q', parseAsString)
+  const [serviceQuery, setServiceQuery] = useQueryState('service', parseAsString)
+  const [typeQuery, setTypeQuery] = useQueryState('type', parseAsString)
+  const [priorityQuery, setPriorityQuery] = useQueryState('priority', parseAsString)
+  const [sortQuery, setSortQuery] = useQueryState('sort', parseAsString)
+  const [searchInput, setSearchInput] = useState(searchQuery ?? '')
+  const serviceFilter = serviceQuery ?? 'all'
+  const typeFilter = typeQuery ?? 'all'
+  const priorityFilter = priorityQuery ?? 'all'
+  const sortOption = useMemo<SortOption>(() => {
+    const match = sortOptionConfig.find((option) => option.value === sortQuery)
+    return match ? match.value : 'dueSoon'
+  }, [sortQuery])
+  const syncSearchQuery = useDebouncedCallback((value: string) => {
+    void setSearchQuery(value.length ? value : null)
+  }, 300)
 
   useEffect(() => {
     setTaskList(tasks)
   }, [tasks])
+
+  useEffect(() => {
+    setSearchInput(searchQuery ?? '')
+  }, [searchQuery])
 
   const hasTasks = taskList.length > 0
 
@@ -62,7 +86,7 @@ export function TasksTable({ tasks, userId }: { tasks: Task[]; userId: string })
   }, [taskList])
 
   const filteredTasks = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const query = searchInput.trim().toLowerCase()
 
     return taskList.filter((task) => {
       const matchesSearch =
@@ -74,7 +98,31 @@ export function TasksTable({ tasks, userId }: { tasks: Task[]; userId: string })
       const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter
       return matchesSearch && matchesService && matchesType && matchesPriority
     })
-  }, [taskList, search, serviceFilter, typeFilter, priorityFilter])
+  }, [taskList, searchInput, serviceFilter, typeFilter, priorityFilter])
+
+  const sortedTasks = useMemo(() => {
+    const items = [...filteredTasks]
+    const priorityRank: Record<TaskPriority, number> = { high: 3, medium: 2, low: 1 }
+    const toTime = (value?: string | null) => {
+      if (!value) return Number.POSITIVE_INFINITY
+      const timestamp = new Date(value).getTime()
+      return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp
+    }
+
+    items.sort((a, b) => {
+      if (sortOption === 'priorityHigh') {
+        return priorityRank[b.priority] - priorityRank[a.priority]
+      }
+
+      if (sortOption === 'recentlyAssigned') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      }
+
+      return toTime(a.due) - toTime(b.due)
+    })
+
+    return items
+  }, [filteredTasks, sortOption])
 
   const handlePriorityChange = (taskId: string, priority: TaskPriority) => {
     startTransition(async () => {
@@ -116,19 +164,28 @@ export function TasksTable({ tasks, userId }: { tasks: Task[]; userId: string })
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-5">
         <div className="md:col-span-2">
           <div className="flex items-center rounded-md border bg-background px-3">
             <Search className="mr-2 h-4 w-4 text-muted-foreground" />
             <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              value={searchInput}
+              onChange={(event) => {
+                const value = event.target.value
+                setSearchInput(value)
+                syncSearchQuery(value)
+              }}
               placeholder="Search tasks"
               className="border-0 bg-transparent p-0 focus-visible:ring-0"
             />
           </div>
         </div>
-        <Select value={serviceFilter} onValueChange={setServiceFilter}>
+        <Select
+          value={serviceFilter}
+          onValueChange={(value) => {
+            void setServiceQuery(value === 'all' ? null : value)
+          }}
+        >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Service area" />
           </SelectTrigger>
@@ -141,7 +198,12 @@ export function TasksTable({ tasks, userId }: { tasks: Task[]; userId: string })
             ))}
           </SelectContent>
         </Select>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select
+          value={typeFilter}
+          onValueChange={(value) => {
+            void setTypeQuery(value === 'all' ? null : value)
+          }}
+        >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Task type" />
           </SelectTrigger>
@@ -154,7 +216,12 @@ export function TasksTable({ tasks, userId }: { tasks: Task[]; userId: string })
             ))}
           </SelectContent>
         </Select>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+        <Select
+          value={priorityFilter}
+          onValueChange={(value) => {
+            void setPriorityQuery(value === 'all' ? null : value)
+          }}
+        >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
@@ -163,6 +230,23 @@ export function TasksTable({ tasks, userId }: { tasks: Task[]; userId: string })
             {priorityOptions.map((option) => (
               <SelectItem key={option} value={option}>
                 {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={sortOption}
+          onValueChange={(value) => {
+            void setSortQuery(value === 'dueSoon' ? null : value)
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            {sortOptionConfig.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -190,7 +274,7 @@ export function TasksTable({ tasks, userId }: { tasks: Task[]; userId: string })
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTasks.map((task) => (
+            {sortedTasks.map((task) => (
               <TableRow key={task.id}>
                 <TableCell className="max-w-sm">
                   <div className="flex flex-col gap-1">

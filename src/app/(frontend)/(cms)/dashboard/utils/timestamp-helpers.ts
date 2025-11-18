@@ -22,7 +22,7 @@ export function toISOString(value: unknown): string | undefined {
       try {
         return toDate().toISOString()
       } catch {
-        return undefined
+        // Fall through to raw timestamp handling below
       }
     }
   }
@@ -84,7 +84,7 @@ export function toDate(value: unknown): Date | null {
       try {
         return toDateMethod()
       } catch {
-        return null
+        // Fall through to raw timestamp handling below
       }
     }
   }
