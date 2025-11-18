@@ -238,6 +238,7 @@ export function FacilitationInquiriesTable({ inquiries }: { inquiries: Inquiry[]
     },
     enableSortingRemoval: false,
     onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -275,7 +276,7 @@ export function FacilitationInquiriesTable({ inquiries }: { inquiries: Inquiry[]
               <Input
                 placeholder="Search inquiries..."
                 value={globalFilter}
-                onChange={(event) => table.setGlobalFilter(event.target.value)}
+                onChange={(event) => setGlobalFilter(event.target.value)}
               />
             </div>
           </div>
