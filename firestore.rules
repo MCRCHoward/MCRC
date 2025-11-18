@@ -38,6 +38,20 @@ service cloud.firestore {
 
       // delete only admins
       allow delete: if isAdmin();
+
+      match /tasks/{taskId} {
+        allow read, update: if isSignedIn() && request.auth.uid == userId;
+        allow create, delete: if false;
+      }
+
+      match /activity/{activityId} {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        allow update: if isSignedIn() &&
+          request.auth.uid == userId &&
+          request.resource.data.read == true &&
+          resource.data.read == false;
+        allow create, delete: if false;
+      }
     }
 
     // ---------- BLOG (public read, admin write) ----------
