@@ -112,6 +112,11 @@ export async function fetchInquiries(
       reviewedBy: data.reviewedBy,
       status: (data.status as InquiryStatus) ?? 'submitted',
       calendlyScheduling: serializeFormData(data.calendlyScheduling) as Inquiry['calendlyScheduling'],
+      insightlyLeadId: data.insightlyLeadId,
+      insightlyLeadUrl: data.insightlyLeadUrl,
+      insightlySyncStatus: data.insightlySyncStatus,
+      insightlyLastSyncError: data.insightlyLastSyncError ?? null,
+      insightlyLastSyncedAt: toISOString(data.insightlyLastSyncedAt),
     } as Inquiry
   })
 }
@@ -165,6 +170,11 @@ export async function getInquiryById(
     reviewedBy: data?.reviewedBy,
     status: (data?.status as InquiryStatus) ?? 'submitted',
     calendlyScheduling: serializeFormData(data?.calendlyScheduling) as Inquiry['calendlyScheduling'],
+    insightlyLeadId: data?.insightlyLeadId,
+    insightlyLeadUrl: data?.insightlyLeadUrl,
+    insightlySyncStatus: data?.insightlySyncStatus,
+    insightlyLastSyncError: data?.insightlyLastSyncError ?? null,
+    insightlyLastSyncedAt: toISOString(data?.insightlyLastSyncedAt),
   } as Inquiry
 }
 
