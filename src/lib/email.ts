@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
 import { FormConfirmationEmail } from '@/emails/templates/FormConfirmationEmail'
+import { LoggedErrorAlertEmail } from '@/emails/templates/LoggedErrorAlertEmail'
 
 const RESEND_API_KEY = process.env.RESEND_API || process.env.RESEND_API_KEY
 const DEFAULT_FROM =
@@ -29,7 +30,7 @@ export async function logEmailError(entry: {
   error: string
 }) {
   try {
-    await adminDb
+    const docRef = await adminDb
       .collection('loggedErrors')
       .doc('emailLogs')
       .collection('entries')
@@ -37,6 +38,8 @@ export async function logEmailError(entry: {
         ...entry,
         createdAt: FieldValue.serverTimestamp(),
       })
+
+    await sendErrorAlertEmail({ id: docRef.id, ...entry })
   } catch (logError) {
     console.error('[email] Failed to log email error', logError)
   }
@@ -74,6 +77,35 @@ export async function sendFormConfirmationEmail(payload: FormConfirmationPayload
       error: errorMessage,
     })
     throw error
+  }
+}
+
+async function sendErrorAlertEmail(entry: {
+  id: string
+  to: string
+  name: string
+  formName: string
+  summary?: string
+  error: string
+}) {
+  if (!RESEND_API_KEY) return
+
+  const resend = new Resend(RESEND_API_KEY)
+  const ALERT_TO = process.env.ERROR_ALERT_TO_EMAIL || 'info@mcrchoward.org'
+  const ALERT_FROM = process.env.ALERT_FROM_EMAIL || DEFAULT_FROM
+
+  try {
+    await resend.emails.send({
+      from: ALERT_FROM,
+      to: ALERT_TO,
+      subject: 'ERROR IN FORM',
+      react: LoggedErrorAlertEmail({
+        ...entry,
+      }),
+      tags: [{ name: 'type', value: 'form-error' }],
+    })
+  } catch (error) {
+    console.error('[email] Failed to send alert email', error)
   }
 }
 
