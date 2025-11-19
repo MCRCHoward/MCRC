@@ -1,5 +1,3 @@
-'use server'
-
 import { Timestamp } from 'firebase-admin/firestore'
 
 type PlainObject = Record<string, unknown>

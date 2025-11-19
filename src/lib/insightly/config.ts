@@ -1,5 +1,3 @@
-'use server'
-
 import type { InsightlyClientConfig } from './types'
 
 function requireEnv(name: string): string {

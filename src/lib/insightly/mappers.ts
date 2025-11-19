@@ -1,5 +1,3 @@
-'use server'
-
 import type { MediationFormValues } from '@/Forms/schema/request-mediation-self-referral-form'
 import type { RestorativeProgramReferralFormValues } from '@/Forms/schema/restorative-program-referral-form'
 import { insightlyDefaults } from './config'
@@ -58,8 +56,8 @@ function buildBasePayload(): InsightlyLeadPayload {
   }
 }
 
-function withTags(...tags: InsightlyTag[]): InsightlyTag[] {
-  return tags.filter(Boolean)
+function withTags(...tags: (InsightlyTag | undefined)[]): InsightlyTag[] {
+  return tags.filter((tag): tag is InsightlyTag => Boolean(tag))
 }
 
 export function buildSelfReferralLeadPayload(values: MediationFormValues): InsightlyLeadPayload {
