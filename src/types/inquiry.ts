@@ -1,4 +1,5 @@
 import type { ServiceArea } from '@/lib/service-area-config'
+import type { InsightlySyncStatus } from '@/lib/insightly/types'
 
 /**
  * Inquiry status values
@@ -36,5 +37,10 @@ export interface Inquiry {
   reviewedBy?: string
   status: InquiryStatus
   calendlyScheduling?: CalendlyScheduling
+  insightlyLeadId?: number
+  insightlyLeadUrl?: string
+  insightlySyncStatus?: InsightlySyncStatus
+  insightlyLastSyncError?: string | null
+  insightlyLastSyncedAt?: string
 }
 
