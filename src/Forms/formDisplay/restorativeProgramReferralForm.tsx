@@ -1,13 +1,11 @@
 'use client'
 
 import * as React from 'react'
-import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { format } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 
-import { useFirestoreFormSubmit } from '@/hooks/useFirestoreFormSubmit'
 import { handlePhoneInputChange, handlePhoneKeyPress } from '@/utilities/phoneUtils'
 import { useFormAutoSave } from '@/hooks/useFormAutoSave'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -33,81 +31,14 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { requestFormConfirmationEmail } from '@/lib/form-confirmation-client'
-
-// ---------------- Schema & Types ----------------
-const orgOptions = [
-  'school',
-  'juvenile-services',
-  'community-organization',
-  'court-legal',
-  'self-family',
-  'other',
-] as const
-
-const serviceOptions = [
-  'restorative-reflection',
-  'restorative-dialogue',
-  'restorative-circle',
-  'reentry',
-  'conflict-mediation',
-  'not-sure',
-] as const
-
-const urgencyOptions = ['high', 'medium', 'low'] as const
-
-// Phone validation helpers
-const stripPhoneNumber = (value: string): string => value.replace(/\D/g, '')
-
-const optionalPhoneSchema = z
-  .string()
-  .optional()
-  .or(z.literal(''))
-  .refine(
-    (val) => {
-      if (!val || val.trim() === '') return true
-      const digits = stripPhoneNumber(val)
-      return digits.length === 10 || digits.length === 0
-    },
-    { message: 'Please enter a valid 10-digit phone number or leave blank.' },
-  )
-
-const referralSchema = z.object({
-  // 1. Referrer
-  referrerName: z.string().min(1, 'Your name is required.'),
-  referrerEmail: z.string().email('Valid email is required.'),
-  referrerPhone: optionalPhoneSchema,
-  referrerOrg: z.enum(orgOptions).optional().or(z.literal('')),
-  referrerRole: z.string().optional().or(z.literal('')),
-  referrerPreferredContact: z.enum(['email', 'phone-call', 'text']).optional().or(z.literal('')),
-
-  // 2. Participant
-  participantName: z.string().min(1, 'Participant name is required.'),
-  participantDob: z.date().optional(),
-  participantPronouns: z.string().optional().or(z.literal('')),
-  participantSchool: z.string().optional().or(z.literal('')),
-  participantPhone: optionalPhoneSchema,
-  participantEmail: z.string().optional().or(z.literal('')),
-  parentGuardianName: z.string().optional().or(z.literal('')),
-  parentGuardianPhone: optionalPhoneSchema,
-  parentGuardianEmail: z.string().optional().or(z.literal('')),
-  participantBestTime: z.string().optional().or(z.literal('')),
-
-  // 3. Incident
-  incidentDate: z.date().optional(),
-  incidentLocation: z.string().optional().or(z.literal('')),
-  incidentDescription: z.string().min(1, 'Please describe the situation.'),
-  otherParties: z.string().optional().or(z.literal('')),
-  reasonReferral: z.string().optional().or(z.literal('')),
-  serviceRequested: z.enum(serviceOptions).optional().or(z.literal('')),
-  safetyConcerns: z.string().optional().or(z.literal('')),
-  currentDiscipline: z.string().optional().or(z.literal('')),
-
-  // 4. Urgency & notes
-  urgency: z.enum(urgencyOptions).optional().or(z.literal('')),
-  additionalNotes: z.string().optional().or(z.literal('')),
-})
-
-type ReferralValues = z.infer<typeof referralSchema>
+import { submitRestorativeReferralFormAction } from '@/lib/actions/public-form-actions'
+import {
+  restorativeOrgOptions,
+  restorativeProgramReferralFormSchema,
+  restorativeServiceOptions,
+  restorativeUrgencyOptions,
+  type RestorativeProgramReferralFormValues,
+} from '@/Forms/schema/restorative-program-referral-form'
 
 // ---------------- Step Configuration ----------------
 const STEP_TITLES = [
@@ -118,7 +49,7 @@ const STEP_TITLES = [
   'Submitted',
 ] as const
 
-const STEP_FIELDS: Array<(keyof ReferralValues)[]> = [
+const STEP_FIELDS: Array<(keyof RestorativeProgramReferralFormValues)[]> = [
   [
     'referrerName',
     'referrerEmail',
@@ -156,15 +87,13 @@ export function RestorativeProgramReferralForm() {
   const TOTAL_STEPS = STEP_TITLES.length
   const [currentStep, setCurrentStep] = React.useState(0)
   const router = useRouter()
-  const SERVICE_AREA = 'restorative-practices'
+  const SERVICE_AREA_SLUG = 'restorative-practices'
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [submissionError, setSubmissionError] = React.useState<string | null>(null)
 
-  const { isSubmitting, error, submitData } = useFirestoreFormSubmit(
-    'restorative-program-referral',
-  )
-
-  const form = useForm<ReferralValues>({
+  const form = useForm<RestorativeProgramReferralFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(referralSchema) as any,
+    resolver: zodResolver(restorativeProgramReferralFormSchema) as any,
     defaultValues: {
       // Referrer
       referrerName: '',
@@ -207,20 +136,37 @@ export function RestorativeProgramReferralForm() {
 
   const goNext = async () => {
     const fields = STEP_FIELDS[currentStep]
-    const isStepValid = await form.trigger(fields as (keyof ReferralValues)[], {
+    const isStepValid = await form.trigger(fields as (keyof RestorativeProgramReferralFormValues)[], {
       shouldFocus: true,
     })
     if (isStepValid) setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1))
   }
 
-  async function onSubmit(data: ReferralValues) {
-    const okay = await form.trigger(STEP_FIELDS[currentStep] as (keyof ReferralValues)[], {
-      shouldFocus: true,
-    })
+  async function onSubmit(data: RestorativeProgramReferralFormValues) {
+    const okay = await form.trigger(
+      STEP_FIELDS[currentStep] as (keyof RestorativeProgramReferralFormValues)[],
+      {
+        shouldFocus: true,
+      },
+    )
     if (!okay) return
 
-    const result = await submitData(data)
-    if (result.success && result.submissionId) {
+    setIsSubmitting(true)
+    setSubmissionError(null)
+
+    try {
+      const result = await submitRestorativeReferralFormAction(data)
+      if (!result.success || !result.inquiryId) {
+        throw new Error(result.error ?? 'Unable to submit your referral right now.')
+      }
+
+      if (result.insightly && !result.insightly.success) {
+        console.warn(
+          '[RestorativeProgramReferralForm] Insightly sync failed',
+          result.insightly.error,
+        )
+      }
+
       const displayName = data.referrerName || data.participantName
       void requestFormConfirmationEmail({
         to: data.referrerEmail,
@@ -231,8 +177,14 @@ export function RestorativeProgramReferralForm() {
       })
 
       router.push(
-        `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.submissionId}`,
+        `/getting-started/thank-you?serviceArea=${SERVICE_AREA_SLUG}&inquiryId=${result.inquiryId}`,
       )
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to submit your referral right now.'
+      setSubmissionError(message)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -337,7 +289,7 @@ export function RestorativeProgramReferralForm() {
                         defaultValue={field.value}
                         className="grid grid-cols-1 gap-3"
                       >
-                        {orgOptions.map((opt) => (
+                        {restorativeOrgOptions.map((opt) => (
                           <FormItem key={opt} className="flex items-center space-x-3 space-y-0">
                             <FormControl>
                               <RadioGroupItem value={opt} />
@@ -699,7 +651,7 @@ export function RestorativeProgramReferralForm() {
                         defaultValue={field.value}
                         className="grid grid-cols-1 md:grid-cols-2 gap-3"
                       >
-                        {serviceOptions.map((opt) => (
+                        {restorativeServiceOptions.map((opt) => (
                           <FormItem key={opt} className="flex items-center space-x-3 space-y-0">
                             <FormControl>
                               <RadioGroupItem value={opt} />
@@ -776,7 +728,7 @@ export function RestorativeProgramReferralForm() {
                         defaultValue={field.value}
                         className="flex flex-wrap gap-3"
                       >
-                        {urgencyOptions.map((opt) => (
+                        {restorativeUrgencyOptions.map((opt) => (
                           <FormItem key={opt} className="flex items-center space-x-3 space-y-0">
                             <FormControl>
                               <RadioGroupItem value={opt} />
@@ -825,12 +777,12 @@ export function RestorativeProgramReferralForm() {
 
         {/* Footer: status + nav buttons */}
         <div className="flex flex-col gap-3">
-          {error && (
+          {submissionError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Submission Error</AlertTitle>
               <AlertDescription>
-                {error}. Please try again or contact us if the problem persists.
+                {submissionError}. Please try again or contact us if the problem persists.
               </AlertDescription>
             </Alert>
           )}
