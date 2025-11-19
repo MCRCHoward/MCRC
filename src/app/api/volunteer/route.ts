@@ -4,6 +4,7 @@ import { adminDb } from '@/lib/firebase-admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { Resend } from 'resend'
 import { VolunteerEmail } from '@/emails/templates/VolunteerEmail'
+import { sendFormConfirmationEmail } from '@/lib/email'
 
 const VolunteerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -64,6 +65,18 @@ export async function POST(request: Request) {
       }
     } else {
       console.warn('[api/volunteer] RESEND_API/RESEND_API_KEY is not set; skipping email send')
+    }
+
+    try {
+      await sendFormConfirmationEmail({
+        to: parsed.data.email,
+        name: parsed.data.name,
+        formName: 'Volunteer Application',
+        summary:
+          'We received your volunteer application and will follow up shortly with next steps and scheduling options.',
+      })
+    } catch (confirmationError) {
+      console.warn('[api/volunteer] Confirmation email failed:', confirmationError)
     }
 
     return NextResponse.json({

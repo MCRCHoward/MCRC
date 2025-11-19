@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/command'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
+import { requestFormConfirmationEmail } from '@/lib/form-confirmation-client'
 
 // --- Data ---
 const prefixes = ['Mr', 'Mrs', 'Ms/Miss', 'Dr', 'Rev', 'Other']
@@ -212,6 +213,15 @@ export function MediationSelfReferralForm() {
 
     const result = await submitData(data)
     if (result.success && result.submissionId) {
+      const fullName = `${data.firstName} ${data.lastName}`.trim() || data.firstName
+      void requestFormConfirmationEmail({
+        to: data.email,
+        name: fullName,
+        formName: 'Mediation Request',
+        summary:
+          'Thanks for reaching out to the Mediation & Conflict Resolution Center. We received your request and will contact you soon to review next steps.',
+      })
+
       router.push(
         `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.submissionId}`,
       )

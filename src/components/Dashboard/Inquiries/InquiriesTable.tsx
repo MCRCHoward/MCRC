@@ -433,7 +433,7 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
         enableSorting: false,
       },
     ],
-    [serviceArea, metadata.slug, processingId, handleMarkAsReviewed],
+    [metadata.slug, processingId, handleMarkAsReviewed],
   )
 
   const table = useReactTable({

@@ -36,6 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { requestFormConfirmationEmail } from '@/lib/form-confirmation-client'
 
 // ---------------- Schema & Types ----------------
 const trainingOptions = [
@@ -143,6 +144,15 @@ export function CommunityEducationTrainingRequestForm() {
     const result = await submitData(data)
     if (result.success && result.submissionId) {
       clearSavedData()
+      const fullName = `${data.firstName} ${data.lastName}`.trim() || data.firstName
+      void requestFormConfirmationEmail({
+        to: data.email,
+        name: fullName,
+        formName: 'Community Education & Training Request',
+        summary:
+          'We received your training request and will follow up to confirm details, scheduling, and facilitation options for your group.',
+      })
+
       router.push(
         `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.submissionId}`,
       )

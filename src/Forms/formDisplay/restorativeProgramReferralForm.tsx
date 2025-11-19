@@ -32,6 +32,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { requestFormConfirmationEmail } from '@/lib/form-confirmation-client'
 
 // ---------------- Schema & Types ----------------
 const orgOptions = [
@@ -220,6 +221,15 @@ export function RestorativeProgramReferralForm() {
 
     const result = await submitData(data)
     if (result.success && result.submissionId) {
+      const displayName = data.referrerName || data.participantName
+      void requestFormConfirmationEmail({
+        to: data.referrerEmail,
+        name: displayName,
+        formName: 'Restorative Program Referral',
+        summary:
+          'We received your restorative referral and will connect with you shortly to review details and discuss next steps.',
+      })
+
       router.push(
         `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.submissionId}`,
       )

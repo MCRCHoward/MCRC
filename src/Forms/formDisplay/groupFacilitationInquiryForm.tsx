@@ -38,6 +38,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { requestFormConfirmationEmail } from '@/lib/form-confirmation-client'
 
 // ---------------- Schema & Types ----------------
 const organizationTypes = [
@@ -191,6 +192,15 @@ export function GroupFacilitationInquiryForm() {
     const result = await submitData(data)
     if (result.success && result.submissionId) {
       clearSavedData()
+      const fullName = `${data.firstName} ${data.lastName}`.trim() || data.firstName
+      void requestFormConfirmationEmail({
+        to: data.email,
+        name: fullName,
+        formName: 'Group Facilitation Inquiry',
+        summary:
+          'We received your request for group facilitation support. Our team will review the details you shared and follow up to schedule a discovery call.',
+      })
+
       router.push(
         `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.submissionId}`,
       )

@@ -4,6 +4,7 @@ import { adminDb } from '@/lib/firebase-admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import { Resend } from 'resend'
 import { ContactEmail } from '@/emails/templates/ContactEmail'
+import { sendFormConfirmationEmail } from '@/lib/email'
 
 const ContactSchema = z.object({
   firstName: z.string().min(2),
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || undefined
 
     const { firstName, lastName, ...rest } = parsed.data
+    const fullName = `${firstName} ${lastName}`.trim()
     const payload = {
       ...rest,
       firstName,
@@ -98,6 +100,17 @@ export async function POST(request: Request) {
       }
     } else {
       console.warn('[api/contact] RESEND_API/RESEND_API_KEY is not set; skipping email send')
+    }
+
+    try {
+      await sendFormConfirmationEmail({
+        to: parsed.data.email,
+        name: fullName || firstName,
+        formName: 'Contact Request',
+        summary: `Thanks for reaching out about ${parsed.data.service}. We received your message and will respond as soon as possible.`,
+      })
+    } catch (confirmationError) {
+      console.warn('[api/contact] Confirmation email failed:', confirmationError)
     }
 
     return NextResponse.json({ ok: true })
