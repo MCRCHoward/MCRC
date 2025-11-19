@@ -2,13 +2,25 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Copy, Check, CheckCircle2, Circle, User, Users, Phone, Mail, MapPin } from 'lucide-react'
+import {
+  Copy,
+  Check,
+  CheckCircle2,
+  Circle,
+  User,
+  Users,
+  Phone,
+  Mail,
+  MapPin,
+  Loader2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { markAsReviewed } from '@/lib/actions/inquiry-actions'
+import { syncInquiryWithInsightlyAction } from '@/lib/actions/insightly-actions'
 import { InquiryStatusBadge } from './InquiryStatusBadge'
 import { formatDateTimeShort } from '@/utilities/formatDateTime'
 import type { Inquiry } from '@/types/inquiry'
@@ -125,6 +137,10 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
   const [reviewed, setReviewed] = useState(inquiry.reviewed)
   const [processing, setProcessing] = useState(false)
   const [copiedFields, setCopiedFields] = useState<Set<string>>(new Set())
+  const [syncingInsightly, setSyncingInsightly] = useState(false)
+  const supportsInsightly =
+    inquiry.formType === 'mediation-self-referral' ||
+    inquiry.formType === 'restorative-program-referral'
 
   const handleCopy = async (text: string, label: string, fieldName: string) => {
     await copyToClipboard(text, label)
@@ -200,6 +216,36 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
     )
   }
 
+  const insightlyStatus =
+    (inquiry.insightlySyncStatus ??
+      (inquiry.insightlyLeadId ? 'success' : undefined)) as
+      | 'pending'
+      | 'success'
+      | 'failed'
+      | undefined
+
+  const handleSyncInsightly = async () => {
+    setSyncingInsightly(true)
+    try {
+      const result = await syncInquiryWithInsightlyAction({
+        inquiryId: inquiry.id,
+        serviceArea,
+      })
+      if (result.success) {
+        toast.success('Insightly lead synced')
+      } else {
+        toast.error(result.error ?? 'Unable to sync with Insightly')
+      }
+      router.refresh()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to sync with Insightly'
+      toast.error(message)
+      console.error('[InquiryDetailCard] Insightly sync failed', error)
+    } finally {
+      setSyncingInsightly(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Metadata Section */}
@@ -235,6 +281,87 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
           </Button>
         )}
       </div>
+
+      {supportsInsightly ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-base font-semibold">
+              <span>Insightly Lead</span>
+              {insightlyStatus ? (
+                <Badge
+                  variant={
+                    insightlyStatus === 'success'
+                      ? 'default'
+                      : insightlyStatus === 'failed'
+                        ? 'destructive'
+                        : 'secondary'
+                  }
+                >
+                  {insightlyStatus === 'success'
+                    ? 'Synced'
+                    : insightlyStatus === 'failed'
+                      ? 'Failed'
+                      : 'Pending'}
+                </Badge>
+              ) : (
+                <Badge variant="outline">Not yet created</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="grid gap-2 md:grid-cols-2">
+              <div>
+                <div className="text-muted-foreground">Lead ID</div>
+                <div>
+                  {inquiry.insightlyLeadId ? (
+                    inquiry.insightlyLeadUrl ? (
+                      <a
+                        href={inquiry.insightlyLeadUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        #{inquiry.insightlyLeadId}
+                      </a>
+                    ) : (
+                      `#${inquiry.insightlyLeadId}`
+                    )
+                  ) : (
+                    '—'
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Last synced</div>
+                <div>
+                  {inquiry.insightlyLastSyncedAt
+                    ? formatDateTimeShort(inquiry.insightlyLastSyncedAt)
+                    : '—'}
+                </div>
+              </div>
+            </div>
+            {inquiry.insightlyLastSyncError ? (
+              <div className="text-sm text-destructive">
+                Last error: {inquiry.insightlyLastSyncError}
+              </div>
+            ) : null}
+            <div>
+              <Button onClick={handleSyncInsightly} disabled={syncingInsightly}>
+                {syncingInsightly ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Syncing…
+                  </>
+                ) : inquiry.insightlyLeadId ? (
+                  'Resync Insightly Lead'
+                ) : (
+                  'Create Insightly Lead'
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Separator />
 
