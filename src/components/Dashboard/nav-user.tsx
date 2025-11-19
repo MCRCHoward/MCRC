@@ -120,7 +120,7 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <Sparkles />
-                Upgrade to Pro
+                This part coming soon
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
