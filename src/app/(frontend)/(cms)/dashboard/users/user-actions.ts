@@ -34,8 +34,8 @@ export async function fetchAllUsers(): Promise<User[]> {
         email: data.email ?? '',
         name: data.name ?? '',
         role: (data.role as User['role']) ?? 'participant',
-        createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
-        updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
+        createdAt: toISOString(data.createdAt) ?? '',
+        updatedAt: toISOString(data.updatedAt) ?? '',
       } as User
     })
 
