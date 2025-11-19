@@ -6,8 +6,8 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import { format } from 'date-fns'
 import { CalendarIcon, Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import type { ServiceArea } from '@/lib/service-area-config'
 
-import { useFirestoreFormSubmit } from '@/hooks/useFirestoreFormSubmit'
 import {
   mediationFormSchema,
   MediationFormValues,
@@ -53,6 +53,7 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { requestFormConfirmationEmail } from '@/lib/form-confirmation-client'
+import { submitSelfReferralFormAction } from '@/lib/actions/public-form-actions'
 
 // --- Data ---
 const prefixes = ['Mr', 'Mrs', 'Ms/Miss', 'Dr', 'Rev', 'Other']
@@ -63,6 +64,7 @@ const referralSources = [
   'Community event or outreach',
   'Friend or family / Word of mouth',
   'Referred by Howard County Court',
+  'Referred from HCDC',
   'Internet search (e.g., Google, Bing)',
   'Referred by an organization or agency',
   'I have used your services before',
@@ -112,15 +114,11 @@ export function MediationSelfReferralForm() {
   const [hasInteractedWithStep4, setHasInteractedWithStep4] = React.useState(false)
   const formRef = React.useRef<HTMLFormElement>(null)
   const router = useRouter()
-  const SERVICE_AREA = 'mediation'
+  const SERVICE_AREA: ServiceArea = 'mediation'
 
-  const {
-    isSubmitting,
-    error,
-    success,
-    submitData,
-    reset: resetSubmission,
-  } = useFirestoreFormSubmit('mediation-self-referral')
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [submissionError, setSubmissionError] = React.useState<string | null>(null)
+  const [submissionSuccess, setSubmissionSuccess] = React.useState(false)
 
   const form = useForm<MediationFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -211,8 +209,23 @@ export function MediationSelfReferralForm() {
     })
     if (!okay) return
 
-    const result = await submitData(data)
-    if (result.success && result.submissionId) {
+    setIsSubmitting(true)
+    setSubmissionError(null)
+    setSubmissionSuccess(false)
+
+    try {
+      const result = await submitSelfReferralFormAction(data)
+      if (!result.success || !result.inquiryId) {
+        throw new Error(result.error ?? 'Unable to submit your referral right now.')
+      }
+
+      if (result.insightly && !result.insightly.success) {
+        console.warn('[SelfReferralForm] Insightly sync failed', result.insightly.error)
+      }
+
+      setSubmissionSuccess(true)
+      clearSavedData()
+
       const fullName = `${data.firstName} ${data.lastName}`.trim() || data.firstName
       void requestFormConfirmationEmail({
         to: data.email,
@@ -223,8 +236,14 @@ export function MediationSelfReferralForm() {
       })
 
       router.push(
-        `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.submissionId}`,
+        `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.inquiryId}`,
       )
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to submit your referral right now.'
+      setSubmissionError(message)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -234,7 +253,8 @@ export function MediationSelfReferralForm() {
     setCurrentStep(0)
     setHasInteractedWithStep4(false) // Reset interaction state
     form.reset()
-    resetSubmission() // Reset the submission state
+    setSubmissionError(null)
+    setSubmissionSuccess(false)
     // Scroll to top when resetting
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -260,7 +280,7 @@ export function MediationSelfReferralForm() {
   const progressPct = ((currentStep + 1) / TOTAL_STEPS) * 100
 
   // Show success view after successful submission
-  if (success) {
+  if (submissionSuccess) {
     return (
       <Card>
         <CardHeader>
@@ -1007,12 +1027,12 @@ export function MediationSelfReferralForm() {
 
         {/* Footer: errors + nav buttons */}
         <div className="flex flex-col gap-3">
-          {error && (
+          {submissionError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Submission Error</AlertTitle>
               <AlertDescription>
-                {error}. Please try again or contact us if the problem persists.
+                {submissionError}. Please try again or contact us if the problem persists.
               </AlertDescription>
             </Alert>
           )}
