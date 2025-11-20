@@ -3,7 +3,7 @@
 import { adminDb } from '@/lib/firebase-admin'
 import type { ServiceArea, FormType } from '@/lib/service-area-config'
 import { buildMediationReferralMondayItem, buildRestorativeProgramMondayItem } from '@/lib/monday/mappers'
-import { createMondayItem } from '@/lib/monday/items'
+import { createMondayItem, updateMondayItem } from '@/lib/monday/items'
 import { buildMondayItemUrl } from '@/lib/monday/config'
 import { updateMondaySyncFields } from '@/lib/monday/linking'
 import { mediationFormSchema } from '@/Forms/schema/request-mediation-self-referral-form'
@@ -46,15 +46,24 @@ export async function retryMondaySyncAction({
     (data?.formData ?? {}) as Record<string, unknown>,
   )
 
+  // Extract inquiry metadata
+  const metadata = {
+    submittedAt: data?.submittedAt,
+    reviewed: data?.reviewed,
+    reviewedAt: data?.reviewedAt,
+    submittedBy: data?.submittedBy,
+    submissionType: data?.submissionType,
+  }
+
   let mondayInput
 
   try {
     if (formType === 'mediation-self-referral') {
       const parsed = mediationFormSchema.parse(hydratedFormData)
-      mondayInput = buildMediationReferralMondayItem(parsed)
+      mondayInput = await buildMediationReferralMondayItem(parsed, metadata)
     } else {
       const parsed = restorativeProgramReferralFormSchema.parse(hydratedFormData)
-      mondayInput = buildRestorativeProgramMondayItem(parsed)
+      mondayInput = await buildRestorativeProgramMondayItem(parsed, metadata)
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid form data'
@@ -67,6 +76,22 @@ export async function retryMondaySyncAction({
   })
 
   try {
+    const existingItemId = data?.mondayItemId as string | undefined
+    if (existingItemId) {
+      await updateMondayItem({
+        boardId: mondayInput.boardId,
+        itemId: existingItemId,
+        columnValues: mondayInput.columnValues,
+      })
+      await updateMondaySyncFields(serviceArea, inquiryId, {
+        mondayItemId: existingItemId,
+        mondayItemUrl: data?.mondayItemUrl ?? buildMondayItemUrl(existingItemId),
+        mondaySyncStatus: 'success',
+        mondaySyncError: null,
+      })
+      return { success: true }
+    }
+
     const { itemId } = await createMondayItem(mondayInput)
     await updateMondaySyncFields(serviceArea, inquiryId, {
       mondayItemId: itemId,
