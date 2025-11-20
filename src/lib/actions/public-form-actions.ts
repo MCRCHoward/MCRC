@@ -14,6 +14,11 @@ import {
 } from '@/Forms/schema/restorative-program-referral-form'
 import { prepareFormDataForFirestore } from '@/lib/inquiries/form-data'
 import { syncInquiryWithInsightlyAction } from '@/lib/actions/insightly-actions'
+import { buildMediationReferralMondayItem, buildRestorativeProgramMondayItem } from '@/lib/monday/mappers'
+import { createMondayItem } from '@/lib/monday/items'
+import type { CreateMondayItemInput } from '@/lib/monday/items'
+import { buildMondayItemUrl } from '@/lib/monday/config'
+import { updateMondaySyncFields } from '@/lib/monday/linking'
 
 interface SubmissionResult {
   success: boolean
@@ -22,6 +27,11 @@ interface SubmissionResult {
   insightly?: {
     success: boolean
     leadId?: number
+    error?: string
+  }
+  monday?: {
+    success: boolean
+    itemId?: string
     error?: string
   }
 }
@@ -49,18 +59,24 @@ async function createInquiryDocument(
     submissionType: 'anonymous',
     reviewed: false,
     calendlyScheduling: null,
+    mondaySyncStatus: 'pending',
+    mondaySyncError: null,
   })
 
   return docRef.id
 }
 
-async function submitPublicForm({
+interface SubmitPublicFormParams<T extends Record<string, unknown>> {
+  formType: FormType
+  parsedData: T
+  mondayBuilder: (values: T) => CreateMondayItemInput
+}
+
+async function submitPublicForm<T extends Record<string, unknown>>({
   formType,
   parsedData,
-}: {
-  formType: FormType
-  parsedData: Record<string, unknown>
-}): Promise<SubmissionResult> {
+  mondayBuilder,
+}: SubmitPublicFormParams<T>): Promise<SubmissionResult> {
   try {
     const serviceArea = getServiceAreaFromFormType(formType)
     const serializedFormData = prepareFormDataForFirestore(parsedData)
@@ -81,10 +97,36 @@ async function submitPublicForm({
       insightly = { success: false, error: 'Unknown Insightly response' }
     }
 
+    await updateMondaySyncFields(serviceArea, inquiryId, {
+      mondaySyncStatus: 'pending',
+      mondaySyncError: null,
+    })
+
+    let mondayResult
+    try {
+      const mondayInput = mondayBuilder(parsedData)
+      const { itemId } = await createMondayItem(mondayInput)
+      await updateMondaySyncFields(serviceArea, inquiryId, {
+        mondayItemId: itemId,
+        mondayItemUrl: buildMondayItemUrl(itemId),
+        mondaySyncStatus: 'success',
+        mondaySyncError: null,
+      })
+      mondayResult = { success: true, itemId }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown Monday error'
+      await updateMondaySyncFields(serviceArea, inquiryId, {
+        mondaySyncStatus: 'failed',
+        mondaySyncError: message,
+      })
+      mondayResult = { success: false, error: message }
+    }
+
     return {
       success: true,
       inquiryId,
       insightly,
+      monday: mondayResult,
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to submit form right now.'
@@ -107,6 +149,7 @@ export async function submitSelfReferralFormAction(
     return await submitPublicForm({
       formType: SELF_REFERRAL_FORM_TYPE,
       parsedData: parsed,
+      mondayBuilder: buildMediationReferralMondayItem,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid form submission'
@@ -122,6 +165,7 @@ export async function submitRestorativeReferralFormAction(
     return await submitPublicForm({
       formType: RESTORATIVE_FORM_TYPE,
       parsedData: parsed,
+      mondayBuilder: buildRestorativeProgramMondayItem,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid form submission'
