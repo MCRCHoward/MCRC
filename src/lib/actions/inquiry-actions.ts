@@ -117,6 +117,11 @@ export async function fetchInquiries(
       insightlySyncStatus: data.insightlySyncStatus,
       insightlyLastSyncError: data.insightlyLastSyncError ?? null,
       insightlyLastSyncedAt: toISOString(data.insightlyLastSyncedAt),
+      mondayItemId: data.mondayItemId,
+      mondayItemUrl: data.mondayItemUrl,
+      mondaySyncStatus: data.mondaySyncStatus,
+      mondaySyncError: data.mondaySyncError ?? null,
+      mondayLastSyncedAt: toISOString(data.mondayLastSyncedAt),
     } as Inquiry
   })
 }
@@ -175,6 +180,11 @@ export async function getInquiryById(
     insightlySyncStatus: data?.insightlySyncStatus,
     insightlyLastSyncError: data?.insightlyLastSyncError ?? null,
     insightlyLastSyncedAt: toISOString(data?.insightlyLastSyncedAt),
+    mondayItemId: data?.mondayItemId,
+    mondayItemUrl: data?.mondayItemUrl,
+    mondaySyncStatus: data?.mondaySyncStatus,
+    mondaySyncError: data?.mondaySyncError ?? null,
+    mondayLastSyncedAt: toISOString(data?.mondayLastSyncedAt),
   } as Inquiry
 }
 
