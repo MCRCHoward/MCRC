@@ -19,6 +19,7 @@ import {
   type RestorativeProgramReferralFormValues,
 } from '../src/Forms/schema/restorative-program-referral-form'
 import { hydrateFormDataFromFirestore } from '../src/lib/inquiries/form-data'
+import type { InquiryMetadata } from '../src/lib/monday/mappers'
 
 type FormType = 'mediation-self-referral' | 'restorative-program-referral'
 type ServiceArea = 'mediation' | 'restorativePractices'
@@ -89,13 +90,7 @@ interface BackfillTarget<T extends Record<string, unknown>> {
   schema: ZodTypeAny
   mapper: (
     values: T,
-    metadata?: {
-      submittedAt?: unknown
-      reviewed?: boolean
-      reviewedAt?: unknown
-      submittedBy?: string
-      submissionType?: string
-    },
+    metadata?: InquiryMetadata,
   ) => Promise<{ boardId: number; groupId: string; itemName: string; columnValues: string }>
 }
 
@@ -171,15 +166,19 @@ async function backfillTarget<T extends Record<string, unknown>>(
       }
       
       // Extract inquiry metadata
-      const metadata = {
-        submittedAt: data.submittedAt,
+      const metadata: InquiryMetadata = {
+        submittedAt: data.submittedAt ?? null,
         reviewed: data.reviewed,
-        reviewedAt: data.reviewedAt,
+        reviewedAt: data.reviewedAt ?? null,
         submittedBy: data.submittedBy,
         submissionType: data.submissionType,
       }
       
+      // Build Monday item (this will ensure columns exist and create them if needed)
+      console.log(`   → Building Monday item for ${doc.id}...`)
       const mondayInput = await target.mapper(parsed, metadata)
+      console.log(`   → Monday item built: "${mondayInput.itemName}" (${mondayInput.columnValues.length} chars in columnValues)`)
+      
       const existingItemId: string | undefined = data.mondayItemId
 
       if (existingItemId) {
@@ -220,8 +219,11 @@ async function backfillTarget<T extends Record<string, unknown>>(
     } catch (error) {
       failed += 1
       let errorMessage = 'Unknown error'
+      let errorStack: string | undefined
+      
       if (error instanceof Error) {
         errorMessage = error.message
+        errorStack = error.stack
       } else if (Array.isArray(error)) {
         // Zod validation errors
         errorMessage = JSON.stringify(error, null, 2)
@@ -235,7 +237,11 @@ async function backfillTarget<T extends Record<string, unknown>>(
         console.error(`      Using group ID: "${groupId}"`)
         console.error(`      Make sure this group exists in Monday board ${boardId}`)
       } else {
-        console.error(`   ✗ Failed to sync ${doc.id}:`, errorMessage)
+        console.error(`   ✗ Failed to sync ${doc.id}:`)
+        console.error(`      Error: ${errorMessage}`)
+        if (errorStack && process.env.NODE_ENV !== 'production') {
+          console.error(`      Stack: ${errorStack.split('\n').slice(0, 3).join('\n')}`)
+        }
       }
 
       await doc.ref.set(

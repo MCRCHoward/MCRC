@@ -33,6 +33,7 @@ interface MondayBoardColumn {
   id: string
   title: string
   type: string
+  settings_str?: string
 }
 
 const COLUMN_REGISTRY_COLLECTION = adminDb.collection('integrations')
@@ -71,6 +72,7 @@ async function listBoardColumns(boardId: number): Promise<MondayBoardColumn[]> {
           id
           title
           type
+          settings_str
         }
       }
     }
@@ -81,6 +83,26 @@ async function listBoardColumns(boardId: number): Promise<MondayBoardColumn[]> {
   }>(query, { boardId: [String(boardId)] })
 
   return data.boards?.[0]?.columns ?? []
+}
+
+function parseDropdownLabels(settingsStr: string | undefined): string[] {
+  if (!settingsStr) return []
+  try {
+    const settings = JSON.parse(settingsStr)
+    // Monday stores dropdown labels in settings.labels as an object with numeric keys
+    if (settings?.labels && typeof settings.labels === 'object') {
+      return Object.values(settings.labels) as string[]
+    }
+    return []
+  } catch {
+    return []
+  }
+}
+
+function hasDropdownLabel(column: MondayBoardColumn, label: string): boolean {
+  if (column.type !== 'dropdown') return false
+  const labels = parseDropdownLabels(column.settings_str)
+  return labels.includes(label)
 }
 
 async function createColumnOnMonday(boardId: number, definition: ColumnDefinition): Promise<string> {
@@ -166,6 +188,10 @@ function columnStillExists(
   return columns.some((column) => column.id === columnId)
 }
 
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export async function ensureMondayColumns(
   scope: ColumnScopeRequest,
 ): Promise<ColumnIdMap> {
@@ -176,26 +202,77 @@ export async function ensureMondayColumns(
   const columnMap = createEmptyColumnIdMap()
   let registryUpdated = false
 
-  for (const definition of getColumnDefinitions(scope)) {
-    const scopeRegistry = boardRegistry[definition.scope]
-    const existingEntry = scopeRegistry[definition.slug]
-    if (existingEntry && columnStillExists(columns, existingEntry.columnId)) {
-      recordColumnId(columnMap, definition, existingEntry.columnId)
-      continue
-    }
+  const definitions = getColumnDefinitions(scope)
 
-    const matchingColumn = findColumnByTitle(columns, definition.title)
-    if (matchingColumn) {
-      addEntryToRegistry(boardRegistry, definition, matchingColumn.id)
-      recordColumnId(columnMap, definition, matchingColumn.id)
+  for (const definition of definitions) {
+    try {
+      const scopeRegistry = boardRegistry[definition.scope]
+      const existingEntry = scopeRegistry[definition.slug]
+      if (existingEntry && columnStillExists(columns, existingEntry.columnId)) {
+        recordColumnId(columnMap, definition, existingEntry.columnId)
+        
+        // Check if dropdown column needs labels
+        if (definition.type === 'dropdown' && definition.defaults) {
+          const column = columns.find((c) => c.id === existingEntry.columnId)
+          if (column && definition.defaults.labels) {
+            const requiredLabels = definition.defaults.labels as string[]
+            const existingLabels = parseDropdownLabels(column.settings_str)
+            const missingLabels = requiredLabels.filter(
+              (label) => !existingLabels.includes(label),
+            )
+            if (missingLabels.length > 0) {
+              console.warn(
+                `   ⚠ Dropdown column "${definition.title}" is missing labels: ${missingLabels.join(', ')}. Please add these labels manually in Monday.com`,
+              )
+            }
+          }
+        }
+        continue
+      }
+
+      const matchingColumn = findColumnByTitle(columns, definition.title)
+      if (matchingColumn) {
+        addEntryToRegistry(boardRegistry, definition, matchingColumn.id)
+        recordColumnId(columnMap, definition, matchingColumn.id)
+        registryUpdated = true
+        
+        // Check if dropdown column needs labels
+        if (definition.type === 'dropdown' && definition.defaults) {
+          const requiredLabels = definition.defaults.labels as string[]
+          const existingLabels = parseDropdownLabels(matchingColumn.settings_str)
+          const missingLabels = requiredLabels.filter(
+            (label) => !existingLabels.includes(label),
+          )
+          if (missingLabels.length > 0) {
+            console.warn(
+              `   ⚠ Dropdown column "${definition.title}" is missing labels: ${missingLabels.join(', ')}. Please add these labels manually in Monday.com`,
+            )
+          }
+        }
+        continue
+      }
+
+      // Create new column with delay to avoid complexity budget
+      // Only delay when actually creating columns, not when checking existing ones
+      await sleep(500) // 500ms delay between column creations
+      const newColumnId = await createColumnOnMonday(boardId, definition)
+      addEntryToRegistry(boardRegistry, definition, newColumnId)
+      recordColumnId(columnMap, definition, newColumnId)
       registryUpdated = true
-      continue
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      // If it's a complexity budget error, suggest waiting
+      if (errorMsg.includes('Complexity budget')) {
+        throw new Error(
+          `Complexity budget exhausted while creating column "${definition.title}". Please wait 25-30 seconds and try again, or run the script with fewer items at a time.`,
+        )
+      }
+      
+      throw new Error(
+        `Failed to ensure column "${definition.title}" (${definition.slug}): ${errorMsg}`,
+      )
     }
-
-    const newColumnId = await createColumnOnMonday(boardId, definition)
-    addEntryToRegistry(boardRegistry, definition, newColumnId)
-    recordColumnId(columnMap, definition, newColumnId)
-    registryUpdated = true
   }
 
   if (registryUpdated) {

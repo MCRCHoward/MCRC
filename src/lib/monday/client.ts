@@ -33,13 +33,28 @@ export async function mondayGraphQL<T>(
     body: JSON.stringify({ query, variables }),
   })
 
-  const payload = (await response.json()) as MondayGraphQLResponse<T>
+  let payload: MondayGraphQLResponse<T>
+  try {
+    const responseText = await response.text()
+    if (!responseText) {
+      throw new Error(`[Monday] Empty response from API (${response.status} ${response.statusText})`)
+    }
+    payload = JSON.parse(responseText) as MondayGraphQLResponse<T>
+  } catch (parseError) {
+    const errorMsg = parseError instanceof Error ? parseError.message : String(parseError)
+    throw new Error(`[Monday] Failed to parse response as JSON: ${errorMsg}`)
+  }
 
   if (!response.ok || payload.errors?.length) {
-    const reason =
-      payload.errors?.map((err) => err.message).join('; ') ??
-      `${response.status} ${response.statusText}`
-    throw new Error(`[Monday] GraphQL error: ${reason}`)
+    const errorMessages = payload.errors?.map((err) => err.message).filter(Boolean) ?? []
+    const errorDetails = payload.errors?.map((err) => JSON.stringify(err)).join('; ') ?? 'No error details'
+    const reason = errorMessages.length > 0
+      ? errorMessages.join('; ')
+      : errorDetails || `${response.status} ${response.statusText}`
+    
+    // Include full payload in error for debugging
+    const fullError = `[Monday] GraphQL error: ${reason}${payload.errors ? ` (Full errors: ${JSON.stringify(payload.errors)})` : ''}`
+    throw new Error(fullError)
   }
 
   if (!payload.data) {

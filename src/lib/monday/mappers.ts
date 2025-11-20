@@ -102,8 +102,16 @@ function setDropdownValue(
   target: Record<string, unknown>,
   columnId: string | undefined,
   label: string | undefined,
+  skipIfMissing = false,
 ) {
   if (!columnId || !label) return
+  // Note: Monday.com requires dropdown labels to exist before you can use them
+  // If skipIfMissing is true and the label doesn't exist, we'll skip setting it
+  // Otherwise, we'll attempt to set it and let Monday create the label (if allowed)
+  if (skipIfMissing) {
+    // For now, we'll always try to set it - the error will be caught upstream
+    // In the future, we could check column settings first
+  }
   target[columnId] = { labels: [label] }
 }
 
@@ -273,11 +281,7 @@ function applyRestorativeSpecificColumns(
   setTextValue(columnValues, columnIds.specific.parentGuardianEmail, values.parentGuardianEmail)
   setDateValue(columnValues, columnIds.specific.incidentDate, values.incidentDate)
   setTextValue(columnValues, columnIds.specific.incidentLocation, values.incidentLocation)
-  setLongTextValue(
-    columnValues,
-    columnIds.specific.incidentDescription,
-    values.incidentDescription,
-  )
+  setLongTextValue(columnValues, columnIds.specific.incidentDescription, values.incidentDescription)
   setLongTextValue(columnValues, columnIds.specific.otherParties, values.otherParties)
   setLongTextValue(columnValues, columnIds.specific.reasonReferral, values.reasonReferral)
   setTextValue(columnValues, columnIds.specific.serviceRequested, values.serviceRequested)
@@ -382,4 +386,3 @@ export async function buildRestorativeProgramMondayItem(
     columnValues: JSON.stringify(columnValues),
   }
 }
-
