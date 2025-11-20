@@ -69,7 +69,10 @@ async function createInquiryDocument(
 interface SubmitPublicFormParams<T extends Record<string, unknown>> {
   formType: FormType
   parsedData: T
-  mondayBuilder: (values: T) => CreateMondayItemInput
+  mondayBuilder: (
+    values: T,
+    metadata?: { submittedAt: Date; submittedBy?: string; submissionType?: string },
+  ) => Promise<CreateMondayItemInput>
 }
 
 async function submitPublicForm<T extends Record<string, unknown>>({
@@ -104,7 +107,13 @@ async function submitPublicForm<T extends Record<string, unknown>>({
 
     let mondayResult
     try {
-      const mondayInput = mondayBuilder(parsedData)
+      // Pass metadata with current timestamp for new submissions
+      const metadata = {
+        submittedAt: new Date(),
+        submittedBy: 'anonymous-public',
+        submissionType: 'anonymous',
+      }
+      const mondayInput = await mondayBuilder(parsedData, metadata)
       const { itemId } = await createMondayItem(mondayInput)
       await updateMondaySyncFields(serviceArea, inquiryId, {
         mondayItemId: itemId,
