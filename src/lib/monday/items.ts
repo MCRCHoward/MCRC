@@ -41,4 +41,36 @@ export async function createMondayItem(
   return { itemId: data.create_item.id }
 }
 
+interface UpdateMondayItemInput {
+  boardId: number
+  itemId: string
+  columnValues: string
+}
+
+export async function updateMondayItem(input: UpdateMondayItemInput): Promise<void> {
+  const mutation = /* GraphQL */ `
+    mutation UpdateMondayItem(
+      $boardId: ID!
+      $itemId: ID!
+      $columnValues: JSON!
+    ) {
+      change_multiple_column_values(
+        board_id: $boardId
+        item_id: $itemId
+        column_values: $columnValues
+      ) {
+        id
+      }
+    }
+  `
+
+  const variables = {
+    boardId: input.boardId,
+    itemId: input.itemId,
+    columnValues: input.columnValues,
+  }
+
+  await mondayGraphQL(mutation, variables)
+}
+
 

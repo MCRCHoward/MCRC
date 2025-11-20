@@ -1,16 +1,5 @@
 import { FORM_TO_SERVICE_AREA } from '@/lib/service-area-config'
 
-type ColumnConfig = {
-  status: string
-  formType: string
-  submissionDate: string
-  primaryContact: string
-  serviceArea: string
-  assignee: string
-  description: string
-  rawPayload: string
-}
-
 function getEnv(name: string, fallback?: string): string {
   const value = process.env[name]
   if (value === undefined || value === '') {
@@ -64,17 +53,6 @@ export const MONDAY_WEB_BASE_URL = getEnv(
   'MONDAY_WEB_BASE_URL',
   'https://monday.com/users/sign_up',
 )
-
-export const MONDAY_COLUMNS: ColumnConfig = {
-  status: getEnv('MONDAY_COLUMN_STATUS', 'status'),
-  formType: getEnv('MONDAY_COLUMN_FORM_TYPE', 'form_type'),
-  submissionDate: getEnv('MONDAY_COLUMN_SUBMISSION_DATE', 'submission_date'),
-  primaryContact: getEnv('MONDAY_COLUMN_PRIMARY_CONTACT', 'primary_contact'),
-  serviceArea: getEnv('MONDAY_COLUMN_SERVICE_AREA', 'service_area'),
-  assignee: getEnv('MONDAY_COLUMN_ASSIGNEE', 'owner'),
-  description: getEnv('MONDAY_COLUMN_DESCRIPTION', 'description'),
-  rawPayload: getEnv('MONDAY_COLUMN_RAW_PAYLOAD', 'raw_payload'),
-}
 
 export const MONDAY_SERVICE_AREA_LABELS: Record<string, string> = {
   mediation: 'Mediation',
