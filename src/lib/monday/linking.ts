@@ -11,15 +11,19 @@ export async function updateMondaySyncFields(
   fields: Partial<InquiryMondayFields>,
 ) {
   const docPath = `serviceAreas/${serviceArea}/inquiries/${inquiryId}`
-  await adminDb.doc(docPath).set(
-    {
-      ...fields,
-      mondayLastSyncedAt:
-        fields.mondayLastSyncedAt ??
-        (fields.mondaySyncStatus === 'success' ? FieldValue.serverTimestamp() : undefined),
-    },
-    { merge: true },
-  )
+  
+  // Build update object, only including mondayLastSyncedAt if it should be set
+  const updateData: Record<string, unknown> = { ...fields }
+  
+  // Only set mondayLastSyncedAt if explicitly provided or if sync was successful
+  if (fields.mondayLastSyncedAt !== undefined) {
+    updateData.mondayLastSyncedAt = fields.mondayLastSyncedAt
+  } else if (fields.mondaySyncStatus === 'success') {
+    updateData.mondayLastSyncedAt = FieldValue.serverTimestamp()
+  }
+  // If neither condition is met, omit the field entirely (don't set to undefined)
+  
+  await adminDb.doc(docPath).set(updateData, { merge: true })
 }
 
 

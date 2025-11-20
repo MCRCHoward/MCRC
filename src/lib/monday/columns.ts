@@ -99,11 +99,6 @@ function parseDropdownLabels(settingsStr: string | undefined): string[] {
   }
 }
 
-function hasDropdownLabel(column: MondayBoardColumn, label: string): boolean {
-  if (column.type !== 'dropdown') return false
-  const labels = parseDropdownLabels(column.settings_str)
-  return labels.includes(label)
-}
 
 async function createColumnOnMonday(boardId: number, definition: ColumnDefinition): Promise<string> {
   const mutation = /* GraphQL */ `

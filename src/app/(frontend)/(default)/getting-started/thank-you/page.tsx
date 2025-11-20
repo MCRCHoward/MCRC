@@ -34,18 +34,16 @@ export default async function ThankYouPage(props: ThankYouPageProps) {
     return (
       <main className="min-h-screen bg-muted">
         <section className="bg-gradient-to-b from-primary/10 to-background py-16 px-4">
-          <div className="container mx-auto max-w-6xl">
+          <div className="container mx-auto max-w-6xl mt-12">
             <Card className="shadow-lg">
               <CardHeader className="space-y-4 text-center">
                 <Badge className="mx-auto w-fit gap-2 py-1.5 px-4 text-sm">
                   <CheckCircle2 className="h-4 w-4" /> Form submitted successfully
                 </Badge>
-                <CardTitle className="text-3xl md:text-4xl">
-                  Thank you, {firstName}!
-                </CardTitle>
+                <CardTitle className="text-3xl md:text-4xl">Thank you, {firstName}!</CardTitle>
                 <CardDescription className="text-base md:text-lg">
-                  We&apos;ve received your inquiry and our team will be in touch soon. Please schedule
-                  your intake call below to get started.
+                  We&apos;ve received your inquiry and our team will be in touch soon. Please
+                  schedule your intake call below to get started.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
@@ -76,24 +74,24 @@ export default async function ThankYouPage(props: ThankYouPageProps) {
                         <div className="space-y-2">
                           <h4 className="font-semibold">1. Schedule Your Call</h4>
                           <p className="text-sm text-muted-foreground">
-                            Use the calendar on the left to pick a time for your intake call. You&apos;ll
-                            receive a confirmation email with call details.
+                            Use the calendar on the left to pick a time for your intake call.
+                            You&apos;ll receive a confirmation email with call details.
                           </p>
                         </div>
                         <Separator />
                         <div className="space-y-2">
                           <h4 className="font-semibold">2. Intake Call</h4>
                           <p className="text-sm text-muted-foreground">
-                            During the call, we&apos;ll learn more about your situation and discuss how
-                            we can help. This typically takes 30 minutes.
+                            During the call, we&apos;ll learn more about your situation and discuss
+                            how we can help. This typically takes 30 minutes.
                           </p>
                         </div>
                         <Separator />
                         <div className="space-y-2">
                           <h4 className="font-semibold">3. Next Steps</h4>
                           <p className="text-sm text-muted-foreground">
-                            After the call, we&apos;ll outline the next steps and connect you with the
-                            appropriate resources or services.
+                            After the call, we&apos;ll outline the next steps and connect you with
+                            the appropriate resources or services.
                           </p>
                         </div>
                       </CardContent>
@@ -139,8 +137,8 @@ export default async function ThankYouPage(props: ThankYouPageProps) {
                 <div className="rounded-lg border bg-background p-6 text-center">
                   <h3 className="text-xl font-semibold mb-4">Your Journey Starts Here</h3>
                   <p className="text-sm text-muted-foreground max-w-3xl mx-auto">
-                    We&apos;re here to support you every step of the way. Thank you for taking the first
-                    step toward resolution and healing.
+                    We&apos;re here to support you every step of the way. Thank you for taking the
+                    first step toward resolution and healing.
                   </p>
                 </div>
               </CardContent>
@@ -150,8 +148,18 @@ export default async function ThankYouPage(props: ThankYouPageProps) {
       </main>
     )
   } catch (error) {
-    console.error('[ThankYouPage] Error loading Calendly link:', error)
-    return <ErrorState error={error instanceof Error ? error.message : 'Unknown error'} />
+    // Log as warning for missing Calendly mappings (expected during setup)
+    // Error is already handled gracefully in the UI via ErrorState component
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isMappingError = errorMessage.includes('event type mapping missing')
+
+    if (isMappingError) {
+      console.warn('[ThankYouPage] Calendly mapping not configured:', errorMessage)
+    } else {
+      console.error('[ThankYouPage] Error loading Calendly link:', error)
+    }
+
+    return <ErrorState error={errorMessage} />
   }
 }
 
@@ -164,15 +172,15 @@ function MissingParamsState() {
             <CardHeader className="space-y-4 text-center">
               <CardTitle className="text-3xl md:text-4xl">Missing Information</CardTitle>
               <CardDescription className="text-base md:text-lg">
-                We couldn&apos;t find the necessary information to display this page. Please make sure
-                you accessed this page from a completed form submission.
+                We couldn&apos;t find the necessary information to display this page. Please make
+                sure you accessed this page from a completed form submission.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6">
                 <p className="text-sm text-destructive">
-                  If you just submitted a form, please check your email for a confirmation message. If
-                  you continue to see this error, please contact us at{' '}
+                  If you just submitted a form, please check your email for a confirmation message.
+                  If you continue to see this error, please contact us at{' '}
                   <a href="mailto:info@mcrchoward.org" className="underline">
                     info@mcrchoward.org
                   </a>
@@ -193,7 +201,8 @@ function MissingParamsState() {
 }
 
 function ErrorState({ error }: { error: string }) {
-  const isSettingsError = error.includes('Calendly settings') || error.includes('event type mapping')
+  const isSettingsError =
+    error.includes('Calendly settings') || error.includes('event type mapping')
   const isInquiryError = error.includes('Inquiry not found')
 
   return (
@@ -215,8 +224,8 @@ function ErrorState({ error }: { error: string }) {
                 <div className="rounded-lg border bg-background p-6">
                   <h3 className="font-semibold mb-2">Scheduling Setup in Progress</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Our scheduling system is being configured. A team member will contact you directly
-                    to schedule your intake call.
+                    Our scheduling system is being configured. A team member will contact you
+                    directly to schedule your intake call.
                   </p>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">What to expect:</p>
@@ -231,8 +240,8 @@ function ErrorState({ error }: { error: string }) {
                 <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6">
                   <h3 className="font-semibold mb-2 text-destructive">Unable to Load Inquiry</h3>
                   <p className="text-sm text-muted-foreground">
-                    We couldn&apos;t find your inquiry in our system. Please contact us directly if you
-                    have any questions.
+                    We couldn&apos;t find your inquiry in our system. Please contact us directly if
+                    you have any questions.
                   </p>
                 </div>
               ) : (
@@ -280,4 +289,3 @@ function ErrorState({ error }: { error: string }) {
     </main>
   )
 }
-

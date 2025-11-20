@@ -56,8 +56,20 @@ function buildBasePayload(): InsightlyLeadPayload {
   }
 }
 
+/**
+ * Sanitizes tag names by replacing spaces with underscores.
+ * Insightly doesn't allow spaces in tag names.
+ */
+function sanitizeTagName(tagName: string): string {
+  return tagName.replace(/\s+/g, '_')
+}
+
 function withTags(...tags: (InsightlyTag | undefined)[]): InsightlyTag[] {
-  return tags.filter((tag): tag is InsightlyTag => Boolean(tag))
+  return tags
+    .filter((tag): tag is InsightlyTag => Boolean(tag))
+    .map((tag) => ({
+      TAG_NAME: sanitizeTagName(tag.TAG_NAME),
+    }))
 }
 
 export function buildSelfReferralLeadPayload(values: MediationFormValues): InsightlyLeadPayload {

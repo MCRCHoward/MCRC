@@ -42,8 +42,14 @@ function formatFieldName(fieldName: string): string {
 /**
  * Format field value for display
  */
-function formatFieldValue(value: unknown): string {
-  if (value === null || value === undefined) return '—'
+function formatFieldValue(value: unknown, fieldName?: string): string {
+  if (value === null || value === undefined) {
+    // Show helpful message for deadline field when empty
+    if (fieldName === 'deadline') {
+      return 'No deadline specified'
+    }
+    return '—'
+  }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
     return new Date((value as { toDate: () => Date }).toDate()).toLocaleString()
@@ -139,7 +145,7 @@ export function SubmissionDetailClient({
           <p className="text-sm text-muted-foreground">No form data available.</p>
         ) : (
           formFields.map(([fieldName, value], index) => {
-            const formattedValue = formatFieldValue(value)
+            const formattedValue = formatFieldValue(value, fieldName)
             const isCopied = copiedFields.has(fieldName)
             const canCopy = typeof value === 'string' && value.length > 0
 

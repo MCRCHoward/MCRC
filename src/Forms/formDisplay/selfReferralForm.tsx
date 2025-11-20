@@ -4,7 +4,7 @@ import * as React from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { format } from 'date-fns'
-import { CalendarIcon, Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react'
+import { CalendarIcon, Check, ChevronsUpDown, Plus, Trash2, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { ServiceArea } from '@/lib/service-area-config'
 
@@ -196,26 +196,58 @@ export function MediationSelfReferralForm() {
   }
 
   async function onSubmit(data: MediationFormValues) {
+    console.log('[SelfReferralForm] onSubmit called', {
+      currentStep,
+      hasInteractedWithStep4,
+      isSubmitting,
+      dataKeys: Object.keys(data),
+    })
+
     // Prevent submission if on final step and user hasn't interacted with step 4 fields
     if (currentStep === 3 && !hasInteractedWithStep4) {
+      console.log('[SelfReferralForm] Blocked: User has not interacted with step 4 fields')
       // Focus first field to prompt user interaction
       form.setFocus('deadline')
       return
     }
 
+    console.log(
+      '[SelfReferralForm] Triggering validation for step',
+      currentStep,
+      'fields:',
+      STEP_FIELDS[currentStep],
+    )
     // Optional: final guard to ensure last step is valid
     const okay = await form.trigger(STEP_FIELDS[currentStep] as Array<keyof MediationFormValues>, {
       shouldFocus: true,
     })
-    if (!okay) return
+    console.log('[SelfReferralForm] Validation result:', okay)
+    if (!okay) {
+      console.log('[SelfReferralForm] Blocked: Validation failed')
+      const errors = form.formState.errors
+      console.log('[SelfReferralForm] Form errors:', errors)
+      return
+    }
 
+    console.log('[SelfReferralForm] Starting submission...')
     setIsSubmitting(true)
     setSubmissionError(null)
     setSubmissionSuccess(false)
 
     try {
+      console.log('[SelfReferralForm] Calling submitSelfReferralFormAction...')
       const result = await submitSelfReferralFormAction(data)
+      console.log('[SelfReferralForm] Submission result:', {
+        success: result.success,
+        hasInquiryId: !!result.inquiryId,
+        inquiryId: result.inquiryId,
+        error: result.error,
+        insightly: result.insightly,
+        monday: result.monday,
+      })
+
       if (!result.success || !result.inquiryId) {
+        console.error('[SelfReferralForm] Submission failed:', result.error)
         throw new Error(result.error ?? 'Unable to submit your referral right now.')
       }
 
@@ -223,10 +255,14 @@ export function MediationSelfReferralForm() {
         console.warn('[SelfReferralForm] Insightly sync failed', result.insightly.error)
       }
 
+      console.log(
+        '[SelfReferralForm] Submission successful, setting success state and redirecting...',
+      )
       setSubmissionSuccess(true)
       clearSavedData()
 
       const fullName = `${data.firstName} ${data.lastName}`.trim() || data.firstName
+      console.log('[SelfReferralForm] Sending confirmation email to:', data.email)
       void requestFormConfirmationEmail({
         to: data.email,
         name: fullName,
@@ -235,14 +271,18 @@ export function MediationSelfReferralForm() {
           'Thanks for reaching out to the Mediation & Conflict Resolution Center. We received your request and will contact you soon to review next steps.',
       })
 
+      console.log('[SelfReferralForm] Redirecting to thank you page...')
       router.push(
         `/getting-started/thank-you?serviceArea=${SERVICE_AREA}&inquiryId=${result.inquiryId}`,
       )
     } catch (error) {
+      console.error('[SelfReferralForm] Submission error caught:', error)
       const message =
         error instanceof Error ? error.message : 'Unable to submit your referral right now.'
+      console.error('[SelfReferralForm] Setting error message:', message)
       setSubmissionError(message)
     } finally {
+      console.log('[SelfReferralForm] Setting isSubmitting to false')
       setIsSubmitting(false)
     }
   }
@@ -310,7 +350,31 @@ export function MediationSelfReferralForm() {
     <Form {...form}>
       <form
         ref={formRef}
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={(e) => {
+          console.log('[SelfReferralForm] Form onSubmit event triggered', {
+            currentStep,
+            isSubmitting,
+            eventType: e.type,
+          })
+          // Always prevent default form submission
+          e.preventDefault()
+
+          // Only allow submission if we're on the final step
+          if (currentStep !== TOTAL_STEPS - 1) {
+            console.log('[SelfReferralForm] Blocked: Not on final step')
+            return
+          }
+
+          // Only allow submission if user has interacted with step 4 fields
+          if (!hasInteractedWithStep4) {
+            console.log('[SelfReferralForm] Blocked: User has not interacted with step 4 fields')
+            form.setFocus('accessibilityNeeds')
+            return
+          }
+
+          // Proceed with form submission
+          form.handleSubmit(onSubmit)(e)
+        }}
         onKeyDown={handleFormKeyDown}
         className="space-y-6 scroll-mt-20"
       >
@@ -928,48 +992,76 @@ export function MediationSelfReferralForm() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="deadline"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>
-                      If court order what is the specific date or deadline you are working with?
-                    </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
+              {/* Only show deadline field if isCourtOrdered is "Yes" */}
+              {form.watch('isCourtOrdered') === 'Yes' && (
+                <FormField
+                  control={form.control}
+                  name="deadline"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>
+                        For your court order, what is the specific date or deadline you are working
+                        with? <span className="text-muted-foreground font-normal">(Optional)</span>
+                      </FormLabel>
+                      <div className="flex items-center gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className={cn(
+                                  'w-[240px] pl-3 text-left font-normal justify-start',
+                                  !field.value && 'text-muted-foreground',
+                                )}
+                                disabled={isSubmitting}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                                {field.value ? (
+                                  format(field.value, 'PPP')
+                                ) : (
+                                  <span>No specific deadline</span>
+                                )}
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date) => {
+                                field.onChange(date)
+                                markStep4Interaction()
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        {field.value && (
                           <Button
-                            variant="outline"
-                            className={cn(
-                              'w-[240px] pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground',
-                            )}
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10"
+                            onClick={() => {
+                              field.onChange(undefined)
+                              markStep4Interaction()
+                            }}
+                            disabled={isSubmitting}
+                            aria-label="Clear date"
                           >
-                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            <X className="h-4 w-4" />
                           </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date) => {
-                            field.onChange(date)
-                            markStep4Interaction()
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormDescription>
-                      If not applicable, please pick today&apos;s date.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                        )}
+                      </div>
+                      <FormDescription>
+                        If you don&apos;t have a specific deadline, you can leave this blank.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}
@@ -1052,7 +1144,7 @@ export function MediationSelfReferralForm() {
                 Next
               </Button>
             ) : (
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || !hasInteractedWithStep4}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

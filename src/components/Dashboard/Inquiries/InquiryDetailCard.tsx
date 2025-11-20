@@ -64,8 +64,14 @@ function formatFieldName(fieldName: string): string {
 /**
  * Format field value for display
  */
-function formatFieldValue(value: unknown): string {
-  if (value === null || value === undefined) return '—'
+function formatFieldValue(value: unknown, fieldName?: string): string {
+  if (value === null || value === undefined) {
+    // Show helpful message for deadline field when empty
+    if (fieldName === 'deadline') {
+      return 'No deadline specified'
+    }
+    return '—'
+  }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
     return new Date((value as { toDate: () => Date }).toDate()).toLocaleString()
@@ -750,49 +756,49 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
       {otherFields.length > 0 && (
         <>
           <Separator />
-          <div className="space-y-4">
+      <div className="space-y-4">
             <h3 className="text-lg font-semibold">Other Details</h3>
             {otherFields.map(([fieldName, value], index) => {
-              const formattedValue = formatFieldValue(value)
-              const isCopied = copiedFields.has(fieldName)
-              const canCopy = typeof value === 'string' && value.length > 0
+              const formattedValue = formatFieldValue(value, fieldName)
+            const isCopied = copiedFields.has(fieldName)
+            const canCopy = typeof value === 'string' && value.length > 0
 
-              return (
-                <div key={fieldName}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-muted-foreground mb-1">
-                        {formatFieldName(fieldName)}
-                      </div>
+            return (
+              <div key={fieldName}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-muted-foreground mb-1">
+                      {formatFieldName(fieldName)}
+                    </div>
                       <div className="text-sm break-words whitespace-pre-wrap">
                         {formattedValue}
                       </div>
-                    </div>
-                    {canCopy && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 shrink-0"
-                        onClick={() =>
-                          handleCopy(String(value), formatFieldName(fieldName), fieldName)
-                        }
-                        title={`Copy ${formatFieldName(fieldName)}`}
-                      >
-                        {isCopied ? (
-                          <Check className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    )}
                   </div>
-                  {index < otherFields.length - 1 && <Separator className="mt-4" />}
+                  {canCopy && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 shrink-0"
+                      onClick={() =>
+                        handleCopy(String(value), formatFieldName(fieldName), fieldName)
+                      }
+                      title={`Copy ${formatFieldName(fieldName)}`}
+                    >
+                      {isCopied ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
                 </div>
-              )
+                  {index < otherFields.length - 1 && <Separator className="mt-4" />}
+              </div>
+            )
             })}
           </div>
         </>
-      )}
+        )}
     </div>
   )
 }
