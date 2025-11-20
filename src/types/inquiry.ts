@@ -24,7 +24,17 @@ export interface CalendlyScheduling {
 /**
  * Inquiry document structure
  */
-export interface Inquiry {
+export type MondaySyncStatus = 'pending' | 'success' | 'failed'
+
+export interface InquiryMondayFields {
+  mondayItemId?: string
+  mondayItemUrl?: string
+  mondaySyncStatus?: MondaySyncStatus
+  mondaySyncError?: string | null
+  mondayLastSyncedAt?: string
+}
+
+export interface Inquiry extends InquiryMondayFields {
   id: string
   formType: string
   serviceArea: ServiceArea
