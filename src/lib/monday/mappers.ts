@@ -303,7 +303,7 @@ async function buildBaseMondayItem({
   const columnIds = await ensureMondayColumns(scope)
   const columnValues: Record<string, unknown> = {}
 
-  const serviceAreaLabel = MONDAY_SERVICE_AREA_LABELS[serviceAreaKey]
+  const serviceAreaLabel = MONDAY_SERVICE_AREA_LABELS[serviceAreaKey] ?? serviceAreaKey
   const primarySummary = buildPrimaryContactSummary(primarySummaryParts)
 
   applySharedColumns({
