@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { markAsReviewed } from '@/lib/actions/inquiry-actions'
 import { syncInquiryWithInsightlyAction } from '@/lib/actions/insightly-actions'
+import { retryMondaySyncAction } from '@/lib/actions/monday-actions'
 import { InquiryStatusBadge } from './InquiryStatusBadge'
 import { formatDateTimeShort } from '@/utilities/formatDateTime'
 import type { Inquiry } from '@/types/inquiry'
@@ -138,9 +139,11 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
   const [processing, setProcessing] = useState(false)
   const [copiedFields, setCopiedFields] = useState<Set<string>>(new Set())
   const [syncingInsightly, setSyncingInsightly] = useState(false)
+  const [syncingMonday, setSyncingMonday] = useState(false)
   const supportsInsightly =
     inquiry.formType === 'mediation-self-referral' ||
     inquiry.formType === 'restorative-program-referral'
+  const supportsMonday = supportsInsightly
 
   const handleCopy = async (text: string, label: string, fieldName: string) => {
     await copyToClipboard(text, label)
@@ -224,6 +227,14 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
       | 'failed'
       | undefined
 
+  const mondayStatus =
+    (inquiry.mondaySyncStatus ??
+      (inquiry.mondayItemId ? 'success' : undefined)) as
+      | 'pending'
+      | 'success'
+      | 'failed'
+      | undefined
+
   const handleSyncInsightly = async () => {
     setSyncingInsightly(true)
     try {
@@ -243,6 +254,28 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
       console.error('[InquiryDetailCard] Insightly sync failed', error)
     } finally {
       setSyncingInsightly(false)
+    }
+  }
+
+  const handleSyncMonday = async () => {
+    setSyncingMonday(true)
+    try {
+      const result = await retryMondaySyncAction({
+        inquiryId: inquiry.id,
+        serviceArea,
+      })
+      if (result.success) {
+        toast.success('Monday item synced')
+      } else {
+        toast.error(result.error ?? 'Unable to sync with Monday')
+      }
+      router.refresh()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to sync with Monday'
+      toast.error(message)
+      console.error('[InquiryDetailCard] Monday sync failed', error)
+    } finally {
+      setSyncingMonday(false)
     }
   }
 
@@ -356,6 +389,87 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
                   'Resync Insightly Lead'
                 ) : (
                   'Create Insightly Lead'
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {supportsMonday ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-base font-semibold">
+              <span>Monday Sync</span>
+              {mondayStatus ? (
+                <Badge
+                  variant={
+                    mondayStatus === 'success'
+                      ? 'default'
+                      : mondayStatus === 'failed'
+                        ? 'destructive'
+                        : 'secondary'
+                  }
+                >
+                  {mondayStatus === 'success'
+                    ? 'Synced'
+                    : mondayStatus === 'failed'
+                      ? 'Failed'
+                      : 'Pending'}
+                </Badge>
+              ) : (
+                <Badge variant="outline">Not yet created</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="grid gap-2 md:grid-cols-2">
+              <div>
+                <div className="text-muted-foreground">Item ID</div>
+                <div>
+                  {inquiry.mondayItemId ? (
+                    inquiry.mondayItemUrl ? (
+                      <a
+                        href={inquiry.mondayItemUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        #{inquiry.mondayItemId}
+                      </a>
+                    ) : (
+                      `#${inquiry.mondayItemId}`
+                    )
+                  ) : (
+                    '—'
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Last synced</div>
+                <div>
+                  {inquiry.mondayLastSyncedAt
+                    ? formatDateTimeShort(inquiry.mondayLastSyncedAt)
+                    : '—'}
+                </div>
+              </div>
+            </div>
+            {inquiry.mondaySyncError ? (
+              <div className="text-sm text-destructive">
+                Last error: {inquiry.mondaySyncError}
+              </div>
+            ) : null}
+            <div>
+              <Button onClick={handleSyncMonday} disabled={syncingMonday}>
+                {syncingMonday ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Syncing…
+                  </>
+                ) : inquiry.mondayItemId ? (
+                  'Resync Monday Item'
+                ) : (
+                  'Create Monday Item'
                 )}
               </Button>
             </div>
