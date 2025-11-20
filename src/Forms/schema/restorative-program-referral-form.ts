@@ -21,7 +21,8 @@ export const restorativeServiceOptions = [
 
 export const restorativeUrgencyOptions = ['high', 'medium', 'low'] as const
 
-const stripAndValidatePhone = (value: string): boolean => {
+const stripAndValidatePhone = (value: string | undefined): boolean => {
+  if (!value || value.trim() === '') return true
   const digits = stripPhoneNumber(value)
   return digits.length === 10 || digits.length === 0
 }
