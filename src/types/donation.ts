@@ -24,7 +24,7 @@ export interface Donation {
   donorName: string
   donorEmail: string
   donorPhone?: string // Optional
-  emailMarketingConsent: boolean
+  emailMarketingConsent: boolean // defaults to false
   paymentId: string // PayPal order ID
   paymentStatus: DonationPaymentStatus
   paymentDate: string // ISO timestamp
