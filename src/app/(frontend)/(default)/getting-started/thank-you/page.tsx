@@ -32,7 +32,7 @@ export default async function ThankYouPage(props: ThankYouPageProps) {
     const firstName = participantName.split(' ')[0] || participantName
 
     return (
-      <main className="min-h-screen bg-muted">
+      <div className="min-h-screen bg-muted flex justify-center items-center">
         <section className="bg-gradient-to-b from-primary/10 to-background py-16 px-4">
           <div className="container mx-auto max-w-6xl mt-12">
             <Card className="shadow-lg">
@@ -145,7 +145,7 @@ export default async function ThankYouPage(props: ThankYouPageProps) {
             </Card>
           </div>
         </section>
-      </main>
+      </div>
     )
   } catch (error) {
     // Log as warning for missing Calendly mappings (expected during setup)
