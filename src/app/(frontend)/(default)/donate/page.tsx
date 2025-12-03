@@ -60,13 +60,21 @@ const donationSchema = z.object({
       (val) => !val || /^[\d\s\-()\+]+$/.test(val),
       'Phone number can only contain digits, spaces, dashes, parentheses, and plus sign',
     ),
-  emailMarketingConsent: z.boolean().default(false),
+  emailMarketingConsent: z.boolean(),
   amount: z.number().min(1, 'Donation amount must be at least $1.00'),
   frequency: z.enum(['one-time', 'monthly']),
   currency: z.string().default('USD').optional(),
 })
 
-type DonationFormValues = z.infer<typeof donationSchema>
+type DonationFormValues = {
+  donorName: string
+  donorEmail: string
+  donorPhone?: string
+  emailMarketingConsent: boolean
+  amount: number
+  frequency: 'one-time' | 'monthly'
+  currency?: string
+}
 
 const PRESET_AMOUNTS = [25, 50, 100, 250] as const
 
@@ -106,7 +114,8 @@ const getDonationTier = (amount: number) => {
 
 // Helper function to get impact message
 const getImpactMessage = (amount: number): string => {
-  if (IMPACT_MESSAGES[amount]) return IMPACT_MESSAGES[amount]
+  const presetMessage = IMPACT_MESSAGES[amount]
+  if (presetMessage) return presetMessage
   if (amount >= 250)
     return `Funds ${Math.floor(amount / 250)} full days of restorative justice programs`
   if (amount >= 100) return `Supports ${Math.floor(amount / 50)} complete mediation sessions`
@@ -231,7 +240,7 @@ export default function DonatePage() {
       donorName: values.donorName,
       donorEmail: values.donorEmail,
       donorPhone: values.donorPhone || undefined,
-      emailMarketingConsent: values.emailMarketingConsent || false,
+      emailMarketingConsent: values.emailMarketingConsent ?? false,
       amount: amount,
       frequency: values.frequency,
       currency: values.currency || 'USD',
