@@ -107,48 +107,19 @@ const Footer = ({
               </div>
             ))}
             <div className="lg:col-span-2 xl:col-span-1">
-              <h4 className="mb-4 font-bold text-lg border-b border-primary pb-2">
-                Get In Touch On :
-              </h4>
-              <ul className="mb-10 flex items-center gap-2 text-muted-foreground">
-                <li className="font-medium">
-                  <Link href="#">
-                    <span className="flex size-12 items-center justify-center rounded-full bg-darkgreen text-darkgreen-foreground transition-colors hover:text-yellow">
-                      <FaInstagram className="size-6" />
-                    </span>
-                  </Link>
-                </li>
-                <li className="font-medium">
-                  <Link href="#">
-                    <span className="flex size-12 items-center justify-center rounded-full bg-darkgreen text-darkgreen-foreground transition-colors hover:text-yellow">
-                      <FaRedditAlien className="size-6" />
-                    </span>
-                  </Link>
-                </li>
-                <li className="font-medium">
-                  <Link href="#">
-                    <span className="flex size-12 items-center justify-center rounded-full bg-darkgreen text-darkgreen-foreground transition-colors hover:text-yellow">
-                      <FaTwitter className="size-6" />
-                    </span>
-                  </Link>
-                </li>
-                <li className="font-medium">
-                  <Link href="#">
-                    <span className="flex size-12 items-center justify-center rounded-full bg-darkgreen text-darkgreen-foreground transition-colors hover:text-yellow">
-                      <FaTelegramPlane className="size-6" />
-                    </span>
-                  </Link>
-                </li>
-                <li className="font-medium">
-                  <Link href="#">
-                    <span className="flex size-12 items-center justify-center rounded-full bg-darkgreen text-darkgreen-foreground transition-colors hover:text-yellow">
-                      <FaLinkedin className="size-6" />
-                    </span>
-                  </Link>
-                </li>
-              </ul>
+              <Link
+                href="https://app.candid.org/profile/9653121/mediation-and-conflict-resolution-center-61-1822581"
+                target="_blank"
+              >
+                <Image
+                  src="/images/awards/candid-seal-platinum-2025.png"
+                  alt="logo"
+                  width={100}
+                  height={100}
+                />
+              </Link>
               <div className="grid w-full max-w-sm items-center gap-1.5">
-                <h5 className="text-sm font-medium">Subscribe to our newsletter</h5>
+                <h5 className="text-sm font-medium mt-4">Subscribe to our newsletter</h5>
                 <NewsletterForm showNames={true} variant="default" />
                 <p className="mt-1 text-xs text-muted-foreground">
                   By submitting, you agree to our
