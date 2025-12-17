@@ -1,20 +1,17 @@
 'use client'
 
 import * as React from 'react'
-import { EditorProvider, useCurrentEditor } from '@/components/ui/shadcn-io/editor'
 import type { JSONContent } from '@/components/ui/shadcn-io/editor'
 import StarterKit from '@tiptap/starter-kit'
-import { Link } from '@tiptap/extension-link'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { CharacterCount } from '@tiptap/extension-character-count'
-import { useEditor } from '@tiptap/react'
+import { useEditor, EditorContent } from '@tiptap/react'
 import { Button } from '@/components/ui/button'
 import {
   Bold,
   Italic,
   List,
   ListOrdered,
-  Link as LinkIcon,
   Heading2,
   Heading3,
 } from 'lucide-react'
@@ -64,12 +61,6 @@ export function EventDescriptionEditor({
       StarterKit.configure({
         heading: {
           levels: [2, 3],
-        },
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-primary underline',
         },
       }),
       Placeholder.configure({
@@ -173,28 +164,11 @@ export function EventDescriptionEditor({
         >
           <ListOrdered className="h-4 w-4" />
         </Button>
-        <div className="w-px h-6 bg-border mx-1" />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            const url = window.prompt('Enter URL:')
-            if (url) {
-              editor.chain().focus().setLink({ href: url }).run()
-            }
-          }}
-          className={cn(editor.isActive('link') && 'bg-background')}
-        >
-          <LinkIcon className="h-4 w-4" />
-        </Button>
       </div>
 
       {/* Editor */}
       <div className="border rounded-md min-h-[200px] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-        <EditorProvider editor={editor}>
-          <div className="min-h-[200px]" />
-        </EditorProvider>
+        <EditorContent editor={editor} />
       </div>
 
       {/* Character Count */}
