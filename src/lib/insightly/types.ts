@@ -23,6 +23,21 @@ export interface InsightlyLeadPayload {
   INDUSTRY?: string
   TAGS?: InsightlyTag[]
   WEBSITE?: string
+  /**
+   * Custom fields support
+   * Use FIELD_NAME as the key (lookup via https://api.{pod}.insightly.com/v3.1/CustomFields)
+   * Values can be strings, numbers, dates (yyyy-MM-dd HH:mm:ss UTC format), or booleans
+   * To remove a custom field value, use NULL
+   *
+   * Example:
+   * {
+   *   ...otherFields,
+   *   'CUSTOMFIELD_123': 'Custom value',
+   *   'CUSTOMFIELD_456': 42,
+   *   'CUSTOMFIELD_789': '2024-01-15 14:30:00'
+   * }
+   */
+  [key: string]: string | number | boolean | InsightlyTag[] | undefined | null
 }
 
 export interface InsightlyLeadResponse {
@@ -44,4 +59,3 @@ export interface InsightlyClientConfig {
   apiUrl: string
   apiKey: string
 }
-
