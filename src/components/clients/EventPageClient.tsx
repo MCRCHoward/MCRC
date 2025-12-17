@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, MapPin, Globe, CreditCard, CheckCircle2, X, Loader2 } from 'lucide-react'
+import { Calendar, MapPin, Globe, CreditCard, CheckCircle2, X, Loader2, ExternalLink } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -346,17 +346,6 @@ const EventPageClient = ({
                       eventCost={cost ? { amount: cost.amount, currency: cost.currency || 'USD' } : undefined}
                       onSuccess={() => router.refresh()}
                     />
-                  ) : externalRegistrationLink ? (
-                    <Button asChild className="w-full" size="lg">
-                      <Link
-                        href={externalRegistrationLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Register for this event (opens in new tab)"
-                      >
-                        Register Now
-                      </Link>
-                    </Button>
                   ) : null
                 ) : (
                   // User is not authenticated
@@ -369,19 +358,23 @@ const EventPageClient = ({
                     >
                       Sign in to Register
                     </Button>
-                  ) : externalRegistrationLink ? (
-                    <Button asChild className="w-full" size="lg">
-                      <Link
-                        href={externalRegistrationLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Register for this event (opens in new tab)"
-                      >
-                        Register Now
-                      </Link>
-                    </Button>
                   ) : null
                 )}
+
+                {/* External Registration Link */}
+                {externalRegistrationLink ? (
+                  <Button asChild className="w-full" size="lg">
+                    <a
+                      href={externalRegistrationLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Register here (opens in new tab)"
+                    >
+                      <span>Register here</span>
+                      <ExternalLink className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </a>
+                  </Button>
+                ) : null}
 
                 {/* Online Meeting Link */}
                 {modality === 'online' && onlineMeeting?.url && (

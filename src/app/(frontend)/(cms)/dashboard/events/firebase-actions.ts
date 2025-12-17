@@ -10,6 +10,7 @@ interface CreateEventInput {
   summary?: string
   descriptionHtml?: string
   imageUrl?: string
+  externalRegistrationLink?: string
   slug?: string
   startAt: string // ISO
   endAt?: string // ISO

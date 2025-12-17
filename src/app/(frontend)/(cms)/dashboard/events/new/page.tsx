@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Link as LinkIcon, Loader2 } from 'lucide-react'
 
 import { createEvent } from '@/app/(frontend)/(cms)/dashboard/events/firebase-actions'
 import { useFormAutoSave } from '@/hooks/useFormAutoSave'
@@ -57,6 +57,12 @@ const baseSchema = z.object({
   summary: z.string().optional(),
   descriptionHtml: z.string().optional(),
   slug: z.string().optional(),
+  externalRegistrationLink: z
+    .string()
+    .trim()
+    .url('Enter a valid URL (e.g., https://example.com)')
+    .optional()
+    .or(z.literal('')),
   startDate: z.string().min(1, 'Start date is required'),
   startTime: z.string().min(1, 'Start time is required'),
   endDate: z.string().optional(),
@@ -172,6 +178,7 @@ export default function NewEventPage() {
       summary: '',
       descriptionHtml: '',
       slug: '',
+      externalRegistrationLink: '',
       startDate: '',
       startTime: '',
       endDate: '',
@@ -361,6 +368,11 @@ export default function NewEventPage() {
         summary: values.summary,
         descriptionHtml: values.descriptionHtml,
         imageUrl,
+        externalRegistrationLink:
+          typeof values.externalRegistrationLink === 'string' &&
+          values.externalRegistrationLink.trim().length > 0
+            ? values.externalRegistrationLink.trim()
+            : undefined,
         slug: values.slug,
         startAt: startAt.toISOString(),
         endAt: endAt?.toISOString(),
@@ -573,9 +585,7 @@ export default function NewEventPage() {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Timezone</FormLabel>
-            <FormDescription>
-              Select the timezone where the event will take place
-            </FormDescription>
+            <FormDescription>Select the timezone where the event will take place</FormDescription>
             <FormControl>
               <TimezoneSelect value={field.value} onValueChange={field.onChange} />
             </FormControl>
@@ -590,10 +600,7 @@ export default function NewEventPage() {
         render={({ field }) => (
           <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
             <FormControl>
-              <Checkbox
-                checked={field.value}
-                onCheckedChange={(v) => field.onChange(Boolean(v))}
-              />
+              <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(Boolean(v))} />
             </FormControl>
             <div className="space-y-1 leading-none">
               <FormLabel>Online event</FormLabel>
@@ -761,7 +768,9 @@ export default function NewEventPage() {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Capacity</FormLabel>
-            <FormDescription>Maximum number of attendees (leave blank for unlimited)</FormDescription>
+            <FormDescription>
+              Maximum number of attendees (leave blank for unlimited)
+            </FormDescription>
             <FormControl>
               <Input
                 type="number"
@@ -769,9 +778,7 @@ export default function NewEventPage() {
                 placeholder="e.g. 100"
                 value={field.value ?? ''}
                 onChange={(e) =>
-                  field.onChange(
-                    e.target.value === '' ? undefined : Number(e.target.value),
-                  )
+                  field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
                 }
               />
             </FormControl>
@@ -816,9 +823,7 @@ export default function NewEventPage() {
                       placeholder="e.g. 25.00"
                       value={field.value ?? ''}
                       onChange={(e) =>
-                        field.onChange(
-                          e.target.value === '' ? undefined : Number(e.target.value),
-                        )
+                        field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
                       }
                     />
                   </FormControl>
@@ -876,6 +881,38 @@ export default function NewEventPage() {
           </FormItem>
         )}
       />
+
+      <FormField
+        control={form.control}
+        name="externalRegistrationLink"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>External registration link</FormLabel>
+            <FormDescription>
+              Optional. If provided, the public event page will show a “Register here” button
+              linking out.
+            </FormDescription>
+            <FormControl>
+              <div className="relative">
+                <LinkIcon
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  type="url"
+                  placeholder="https://…"
+                  autoComplete="url"
+                  inputMode="url"
+                  className="pl-10"
+                  {...field}
+                  value={field.value || ''}
+                />
+              </div>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </div>
   )
 
@@ -910,16 +947,11 @@ export default function NewEventPage() {
         render={({ field }) => (
           <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
             <FormControl>
-              <Checkbox
-                checked={field.value}
-                onCheckedChange={(v) => field.onChange(Boolean(v))}
-              />
+              <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(Boolean(v))} />
             </FormControl>
             <div className="space-y-1 leading-none">
               <FormLabel>Listed (public)</FormLabel>
-              <FormDescription>
-                Make this event visible on the public events page
-              </FormDescription>
+              <FormDescription>Make this event visible on the public events page</FormDescription>
             </div>
           </FormItem>
         )}
@@ -1002,4 +1034,3 @@ export default function NewEventPage() {
     </div>
   )
 }
-
