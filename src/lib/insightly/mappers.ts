@@ -57,11 +57,15 @@ function buildBasePayload(): InsightlyLeadPayload {
 }
 
 /**
- * Sanitizes tag names by replacing spaces with underscores.
- * Insightly doesn't allow spaces in tag names.
+ * Sanitizes tag names by replacing spaces and special characters with underscores.
+ * Insightly doesn't allow spaces or special characters (like colons, slashes, etc.) in tag names.
+ * Only alphanumeric characters, underscores, and hyphens are allowed.
  */
 function sanitizeTagName(tagName: string): string {
-  return tagName.replace(/\s+/g, '_')
+  return tagName
+    .replace(/[^a-zA-Z0-9_-]/g, '_') // Replace all non-alphanumeric (except _ and -) with _
+    .replace(/_+/g, '_') // Replace multiple consecutive underscores with single underscore
+    .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
 }
 
 function withTags(...tags: (InsightlyTag | undefined)[]): InsightlyTag[] {
