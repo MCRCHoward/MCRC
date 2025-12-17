@@ -34,10 +34,40 @@ export const insightlyDefaults = {
   responsibleUserId: parseNumberEnv('INSIGHTLY_DEFAULT_RESPONSIBLE_USER_ID'),
   defaultCountry: process.env.INSIGHTLY_DEFAULT_COUNTRY || 'United States',
   webBaseUrl: process.env.INSIGHTLY_WEB_BASE_URL?.replace(/\/+$/, ''),
+  /**
+   * Retry configuration for rate limiting
+   * Can be overridden via environment variables if needed
+   */
+  retryConfig: {
+    maxRetries: parseNumberEnv('INSIGHTLY_MAX_RETRIES', 3) || 3,
+    initialDelayMs: parseNumberEnv('INSIGHTLY_RETRY_INITIAL_DELAY_MS', 1000) || 1000,
+    maxDelayMs: parseNumberEnv('INSIGHTLY_RETRY_MAX_DELAY_MS', 10000) || 10000,
+    backoffMultiplier: parseNumberEnv('INSIGHTLY_RETRY_BACKOFF_MULTIPLIER', 2) || 2,
+  },
+}
+
+/**
+ * Formats a Date object to Insightly's required UTC format: yyyy-MM-dd HH:mm:ss
+ * Use this utility when adding date fields to lead payloads.
+ *
+ * @param date - Date object to format
+ * @returns Formatted date string in UTC
+ *
+ * @example
+ * const formattedDate = formatInsightlyDate(new Date())
+ * payload.CUSTOMFIELD_DATE = formattedDate
+ */
+export function formatInsightlyDate(date: Date): string {
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const hours = String(date.getUTCHours()).padStart(2, '0')
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+  const seconds = String(date.getUTCSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 export function buildInsightlyLeadUrl(leadId: number): string | undefined {
   if (!insightlyDefaults.webBaseUrl) return undefined
   return `${insightlyDefaults.webBaseUrl}/Leads/Details/${leadId}`
 }
-
