@@ -573,9 +573,7 @@ export default function NewEventPage() {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Timezone</FormLabel>
-            <FormDescription>
-              Select the timezone where the event will take place
-            </FormDescription>
+            <FormDescription>Select the timezone where the event will take place</FormDescription>
             <FormControl>
               <TimezoneSelect value={field.value} onValueChange={field.onChange} />
             </FormControl>
@@ -590,10 +588,7 @@ export default function NewEventPage() {
         render={({ field }) => (
           <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
             <FormControl>
-              <Checkbox
-                checked={field.value}
-                onCheckedChange={(v) => field.onChange(Boolean(v))}
-              />
+              <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(Boolean(v))} />
             </FormControl>
             <div className="space-y-1 leading-none">
               <FormLabel>Online event</FormLabel>
@@ -761,7 +756,9 @@ export default function NewEventPage() {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Capacity</FormLabel>
-            <FormDescription>Maximum number of attendees (leave blank for unlimited)</FormDescription>
+            <FormDescription>
+              Maximum number of attendees (leave blank for unlimited)
+            </FormDescription>
             <FormControl>
               <Input
                 type="number"
@@ -769,9 +766,7 @@ export default function NewEventPage() {
                 placeholder="e.g. 100"
                 value={field.value ?? ''}
                 onChange={(e) =>
-                  field.onChange(
-                    e.target.value === '' ? undefined : Number(e.target.value),
-                  )
+                  field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
                 }
               />
             </FormControl>
@@ -816,9 +811,7 @@ export default function NewEventPage() {
                       placeholder="e.g. 25.00"
                       value={field.value ?? ''}
                       onChange={(e) =>
-                        field.onChange(
-                          e.target.value === '' ? undefined : Number(e.target.value),
-                        )
+                        field.onChange(e.target.value === '' ? undefined : Number(e.target.value))
                       }
                     />
                   </FormControl>
@@ -910,16 +903,11 @@ export default function NewEventPage() {
         render={({ field }) => (
           <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
             <FormControl>
-              <Checkbox
-                checked={field.value}
-                onCheckedChange={(v) => field.onChange(Boolean(v))}
-              />
+              <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(Boolean(v))} />
             </FormControl>
             <div className="space-y-1 leading-none">
               <FormLabel>Listed (public)</FormLabel>
-              <FormDescription>
-                Make this event visible on the public events page
-              </FormDescription>
+              <FormDescription>Make this event visible on the public events page</FormDescription>
             </div>
           </FormItem>
         )}
@@ -1002,4 +990,3 @@ export default function NewEventPage() {
     </div>
   )
 }
-

@@ -986,7 +986,15 @@ export default function NewEventPage() {
     },
   ]
 
-  const canProceed = form.formState.isValid || currentStep === 3
+  const isLastStep = currentStep === steps.length - 1
+  const canProceed = isLastStep ? form.formState.isValid : true
+
+  // When arriving at the Review step, validate the full form so missing required fields are surfaced.
+  useEffect(() => {
+    if (isLastStep) {
+      void form.trigger()
+    }
+  }, [isLastStep, form])
 
   return (
     <div className="min-h-screen bg-background">
@@ -1008,7 +1016,7 @@ export default function NewEventPage() {
                   onStepChange={setCurrentStep}
                   onNext={handleNext}
                   onBack={handleBack}
-                  onFinish={handleFinish}
+                  onFinish={() => form.handleSubmit(handleFinish)()}
                   isSubmitting={isSubmitting}
                   canProceed={canProceed}
                 />
