@@ -57,6 +57,38 @@ function buildBasePayload(): InsightlyLeadPayload {
 }
 
 /**
+ * Validates that required fields are present before sending to Insightly API.
+ * According to Insightly API documentation, LAST_NAME is typically required.
+ *
+ * @param payload - The lead payload to validate
+ * @throws Error if required fields are missing
+ */
+export function validateLeadPayload(payload: InsightlyLeadPayload): void {
+  const errors: string[] = []
+
+  // LAST_NAME is required by Insightly API
+  if (!payload.LAST_NAME || payload.LAST_NAME.trim().length === 0) {
+    errors.push('LAST_NAME is required')
+  }
+
+  // LEAD_SOURCE_ID should be set (best practice)
+  if (!payload.LEAD_SOURCE_ID) {
+    errors.push('LEAD_SOURCE_ID is recommended for proper lead tracking')
+  }
+
+  // At least one contact method should be provided
+  if (!payload.EMAIL_ADDRESS && !payload.PHONE_NUMBER && !payload.MOBILE_PHONE_NUMBER) {
+    errors.push(
+      'At least one contact method (EMAIL_ADDRESS, PHONE_NUMBER, or MOBILE_PHONE_NUMBER) is recommended',
+    )
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`[Insightly] Payload validation failed: ${errors.join('; ')}`)
+  }
+}
+
+/**
  * Sanitizes tag names by replacing spaces and special characters with underscores.
  * Insightly doesn't allow spaces or special characters (like colons, slashes, etc.) in tag names.
  * Only alphanumeric characters, underscores, and hyphens are allowed.
@@ -92,7 +124,10 @@ export function buildSelfReferralLeadPayload(values: MediationFormValues): Insig
       'Source: Mediation Self-Referral (Website)',
       '',
       descriptionBlock('What brings you to seek mediation right now?', values.conflictOverview),
-      descriptionBlock('Are there accessibility needs or notes for staff?', values.accessibilityNeeds),
+      descriptionBlock(
+        'Are there accessibility needs or notes for staff?',
+        values.accessibilityNeeds,
+      ),
       descriptionBlock('Other details', values.additionalInfo),
       `Preferred contact method: ${values.preferredContactMethod}`,
       `Referral source: ${values.referralSource}`,
@@ -107,7 +142,9 @@ export function buildSelfReferralLeadPayload(values: MediationFormValues): Insig
       { TAG_NAME: 'MCRC' },
       { TAG_NAME: 'Mediation' },
       { TAG_NAME: 'Self Referral' },
-      sanitize(values.referralSource) ? { TAG_NAME: `Referral: ${values.referralSource}` } : undefined,
+      sanitize(values.referralSource)
+        ? { TAG_NAME: `Referral: ${values.referralSource}` }
+        : undefined,
       values.isCourtOrdered ? { TAG_NAME: `Court Ordered: ${values.isCourtOrdered}` } : undefined,
     ),
   }
@@ -167,4 +204,3 @@ export function buildRestorativeReferralLeadPayload(
 
   return payload
 }
-
