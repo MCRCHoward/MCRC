@@ -60,7 +60,9 @@ const baseSchema = z.object({
   externalRegistrationLink: z
     .string()
     .trim()
-    .url('Enter a valid URL (e.g., https://example.com)')
+    .refine((val) => val === '' || z.string().url().safeParse(val).success, {
+      message: 'Enter a valid URL (e.g., https://example.com)',
+    })
     .optional()
     .or(z.literal('')),
   startDate: z.string().min(1, 'Start date is required'),
