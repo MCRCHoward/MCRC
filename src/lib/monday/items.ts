@@ -51,7 +51,7 @@ export async function createMondayItem(
       columnKeys: Object.keys(columnValuesObj),
       columnCount: Object.keys(columnValuesObj).length,
     })
-  } catch (e) {
+  } catch (_e) {
     console.warn('[Monday API] Could not parse column values for logging')
   }
 
@@ -158,7 +158,7 @@ export async function updateMondayItem(input: UpdateMondayItemInput): Promise<vo
       columnKeys: Object.keys(columnValuesObj),
       columnCount: Object.keys(columnValuesObj).length,
     })
-  } catch (e) {
+  } catch (_e) {
     console.warn('[Monday API] Could not parse column values for logging')
   }
 
