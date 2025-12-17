@@ -8,6 +8,7 @@ import { createInsightlyLead } from '@/lib/insightly/client'
 import {
   buildRestorativeReferralLeadPayload,
   buildSelfReferralLeadPayload,
+  validateLeadPayload,
 } from '@/lib/insightly/mappers'
 import { updateInsightlySyncFields } from '@/lib/insightly/linking'
 import { buildInsightlyLeadUrl } from '@/lib/insightly/config'
@@ -15,10 +16,7 @@ import { mediationFormSchema } from '@/Forms/schema/request-mediation-self-refer
 import { restorativeProgramReferralFormSchema } from '@/Forms/schema/restorative-program-referral-form'
 import { hydrateFormDataFromFirestore } from '@/lib/inquiries/form-data'
 
-const SUPPORTED_FORM_TYPES: FormType[] = [
-  'mediation-self-referral',
-  'restorative-program-referral',
-]
+const SUPPORTED_FORM_TYPES: FormType[] = ['mediation-self-referral', 'restorative-program-referral']
 
 function revalidateInquiry(serviceArea: ServiceArea, inquiryId: string) {
   const metadata = SERVICE_AREA_METADATA[serviceArea]
@@ -37,7 +35,7 @@ export async function syncInquiryWithInsightlyAction({
   serviceArea,
 }: SyncParams): Promise<{ success: boolean; leadId?: number; error?: string }> {
   console.log('[Insightly] Starting sync', { inquiryId, serviceArea })
-  
+
   const docPath = `serviceAreas/${serviceArea}/inquiries/${inquiryId}`
   console.log('[Insightly] Retrieving inquiry document', { docPath })
   const docSnapshot = await adminDb.doc(docPath).get()
@@ -52,7 +50,10 @@ export async function syncInquiryWithInsightlyAction({
   console.log('[Insightly] Inquiry data retrieved', { formType, hasFormData: !!data?.formData })
 
   if (!formType || !SUPPORTED_FORM_TYPES.includes(formType)) {
-    console.error('[Insightly] Form type not supported', { formType, supported: SUPPORTED_FORM_TYPES })
+    console.error('[Insightly] Form type not supported', {
+      formType,
+      supported: SUPPORTED_FORM_TYPES,
+    })
     return { success: false, error: 'Form type is not configured for Insightly sync' }
   }
 
@@ -77,7 +78,7 @@ export async function syncInquiryWithInsightlyAction({
         hasLastName: !!payload.LAST_NAME,
         hasFirstName: !!payload.FIRST_NAME,
         hasEmail: !!payload.EMAIL_ADDRESS,
-        hasPhone: !!payload.PHONE,
+        hasPhone: !!payload.PHONE_NUMBER,
         tagsCount: payload.TAGS?.length || 0,
       })
     } else {
@@ -87,7 +88,7 @@ export async function syncInquiryWithInsightlyAction({
         hasLastName: !!payload.LAST_NAME,
         hasFirstName: !!payload.FIRST_NAME,
         hasEmail: !!payload.EMAIL_ADDRESS,
-        hasPhone: !!payload.PHONE,
+        hasPhone: !!payload.PHONE_NUMBER,
         tagsCount: payload.TAGS?.length || 0,
       })
     }
@@ -95,6 +96,17 @@ export async function syncInquiryWithInsightlyAction({
     const message = error instanceof Error ? error.message : String(error)
     console.error('[Insightly] Failed to build payload', { error: message, formType })
     return { success: false, error: `Invalid form data: ${message}` }
+  }
+
+  console.log('[Insightly] Validating payload before API call...')
+  try {
+    validateLeadPayload(payload)
+    console.log('[Insightly] Payload validation passed')
+  } catch (validationError) {
+    const message =
+      validationError instanceof Error ? validationError.message : String(validationError)
+    console.error('[Insightly] Payload validation failed', { error: message })
+    return { success: false, error: `Payload validation failed: ${message}` }
   }
 
   console.log('[Insightly] Updating sync status to pending...')
@@ -107,7 +119,7 @@ export async function syncInquiryWithInsightlyAction({
   try {
     const lead = await createInsightlyLead(payload)
     console.log('[Insightly] Lead created successfully', { leadId: lead.LEAD_ID })
-    
+
     await updateInsightlySyncFields(serviceArea, inquiryId, {
       insightlyLeadId: lead.LEAD_ID,
       insightlyLeadUrl: buildInsightlyLeadUrl(lead.LEAD_ID),
@@ -115,7 +127,7 @@ export async function syncInquiryWithInsightlyAction({
       insightlyLastSyncError: null,
     })
     console.log('[Insightly] Sync fields updated in Firestore')
-    
+
     revalidateInquiry(serviceArea, inquiryId)
     console.log('[Insightly] Sync completed successfully', { leadId: lead.LEAD_ID })
     return { success: true, leadId: lead.LEAD_ID }
@@ -136,4 +148,3 @@ export async function syncInquiryWithInsightlyAction({
     return { success: false, error: message }
   }
 }
-
