@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
 import { requireAuth } from '@/lib/custom-auth'
@@ -44,7 +44,6 @@ export async function createCategory(data: CategoryInput) {
     const docRef = await adminDb.collection('categories').add(categoryData)
 
     revalidatePath('/dashboard/blog/categories')
-    revalidateTag('categories')
     return { id: docRef.id }
   } catch (error) {
     console.error('[createCategory] FAILED:', error)
@@ -93,7 +92,6 @@ export async function updateCategory(id: string, data: CategoryInput) {
     await categoryRef.update(updateData)
 
     revalidatePath('/dashboard/blog/categories')
-    revalidateTag('categories')
     return { id }
   } catch (error) {
     console.error('[updateCategory] FAILED:', error)
@@ -125,7 +123,6 @@ export async function deleteCategory(id: string) {
     await categoryRef.delete()
 
     revalidatePath('/dashboard/blog/categories')
-    revalidateTag('categories')
     return { id }
   } catch (error) {
     console.error('[deleteCategory] FAILED:', error)

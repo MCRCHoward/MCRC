@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { getStorageBucket, adminDb } from '@/lib/firebase-admin'
 import { requireAuth } from '@/lib/custom-auth'
 import { FieldValue } from 'firebase-admin/firestore'
@@ -190,7 +190,6 @@ export async function createPost(data: PostInput) {
 
     revalidatePath('/dashboard/blog')
     revalidatePath('/dashboard/blog/new')
-    revalidateTag('blog')
     return { id: docRef.id }
   } catch (error) {
     console.error('[createPost] FAILED:', error)
@@ -224,7 +223,6 @@ export async function updatePost(id: string, data: PostInput) {
 
     revalidatePath('/dashboard/blog')
     revalidatePath(`/dashboard/blog/${id}/edit`)
-    revalidateTag('blog')
     return { id }
   } catch (error) {
     console.error('[updatePost] FAILED:', error)
@@ -264,7 +262,6 @@ export async function deletePost(id: string) {
 
     revalidatePath('/dashboard/blog')
     revalidatePath('/dashboard/blog/trash')
-    revalidateTag('blog')
   } catch (error) {
     console.error('[deletePost] FAILED:', error)
     throw new Error(`Failed to delete post ${id}: ${error}`)
@@ -303,7 +300,6 @@ export async function restorePost(id: string) {
 
     revalidatePath('/dashboard/blog')
     revalidatePath('/dashboard/blog/trash')
-    revalidateTag('blog')
     return { id, status: restoredStatus }
   } catch (error) {
     console.error('[restorePost] FAILED:', error)
@@ -326,7 +322,6 @@ export async function permanentlyDeletePost(id: string) {
 
     revalidatePath('/dashboard/blog')
     revalidatePath('/dashboard/blog/trash')
-    revalidateTag('blog')
   } catch (error) {
     console.error('[permanentlyDeletePost] FAILED:', error)
     throw new Error(`Failed to permanently delete post ${id}: ${error}`)

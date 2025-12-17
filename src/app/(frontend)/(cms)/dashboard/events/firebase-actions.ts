@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
 import { requireAuth } from '@/lib/custom-auth'
@@ -58,7 +58,6 @@ export async function createEvent(data: CreateEventInput) {
 
   const docRef = await adminDb.collection('events').add(payload)
 
-  revalidateTag('events')
   revalidatePath('/dashboard/events')
   revalidatePath('/events')
 
@@ -96,7 +95,6 @@ export async function updateEvent(id: string, data: CreateEventInput) {
 
   await eventRef.update(updatePayload)
 
-  revalidateTag('events')
   revalidatePath('/dashboard/events')
   revalidatePath(`/dashboard/events/${updatePayload.slug || existingData?.slug || id}`)
   revalidatePath('/events')
