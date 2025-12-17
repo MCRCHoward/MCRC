@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -36,7 +36,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { DonationPayPalButton } from '@/components/payments/DonationPayPalButton'
@@ -174,7 +173,7 @@ export default function DonatePage() {
     form.setValue('amount', 0)
   }
 
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     setIsLoading(true)
     try {
       if (currentStep === 1) {
@@ -195,23 +194,18 @@ export default function DonatePage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentStep, amount, form])
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep((prev) => (prev - 1) as 1 | 2 | 3 | 4)
     }
-  }
+  }, [currentStep])
 
   const handleJumpToStep = (step: 1 | 2 | 3 | 4) => {
     if (step < currentStep) {
       setCurrentStep(step)
     }
-  }
-
-  const handlePhoneChange = (value: string) => {
-    const formatted = formatPhoneNumber(value)
-    form.setValue('donorPhone', formatted)
   }
 
   // Keyboard navigation
@@ -232,7 +226,7 @@ export default function DonatePage() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentStep, amount])
+  }, [currentStep, amount, handleNext, handleBack])
 
   const getDonationData = (): DonationInput => {
     const values = form.getValues()
