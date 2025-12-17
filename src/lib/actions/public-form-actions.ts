@@ -81,30 +81,47 @@ async function submitPublicForm<T extends Record<string, unknown>>({
   mondayBuilder,
 }: SubmitPublicFormParams<T>): Promise<SubmissionResult> {
   try {
+    console.log('[PublicFormSubmission] Starting form submission', { formType })
+    
     const serviceArea = getServiceAreaFromFormType(formType)
     const serializedFormData = prepareFormDataForFirestore(parsedData)
+    
+    console.log('[PublicFormSubmission] Creating inquiry document...', { serviceArea, formType })
     const inquiryId = await createInquiryDocument(serviceArea, formType, serializedFormData)
+    console.log('[PublicFormSubmission] Inquiry created successfully', { inquiryId })
 
+    // Insightly Sync
+    console.log('[PublicFormSubmission] Starting Insightly sync...', { inquiryId, serviceArea })
     let insightly
     try {
       insightly = await syncInquiryWithInsightlyAction({
         inquiryId,
         serviceArea,
       })
+      console.log('[PublicFormSubmission] Insightly sync completed', {
+        success: insightly.success,
+        leadId: insightly.leadId,
+        error: insightly.error,
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown Insightly error'
+      console.error('[PublicFormSubmission] Insightly sync threw exception', { error: message })
       insightly = { success: false, error: message }
     }
 
     if (!insightly) {
+      console.error('[PublicFormSubmission] Insightly sync returned null/undefined')
       insightly = { success: false, error: 'Unknown Insightly response' }
     }
 
+    // Monday Sync
+    console.log('[PublicFormSubmission] Marking Monday sync as pending...', { inquiryId })
     await updateMondaySyncFields(serviceArea, inquiryId, {
       mondaySyncStatus: 'pending',
       mondaySyncError: null,
     })
 
+    console.log('[PublicFormSubmission] Starting Monday sync...', { inquiryId, serviceArea })
     let mondayResult
     try {
       // Pass metadata with current timestamp for new submissions
@@ -113,8 +130,20 @@ async function submitPublicForm<T extends Record<string, unknown>>({
         submittedBy: 'anonymous-public',
         submissionType: 'anonymous',
       }
+      
+      console.log('[PublicFormSubmission] Building Monday item payload...')
       const mondayInput = await mondayBuilder(parsedData, metadata)
+      console.log('[PublicFormSubmission] Monday payload built', {
+        boardId: mondayInput.boardId,
+        groupId: mondayInput.groupId,
+        itemName: mondayInput.itemName,
+        columnValuesLength: mondayInput.columnValues.length,
+      })
+      
+      console.log('[PublicFormSubmission] Creating Monday item...')
       const { itemId } = await createMondayItem(mondayInput)
+      console.log('[PublicFormSubmission] Monday item created successfully', { itemId })
+      
       await updateMondaySyncFields(serviceArea, inquiryId, {
         mondayItemId: itemId,
         mondayItemUrl: buildMondayItemUrl(itemId),
@@ -122,14 +151,25 @@ async function submitPublicForm<T extends Record<string, unknown>>({
         mondaySyncError: null,
       })
       mondayResult = { success: true, itemId }
+      console.log('[PublicFormSubmission] Monday sync completed successfully', { itemId })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown Monday error'
+      console.error('[PublicFormSubmission] Monday sync failed', {
+        error: message,
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       await updateMondaySyncFields(serviceArea, inquiryId, {
         mondaySyncStatus: 'failed',
         mondaySyncError: message,
       })
       mondayResult = { success: false, error: message }
     }
+
+    console.log('[PublicFormSubmission] Form submission complete', {
+      inquiryId,
+      insightlySuccess: insightly.success,
+      mondaySuccess: mondayResult.success,
+    })
 
     return {
       success: true,
@@ -142,6 +182,7 @@ async function submitPublicForm<T extends Record<string, unknown>>({
     console.error('[PublicFormSubmission] Failed to submit form', {
       formType,
       error: message,
+      stack: error instanceof Error ? error.stack : undefined,
     })
     return {
       success: false,

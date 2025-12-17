@@ -242,17 +242,49 @@ export function MediationSelfReferralForm() {
         hasInquiryId: !!result.inquiryId,
         inquiryId: result.inquiryId,
         error: result.error,
-        insightly: result.insightly,
-        monday: result.monday,
       })
+
+      // Log Insightly details separately
+      if (result.insightly) {
+        console.log('[SelfReferralForm] Insightly sync result:', {
+          success: result.insightly.success,
+          leadId: result.insightly.leadId,
+          error: result.insightly.error,
+        })
+        if (!result.insightly.success) {
+          console.warn('[SelfReferralForm] Insightly sync failed:', result.insightly.error)
+        } else {
+          console.log(
+            '[SelfReferralForm] Insightly lead created successfully, ID:',
+            result.insightly.leadId,
+          )
+        }
+      } else {
+        console.warn('[SelfReferralForm] No Insightly result returned')
+      }
+
+      // Log Monday details separately
+      if (result.monday) {
+        console.log('[SelfReferralForm] Monday sync result:', {
+          success: result.monday.success,
+          itemId: result.monday.itemId,
+          error: result.monday.error,
+        })
+        if (!result.monday.success) {
+          console.warn('[SelfReferralForm] Monday sync failed:', result.monday.error)
+        } else {
+          console.log(
+            '[SelfReferralForm] Monday item created successfully, ID:',
+            result.monday.itemId,
+          )
+        }
+      } else {
+        console.warn('[SelfReferralForm] No Monday result returned')
+      }
 
       if (!result.success || !result.inquiryId) {
         console.error('[SelfReferralForm] Submission failed:', result.error)
         throw new Error(result.error ?? 'Unable to submit your referral right now.')
-      }
-
-      if (result.insightly && !result.insightly.success) {
-        console.warn('[SelfReferralForm] Insightly sync failed', result.insightly.error)
       }
 
       console.log(
