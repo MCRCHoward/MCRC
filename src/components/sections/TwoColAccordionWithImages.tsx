@@ -1,6 +1,6 @@
 'use client'
 
-import { LucideIcon, ChevronDown } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import Image from 'next/image'
 import { cn } from '@/utilities/ui'
 import {

@@ -23,8 +23,8 @@ export function VideoHero({
 }: VideoHeroProps) {
   // Split title by colon to apply different font weights
   const titleParts = title.split(':')
-  const hasColon = titleParts.length > 1
-  const titleBold = hasColon ? titleParts[0].trim() : title
+  const hasColon = titleParts.length > 1 && titleParts[0] !== undefined
+  const titleBold = hasColon && titleParts[0] ? titleParts[0].trim() : title
   const titleNormal = hasColon ? titleParts.slice(1).join(':').trim() : ''
 
   return (

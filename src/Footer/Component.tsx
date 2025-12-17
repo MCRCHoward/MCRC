@@ -1,12 +1,7 @@
 import {
   FaEnvelope,
-  FaInstagram,
-  FaLinkedin,
   FaMapMarkerAlt,
   FaPhone,
-  FaRedditAlien,
-  FaTelegramPlane,
-  FaTwitter,
 } from 'react-icons/fa'
 
 import Image from 'next/image'
