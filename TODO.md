@@ -2692,3 +2692,202 @@ Quick filters: status chips, date range, language, tags.
 Row density toggle (comfortable/compact) for long queues.
 
 Keyboard nav: j/k to move, Enter to open details, A to assign.
+
+# Console Log Locations Reference
+
+This section documents all console log statements in the codebase for future cleanup. Use this reference when removing debug logs.
+
+## Form Components
+
+### `src/Forms/formDisplay/selfReferralForm.tsx`
+- **Line 199**: `console.log('[SelfReferralForm] onSubmit called', ...)`
+- **Line 208**: `console.log('[SelfReferralForm] Blocked: User has not interacted with step 4 fields')`
+- **Line 214**: `console.log('[SelfReferralForm] Triggering validation for step', ...)`
+- **Line 224**: `console.log('[SelfReferralForm] Validation result:', okay)`
+- **Line 226**: `console.log('[SelfReferralForm] Blocked: Validation failed')`
+- **Line 228**: `console.log('[SelfReferralForm] Form errors:', errors)`
+- **Line 232**: `console.log('[SelfReferralForm] Starting submission...')`
+- **Line 238**: `console.log('[SelfReferralForm] Calling submitSelfReferralFormAction...')`
+- **Line 240**: `console.log('[SelfReferralForm] Submission result:', ...)`
+- **Line 249**: `console.log('[SelfReferralForm] Insightly sync result:', ...)`
+- **Line 255**: `console.warn('[SelfReferralForm] Insightly sync failed:', ...)`
+- **Line 257**: `console.log('[SelfReferralForm] Insightly lead created successfully, ID:', ...)`
+- **Line 263**: `console.warn('[SelfReferralForm] No Insightly result returned')`
+- **Line 268**: `console.log('[SelfReferralForm] Monday sync result:', ...)`
+- **Line 274**: `console.warn('[SelfReferralForm] Monday sync failed:', ...)`
+- **Line 276**: `console.log('[SelfReferralForm] Monday item created successfully, ID:', ...)`
+- **Line 282**: `console.warn('[SelfReferralForm] No Monday result returned')`
+- **Line 286**: `console.error('[SelfReferralForm] Submission failed:', result.error)`
+- **Line 290**: `console.log('[SelfReferralForm] Submission successful, setting success state and redirecting...')`
+- **Line 297**: `console.log('[SelfReferralForm] Sending confirmation email to:', data.email)`
+- **Line 306**: `console.log('[SelfReferralForm] Redirecting to thank you page...')`
+- **Line 311**: `console.error('[SelfReferralForm] Submission error caught:', error)`
+- **Line 314**: `console.error('[SelfReferralForm] Setting error message:', message)`
+- **Line 317**: `console.log('[SelfReferralForm] Setting isSubmitting to false')`
+- **Line 386**: `console.log('[SelfReferralForm] Form onSubmit event triggered', ...)`
+- **Line 396**: `console.log('[SelfReferralForm] Blocked: Not on final step')`
+- **Line 402**: `console.log('[SelfReferralForm] Blocked: User has not interacted with step 4 fields')`
+
+### `src/Forms/formDisplay/restorativeProgramReferralForm.tsx`
+- **Line 164**: `console.warn(...)`
+
+## API Integration Logs
+
+### `src/lib/actions/public-form-actions.ts`
+- **Line 84**: `console.log('[PublicFormSubmission] Starting form submission', ...)`
+- **Line 89**: `console.log('[PublicFormSubmission] Creating inquiry document...', ...)`
+- **Line 91**: `console.log('[PublicFormSubmission] Inquiry created successfully', ...)`
+- **Line 94**: `console.log('[PublicFormSubmission] Starting Insightly sync...', ...)`
+- **Line 101**: `console.log('[PublicFormSubmission] Insightly sync completed', ...)`
+- **Line 108**: `console.error('[PublicFormSubmission] Insightly sync threw exception', ...)`
+- **Line 113**: `console.error('[PublicFormSubmission] Insightly sync returned null/undefined')`
+- **Line 118**: `console.log('[PublicFormSubmission] Marking Monday sync as pending...', ...)`
+- **Line 124**: `console.log('[PublicFormSubmission] Starting Monday sync...', ...)`
+- **Line 134**: `console.log('[PublicFormSubmission] Building Monday item payload...')`
+- **Line 136**: `console.log('[PublicFormSubmission] Monday payload built', ...)`
+- **Line 143**: `console.log('[PublicFormSubmission] Creating Monday item...')`
+- **Line 145**: `console.log('[PublicFormSubmission] Monday item created successfully', ...)`
+- **Line 154**: `console.log('[PublicFormSubmission] Monday sync completed successfully', ...)`
+- **Line 157**: `console.error('[PublicFormSubmission] Monday sync failed', ...)`
+- **Line 168**: `console.log('[PublicFormSubmission] Form submission complete', ...)`
+- **Line 182**: `console.error('[PublicFormSubmission] Failed to submit form', ...)`
+
+### `src/lib/actions/insightly-actions.ts`
+- **Line 39**: `console.log('[Insightly] Starting sync', ...)`
+- **Line 42**: `console.log('[Insightly] Retrieving inquiry document', ...)`
+- **Line 46**: `console.error('[Insightly] Inquiry not found', ...)`
+- **Line 52**: `console.log('[Insightly] Inquiry data retrieved', ...)`
+- **Line 55**: `console.error('[Insightly] Form type not supported', ...)`
+- **Line 60**: `console.error('[Insightly] Inquiry missing form data', ...)`
+- **Line 64**: `console.log('[Insightly] Hydrating form data from Firestore...')`
+- **Line 71**: `console.log('[Insightly] Building payload for form type:', formType)`
+- **Line 76**: `console.log('[Insightly] Self-referral payload built', ...)`
+- **Line 86**: `console.log('[Insightly] Restorative referral payload built', ...)`
+- **Line 96**: `console.error('[Insightly] Failed to build payload', ...)`
+- **Line 100**: `console.log('[Insightly] Updating sync status to pending...')`
+- **Line 106**: `console.log('[Insightly] Calling API to create lead...')`
+- **Line 109**: `console.log('[Insightly] Lead created successfully', ...)`
+- **Line 117**: `console.log('[Insightly] Sync fields updated in Firestore')`
+- **Line 120**: `console.log('[Insightly] Sync completed successfully', ...)`
+- **Line 124**: `console.error('[Insightly] Lead sync failed', ...)`
+
+### `src/lib/insightly/client.ts`
+- **Line 17**: `console.log('[Insightly API] Preparing request', ...)`
+- **Line 24**: `console.log('[Insightly API] Request payload structure', ...)`
+- **Line 35**: `console.log('[Insightly API] Sending request...')`
+- **Line 46**: `console.log('[Insightly API] Response received', ...)`
+- **Line 57**: `console.error('[Insightly API] Request failed', ...)`
+- **Line 68**: `console.log('[Insightly API] Lead created successfully', ...)`
+
+### `src/lib/monday/items.ts`
+- **Line 15**: `console.log('[Monday API] Creating item', ...)`
+- **Line 50**: `console.log('[Monday API] Column values structure', ...)`
+- **Line 55**: `console.warn('[Monday API] Could not parse column values for logging')`
+- **Line 58**: `console.log('[Monday API] Sending GraphQL mutation...')`
+- **Line 61**: `console.log('[Monday API] Item created successfully', ...)`
+- **Line 67**: `console.error('[Monday API] Create item failed', ...)`
+- **Line 76**: `console.warn('[Monday API] Dropdown label error detected, attempting retry without dropdown values...')`
+- **Line 84**: `console.warn('[Monday API] Skipping dropdown value for column ${key} - label doesn't exist in Monday')`
+- **Line 90**: `console.log('[Monday API] Retrying with cleaned values', ...)`
+- **Line 102**: `console.warn('[Monday API] Created item without dropdown value - please add labels manually in Monday.com', ...)`
+- **Line 108**: `console.error('[Monday API] Retry also failed', ...)`
+- **Line 126**: `console.log('[Monday API] Updating item', ...)`
+- **Line 157**: `console.log('[Monday API] Update column values structure', ...)`
+- **Line 162**: `console.warn('[Monday API] Could not parse column values for logging')`
+- **Line 165**: `console.log('[Monday API] Sending GraphQL mutation to update item...')`
+- **Line 168**: `console.log('[Monday API] Item updated successfully', ...)`
+- **Line 171**: `console.error('[Monday API] Update item failed', ...)`
+- **Line 179**: `console.warn('[Monday API] Dropdown label error detected, attempting retry without dropdown values...')`
+- **Line 187**: `console.warn('[Monday API] Skipping dropdown value for column ${key} - label doesn't exist in Monday')`
+- **Line 193**: `console.log('[Monday API] Retrying update with cleaned values', ...)`
+- **Line 205**: `console.warn('[Monday API] Updated item without dropdown value - please add labels manually in Monday.com', ...)`
+- **Line 211**: `console.error('[Monday API] Retry also failed', ...)`
+
+### `src/lib/monday/columns.ts`
+- **Line 219**: `console.warn(...)`
+- **Line 242**: `console.warn(...)`
+
+### `src/lib/actions/inquiry-actions.ts`
+- **Line 78**: `console.log('[DEBUG] Raw submittedAt for inquiry:', ...)`
+- **Line 90**: `console.warn('[fetchInquiries] Failed to convert submittedAt for inquiry:', ...)`
+- **Line 154**: `console.warn('[getInquiryById] Failed to convert submittedAt for inquiry:', ...)`
+
+## API Routes
+
+### `src/app/api/contact/route.ts`
+- **Line 67**: `console.error('[api/contact] Failed to save to contactSubmissions:', ...)`
+- **Line 98**: `console.warn('[api/contact] Email send failed:', ...)`
+- **Line 102**: `console.warn('[api/contact] RESEND_API/RESEND_API_KEY is not set; skipping email send')`
+- **Line 113**: `console.warn('[api/contact] Confirmation email failed:', ...)`
+- **Line 118**: `console.error('[api/contact] FAILED:', error)`
+
+### `src/app/api/volunteer/route.ts`
+- **Line 63**: `console.warn('[api/volunteer] Email send failed:', ...)`
+- **Line 67**: `console.warn('[api/volunteer] RESEND_API/RESEND_API_KEY is not set; skipping email send')`
+- **Line 79**: `console.warn('[api/volunteer] Confirmation email failed:', ...)`
+- **Line 87**: `console.error('[api/volunteer] FAILED:', error)`
+
+### `src/app/api/form-confirmation/route.ts`
+- **Line 23**: `console.error('[api/form-confirmation] FAILED:', error)`
+
+## Dashboard Components
+
+### `src/app/(frontend)/(cms)/dashboard/page.tsx`
+- **Line 22**: `console.log('[DASHBOARD] Fetching recent posts')`
+- **Line 26**: `console.log(...)`
+
+### `src/components/Dashboard/Inquiries/InquiryDetailCard.tsx`
+- **Line 260**: `console.error('[InquiryDetailCard] Insightly sync failed', error)`
+- **Line 282**: `console.error('[InquiryDetailCard] Monday sync failed', error)`
+
+### `src/components/Dashboard/Inquiries/InquiriesTable.tsx`
+- **Line 129**: `console.error('Error marking as reviewed:', error)`
+
+### `src/app/(frontend)/(cms)/dashboard/users/user-actions.ts`
+- **Line 47**: `console.error('[fetchAllUsers] FAILED:', error)`
+- **Line 107**: `console.error('[updateUserRole] Failed to update custom claims:', ...)`
+- **Line 114**: `console.error('[updateUserRole] FAILED:', error)`
+
+## Page Components
+
+### `src/app/(frontend)/(default)/getting-started/thank-you/page.tsx`
+- **Line 157**: `console.warn('[ThankYouPage] Calendly mapping not configured:', ...)`
+- **Line 159**: `console.error('[ThankYouPage] Error loading Calendly link:', error)`
+
+### `src/app/(frontend)/(default)/contact/page.tsx`
+- **Line 96**: `console.error('Form submission error:', error)`
+
+## Utility Functions
+
+### `src/lib/email.ts`
+- **Line 44**: `console.error('[email] Failed to log email error', logError)`
+- **Line 52**: `console.warn('[email] RESEND_API/RESEND_API_KEY is not set; skipping confirmation email')`
+- **Line 71**: `console.warn('[email] Confirmation email failed:', ...)`
+- **Line 108**: `console.error('[email] Failed to send alert email', error)`
+
+### `src/lib/form-confirmation-client.ts`
+- **Line 19**: `console.warn('[form-confirmation] Failed to trigger confirmation email', error)`
+
+## Navigation Components
+
+### `src/components/Dashboard/nav-user.tsx`
+- **Line 64**: `console.warn('Failed to clear server session, but user is signed out from Firebase')`
+- **Line 71**: `console.error('Logout error:', error)`
+
+## Notes
+
+- **Total Console Statements**: ~100+ across the codebase
+- **Primary Use Cases**:
+  - API integration debugging (Insightly, Monday.com)
+  - Form submission tracking
+  - Error logging
+  - Performance monitoring
+- **Removal Priority**:
+  1. High: Debug logs in production code (form submission flow, API calls)
+  2. Medium: Warning logs that may be useful for monitoring
+  3. Low: Error logs that should remain for production debugging
+- **Recommended Approach**:
+  - Replace `console.log` with proper logging service (e.g., Sentry, LogRocket)
+  - Keep `console.error` for critical errors
+  - Convert `console.warn` to appropriate log levels based on severity
+  - Consider environment-based logging (dev vs production)
