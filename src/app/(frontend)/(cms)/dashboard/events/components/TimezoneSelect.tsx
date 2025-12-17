@@ -72,10 +72,11 @@ export function TimezoneSelect({ value, onValueChange, className }: TimezoneSele
   const groupedTimezones = React.useMemo(() => {
     const grouped: Record<string, TimezoneOption[]> = {}
     timezones.forEach((tz) => {
-      if (!grouped[tz.region]) {
-        grouped[tz.region] = []
+      const region = tz.region
+      if (!grouped[region]) {
+        grouped[region] = []
       }
-      grouped[tz.region].push(tz)
+      grouped[region]!.push(tz)
     })
     return grouped
   }, [timezones])
