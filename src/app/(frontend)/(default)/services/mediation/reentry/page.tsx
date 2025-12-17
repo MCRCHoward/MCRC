@@ -51,7 +51,7 @@ const ServicePageFooter = dynamic(
 )
 
 export default function Reentry() {
-  const { title, imageUrl, imageAlt, videoSrc } = sectionData
+  const { title } = sectionData
 
   return (
     <main>
