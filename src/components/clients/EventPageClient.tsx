@@ -100,6 +100,7 @@ const EventPageClient = ({
 
   const isRegistered = registrationStatus?.status === 'registered'
   const registrationId = registrationStatus?.registrationId
+  const isArchived = event.isArchived === true
 
   const handleCancelRegistration = async () => {
     if (!registrationId) return
@@ -211,6 +212,11 @@ const EventPageClient = ({
                   Free
                 </span>
               </div>
+            )}
+            {isArchived && (
+              <Badge variant="secondary" className="capitalize">
+                Archived
+              </Badge>
             )}
           </div>
         </header>
@@ -383,6 +389,11 @@ const EventPageClient = ({
 
               {/* Registration Section */}
               <div className="space-y-4" aria-live="polite">
+                {isArchived && (
+                  <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+                    This event is archived. Registration is closed.
+                  </div>
+                )}
                 {/* Registration Count (Admin only) */}
                 {registrationCount !== null && registrationCount !== undefined && (
                   <div className="text-sm md:text-base text-muted-foreground">
@@ -427,7 +438,7 @@ const EventPageClient = ({
                 )}
 
                 {/* Registration Form - Authenticated User */}
-                {registrationAction === 'register' && user && (
+                {registrationAction === 'register' && user && !isArchived && (
                   <EventRegistrationForm
                     eventId={eventId}
                     userEmail={user.email || ''}
@@ -444,7 +455,7 @@ const EventPageClient = ({
                 )}
 
                 {/* Sign In Button - Unauthenticated User */}
-                {registrationAction === 'signin' && (
+                {registrationAction === 'signin' && !isArchived && (
                   <Button
                     size="lg"
                     className="w-full gap-2 h-12 focus-visible:ring-4 focus-visible:ring-primary/20"
@@ -456,7 +467,7 @@ const EventPageClient = ({
                 )}
 
                 {/* External Registration Link */}
-                {registrationAction === 'external' && externalRegistrationLink && (
+                {registrationAction === 'external' && externalRegistrationLink && !isArchived && (
                   <Button
                     asChild
                     size="lg"
