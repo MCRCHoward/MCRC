@@ -77,3 +77,17 @@ export async function requireRole(requiredRole: 'admin' | 'coordinator'): Promis
   }
   return user
 }
+
+/**
+ * Requires any of the allowed roles. Admin is always allowed.
+ */
+export async function requireRoleAny(allowed: User['role'][]): Promise<User> {
+  const user = await requireAuth()
+  if (user.role === 'admin') {
+    return user
+  }
+  if (allowed.includes(user.role)) {
+    return user
+  }
+  throw new Error(`One of roles [${allowed.join(', ')}] required`)
+}
