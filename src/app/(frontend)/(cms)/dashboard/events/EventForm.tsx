@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Info as InfoIcon } from 'lucide-react'
 
 import { createEvent, updateEvent } from '@/app/(frontend)/(cms)/dashboard/events/firebase-actions'
 import type { Event } from '@/types'
@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -30,7 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
 
 const currencies = ['USD', 'EUR', 'GBP'] as const
@@ -66,7 +68,9 @@ const baseSchema = z.object({
     .optional()
     .transform((v) => (typeof v === 'string' ? (v ? Number(v) : undefined) : v)),
   currency: z.enum(currencies).optional(),
+  costDescription: z.string().optional(),
   listed: z.boolean().default(true),
+  status: z.enum(['draft', 'published']).default('published'),
   category: z.enum(categories).optional(),
   subcategory: z.string().optional(),
   format: z.enum(formats).optional(),
@@ -104,6 +108,8 @@ type EventWithVenueFields = Event & {
   category?: string
   subcategory?: string
   format?: string
+  status?: 'draft' | 'published'
+  costDescription?: string
 }
 
 export type EventFormProps = {
@@ -245,7 +251,9 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
         isFree: event.isFree ?? true,
         price: event.cost?.amount,
         currency: (event.cost?.currency as (typeof currencies)[number]) || 'USD',
+        costDescription: event.cost?.description,
         listed: eventWithFields.listed ?? true,
+        status: event.meta?.status === 'published' ? 'published' : 'draft',
         category: (eventWithFields.category || event.meta?.eventType) as
           | (typeof categories)[number]
           | undefined,
@@ -278,7 +286,9 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
       isFree: true,
       price: undefined,
       currency: 'USD',
+      costDescription: '',
       listed: true,
+      status: 'published',
       category: undefined,
       subcategory: '',
       format: undefined,
@@ -317,6 +327,16 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
         imageUrl = existingImageUrl
       }
 
+      const priceValue = typeof values.price === 'number' ? values.price : undefined
+      const cost =
+        values.isFree || !priceValue
+          ? undefined
+          : {
+              amount: priceValue,
+              currency: values.currency || 'USD',
+              description: values.costDescription || undefined,
+            }
+
       const eventData = {
         title: values.title,
         summary: values.summary,
@@ -339,13 +359,12 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
             },
         capacity: typeof values.capacity === 'number' ? values.capacity : undefined,
         isFree: values.isFree ?? true,
-        price: values.isFree
-          ? undefined
-          : typeof values.price === 'number'
-            ? values.price
-            : undefined,
-        currency: values.isFree ? undefined : values.currency,
+        price: (cost?.amount ?? undefined) as number | undefined,
+        currency: cost?.currency ?? undefined,
+        costDescription: cost?.description,
+        cost,
         listed: values.listed ?? true,
+        status: values.status ?? 'published',
         category: values.category,
         subcategory: values.subcategory,
         format: values.format,
@@ -627,23 +646,6 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="listed"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Listed (public)</FormLabel>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={(v) => field.onChange(Boolean(v))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="capacity"
                   render={({ field }) => (
                     <FormItem>
@@ -666,6 +668,88 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
                   )}
                 />
               </div>
+
+              {/* Publishing Settings */}
+              <Card className="border-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Publishing Settings</CardTitle>
+                  <CardDescription>Control event visibility and status</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="draft">Draft</SelectItem>
+                              <SelectItem value="published">Published</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Draft events are only visible to editors
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="listed"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col justify-between">
+                          <FormLabel>Public Listing</FormLabel>
+                          <div className="flex items-center space-x-2">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={(v) => field.onChange(Boolean(v))}
+                              />
+                            </FormControl>
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-sm font-normal">
+                                Show in public event listings
+                              </FormLabel>
+                            </div>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Alert>
+                    <InfoIcon className="h-4 w-4" />
+                    <AlertDescription>
+                      {form.watch('status') === 'draft' && (
+                        <span>
+                          This event is <strong>not visible</strong> to the public.
+                        </span>
+                      )}
+                      {form.watch('status') === 'published' && form.watch('listed') === false && (
+                        <span>
+                          This event is published but <strong>unlisted</strong> (accessible via
+                          direct link only).
+                        </span>
+                      )}
+                      {form.watch('status') === 'published' && form.watch('listed') === true && (
+                        <span>
+                          This event is <strong>published and listed</strong> publicly.
+                        </span>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
 
               {!isOnline && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -794,78 +878,95 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="isFree"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Free event</FormLabel>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={(v) => field.onChange(Boolean(v))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {!isFree && (
+              <Card className={!isFree ? 'border-2' : ''}>
+                <CardContent className="space-y-4 pt-6">
                   <FormField
                     control={form.control}
-                    name="price"
+                    name="isFree"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Price</FormLabel>
+                        <FormLabel>Free event</FormLabel>
                         <FormControl>
-                          <Input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            placeholder="e.g. 25.00"
-                            value={field.value ?? ''}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === '' ? undefined : Number(e.target.value),
-                              )
-                            }
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(v) => field.onChange(Boolean(v))}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                )}
 
-                {!isFree && (
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {currencies.map((c) => (
-                              <SelectItem key={c} value={c}>
-                                {c}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </div>
+                  {!isFree && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Price</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                placeholder="e.g. 25.00"
+                                value={field.value ?? ''}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value === '' ? undefined : Number(e.target.value),
+                                  )
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="currency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Currency</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select currency" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {currencies.map((c) => (
+                                  <SelectItem key={c} value={c}>
+                                    {c}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="costDescription"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Per attendee" {...field} />
+                            </FormControl>
+                            <FormDescription>Optional price details</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
