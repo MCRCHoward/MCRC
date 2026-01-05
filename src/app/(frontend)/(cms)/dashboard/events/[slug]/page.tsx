@@ -94,13 +94,19 @@ async function fetchEventBySlug(slug: string): Promise<EventWithVenueFields | nu
 
     // Build cost from price/currency
     const cost =
-      data.price && !data.isFree
+      data.cost && !data.isFree
         ? {
-            amount: data.price,
-            currency: data.currency || 'USD',
-            description: data.costDescription,
+            amount: data.cost.amount,
+            currency: data.cost.currency || 'USD',
+            description: data.cost.description,
           }
-        : undefined
+        : data.price && !data.isFree
+          ? {
+              amount: data.price,
+              currency: data.currency || 'USD',
+              description: data.costDescription,
+            }
+          : undefined
 
     return {
       id: doc.id,
