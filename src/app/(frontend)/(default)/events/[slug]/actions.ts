@@ -38,6 +38,10 @@ export async function registerForEvent(
     throw new Error('Event data not available')
   }
 
+  if (eventData.isArchived) {
+    throw new Error('Registration is closed. This event is archived.')
+  }
+
   // Check for duplicate registration
   const existingRegistrationsQuery = adminDb
     .collection('eventRegistrations')
