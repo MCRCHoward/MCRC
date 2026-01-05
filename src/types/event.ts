@@ -17,6 +17,8 @@ export interface Event {
   externalRegistrationLink?: string
   featuredImage?: string | Media | { url: string; alt?: string }
   secondaryImage?: string | Media | { url: string; alt?: string }
+  isArchived?: boolean
+  listed?: boolean
   meta: EventMeta
   createdAt: string
   updatedAt: string

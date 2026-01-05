@@ -10,7 +10,7 @@ export interface User {
   id: string
   email: string
   name: string
-  role: 'admin' | 'coordinator' | 'mediator' | 'participant' | 'volunteer'
+  role: 'admin' | 'editor' | 'coordinator' | 'mediator' | 'participant' | 'volunteer'
   createdAt: string
   updatedAt: string
   blogPosts?: UserBlogPost[] // Array of blog posts created by this user
@@ -19,7 +19,7 @@ export interface User {
 export interface UserInput {
   email: string
   name: string
-  role: 'admin' | 'coordinator' | 'mediator' | 'participant' | 'volunteer'
+  role: 'admin' | 'editor' | 'coordinator' | 'mediator' | 'participant' | 'volunteer'
   password?: string
 }
 
