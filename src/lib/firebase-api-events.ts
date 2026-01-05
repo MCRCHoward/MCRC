@@ -70,15 +70,23 @@ function mapFirebaseEventToEvent(
         : undefined,
     isFree: data.isFree ?? true,
     cost:
-      data.price && !data.isFree
+      data.cost && !data.isFree
         ? {
-            amount: data.price,
-            currency: data.currency || 'USD',
-            description: data.costDescription,
+            amount: data.cost.amount,
+            currency: data.cost.currency || 'USD',
+            description: data.cost.description,
           }
-        : undefined,
+        : data.price && !data.isFree
+          ? {
+              amount: data.price,
+              currency: data.currency || 'USD',
+              description: data.costDescription,
+            }
+          : undefined,
     isRegistrationRequired: data.isRegistrationRequired ?? false,
     externalRegistrationLink: data.externalRegistrationLink,
+    isArchived: data.isArchived === true,
+    listed: data.listed ?? true,
     featuredImage: data.imageUrl
       ? ({
           url: data.imageUrl,
@@ -129,12 +137,15 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
       collection(db, 'events'),
       where('status', '==', 'published'),
       where('listed', '==', true),
+      where('isArchived', '==', false),
       orderBy('startAt', 'desc'),
     )
 
     try {
       const snapshot = await getDocs(eventsQuery)
-      return snapshot.docs.map((doc) => mapFirebaseEventToEvent(doc))
+      return snapshot.docs
+        .map((doc) => mapFirebaseEventToEvent(doc))
+        .filter((ev) => ev.isArchived !== true)
     } catch (error) {
       if (isIndexError(error)) {
         // Fallback: try without orderBy
@@ -148,9 +159,12 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
             collection(db, 'events'),
             where('status', '==', 'published'),
             where('listed', '==', true),
+            where('isArchived', '==', false),
           )
           const snapshot = await getDocs(eventsQuery)
-          const events = snapshot.docs.map((doc) => mapFirebaseEventToEvent(doc))
+          const events = snapshot.docs
+            .map((doc) => mapFirebaseEventToEvent(doc))
+            .filter((ev) => ev.isArchived !== true)
           return sortByDateDesc(events)
         } catch (_fallbackError) {
           // Final fallback: fetch all and filter manually
@@ -166,9 +180,15 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
               return {
                 event: mapFirebaseEventToEvent(doc),
                 listed: data.listed ?? true,
+                isArchived: data.isArchived === true,
               }
             })
-            .filter((item) => item.event.meta.status === 'published' && item.listed)
+            .filter(
+              (item) =>
+                item.event.meta.status === 'published' &&
+                item.listed &&
+                item.isArchived === false,
+            )
             .map((item) => item.event)
           return sortByDateDesc(allEvents)
         }

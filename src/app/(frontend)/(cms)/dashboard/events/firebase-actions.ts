@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
-import { requireAuth } from '@/lib/custom-auth'
+import { requireRoleAny } from '@/lib/custom-auth'
 
 interface CreateEventInput {
   title: string
@@ -29,7 +29,14 @@ interface CreateEventInput {
   isFree: boolean
   price?: number
   currency?: string
+  costDescription?: string
+  cost?: {
+    amount: number
+    currency: string
+    description?: string
+  }
   listed?: boolean
+  status?: 'draft' | 'published'
   category?: string
   subcategory?: string
   format?: string
@@ -45,15 +52,32 @@ function slugify(s: string) {
 }
 
 export async function createEvent(data: CreateEventInput) {
-  await requireAuth()
+  const user = await requireRoleAny(['editor', 'coordinator'])
 
   const now = FieldValue.serverTimestamp()
+  const cost =
+    data.isFree || (!data.cost && !data.price)
+      ? undefined
+      : data.cost || {
+          amount: data.price ?? 0,
+          currency: data.currency || 'USD',
+        }
+
   const payload = {
     ...data,
     slug: data.slug || slugify(data.title),
     createdAt: now,
     updatedAt: now,
-    status: 'published' as const,
+    status: (data.status ?? 'published') as 'draft' | 'published',
+    listed: data.listed ?? true,
+    isArchived: false,
+    archivedAt: null as ReturnType<typeof FieldValue.serverTimestamp> | null,
+    archivedBy: null as string | null,
+    cost,
+    // Legacy fields for backward compatibility
+    price: cost?.amount,
+    currency: cost?.currency,
+    costDescription: cost?.description,
   }
 
   const docRef = await adminDb.collection('events').add(payload)
@@ -65,7 +89,7 @@ export async function createEvent(data: CreateEventInput) {
 }
 
 export async function updateEvent(id: string, data: CreateEventInput) {
-  await requireAuth()
+  const user = await requireRoleAny(['editor', 'coordinator'])
 
   if (!id) {
     throw new Error('Event ID is required')
@@ -85,6 +109,27 @@ export async function updateEvent(id: string, data: CreateEventInput) {
   } = {
     ...data,
     updatedAt: FieldValue.serverTimestamp(),
+    status: (data.status ?? eventDoc.data()?.status ?? 'draft') as 'draft' | 'published',
+    listed: data.listed ?? eventDoc.data()?.listed ?? true,
+  }
+
+  const cost =
+    data.isFree || (!data.cost && !data.price)
+      ? undefined
+      : data.cost || {
+          amount: data.price ?? 0,
+          currency: data.currency || 'USD',
+        }
+  if (cost) {
+    updatePayload.cost = cost
+    updatePayload.price = cost.amount
+    updatePayload.currency = cost.currency
+    ;(updatePayload as Record<string, unknown>).costDescription = cost.description
+  } else {
+    updatePayload.cost = undefined
+    updatePayload.price = undefined
+    updatePayload.currency = undefined
+    ;(updatePayload as Record<string, unknown>).costDescription = undefined
   }
 
   // Only update slug if title changed
@@ -100,4 +145,60 @@ export async function updateEvent(id: string, data: CreateEventInput) {
   revalidatePath('/events')
 
   return { id }
+}
+
+export async function archiveEvent(id: string, archivedBy?: string) {
+  const user = await requireRoleAny(['editor', 'coordinator'])
+  if (!id) throw new Error('Event ID is required')
+  const eventRef = adminDb.doc(`events/${id}`)
+  await eventRef.update({
+    isArchived: true,
+    archivedAt: FieldValue.serverTimestamp(),
+    archivedBy: user.id ?? archivedBy ?? null,
+    updatedAt: FieldValue.serverTimestamp(),
+  })
+  revalidatePath('/dashboard/events')
+  revalidatePath('/events')
+  return { id }
+}
+
+export async function restoreEvent(id: string) {
+  await requireRoleAny(['editor', 'coordinator'])
+  if (!id) throw new Error('Event ID is required')
+  const eventRef = adminDb.doc(`events/${id}`)
+  await eventRef.update({
+    isArchived: false,
+    archivedAt: null,
+    archivedBy: null,
+    updatedAt: FieldValue.serverTimestamp(),
+  })
+  revalidatePath('/dashboard/events')
+  revalidatePath('/events')
+  return { id }
+}
+
+export async function setEventStatus(id: string, status: 'draft' | 'published') {
+  await requireRoleAny(['editor', 'coordinator'])
+  if (!id) throw new Error('Event ID is required')
+  const eventRef = adminDb.doc(`events/${id}`)
+  await eventRef.update({
+    status,
+    updatedAt: FieldValue.serverTimestamp(),
+  })
+  revalidatePath('/dashboard/events')
+  revalidatePath('/events')
+  return { id, status }
+}
+
+export async function setEventListed(id: string, listed: boolean) {
+  await requireRoleAny(['editor', 'coordinator'])
+  if (!id) throw new Error('Event ID is required')
+  const eventRef = adminDb.doc(`events/${id}`)
+  await eventRef.update({
+    listed,
+    updatedAt: FieldValue.serverTimestamp(),
+  })
+  revalidatePath('/dashboard/events')
+  revalidatePath('/events')
+  return { id, listed }
 }
