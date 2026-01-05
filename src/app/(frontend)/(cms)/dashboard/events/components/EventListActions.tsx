@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import type { Event } from '@/types'
 import { archiveEvent, restoreEvent, setEventListed, setEventStatus } from '../firebase-actions'
 import { ArchiveDialog } from './ArchiveDialog'
@@ -24,7 +24,6 @@ interface EventListActionsProps {
 
 export function EventListActions({ event }: EventListActionsProps) {
   const router = useRouter()
-  const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [showArchiveDialog, setShowArchiveDialog] = useState(false)
 
@@ -33,16 +32,13 @@ export function EventListActions({ event }: EventListActionsProps) {
     startTransition(async () => {
       try {
         await setEventStatus(event.id, newStatus)
-        toast({
-          title: 'Status updated',
+        toast.success('Status updated', {
           description: `Event moved to ${newStatus}.`,
         })
         router.refresh()
       } catch (error) {
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to update status',
-          variant: 'destructive',
+        toast.error('Failed to update status', {
+          description: error instanceof Error ? error.message : 'An error occurred',
         })
       }
     })
@@ -52,18 +48,15 @@ export function EventListActions({ event }: EventListActionsProps) {
     startTransition(async () => {
       try {
         await setEventListed(event.id, !event.listed)
-        toast({
-          title: event.listed ? 'Event unlisted' : 'Event listed',
+        toast.success(event.listed ? 'Event unlisted' : 'Event listed', {
           description: event.listed 
             ? 'Event is now hidden from public view.' 
             : 'Event is now visible to the public.',
         })
         router.refresh()
       } catch (error) {
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to update listing',
-          variant: 'destructive',
+        toast.error('Failed to update listing', {
+          description: error instanceof Error ? error.message : 'An error occurred',
         })
       }
     })
@@ -73,16 +66,13 @@ export function EventListActions({ event }: EventListActionsProps) {
     startTransition(async () => {
       try {
         await archiveEvent(event.id)
-        toast({
-          title: 'Event archived',
+        toast.success('Event archived', {
           description: 'Event has been moved to archive.',
         })
         router.refresh()
       } catch (error) {
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to archive event',
-          variant: 'destructive',
+        toast.error('Failed to archive event', {
+          description: error instanceof Error ? error.message : 'An error occurred',
         })
       }
     })
@@ -92,16 +82,13 @@ export function EventListActions({ event }: EventListActionsProps) {
     startTransition(async () => {
       try {
         await restoreEvent(event.id)
-        toast({
-          title: 'Event restored',
+        toast.success('Event restored', {
           description: 'Event has been restored from archive.',
         })
         router.refresh()
       } catch (error) {
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to restore event',
-          variant: 'destructive',
+        toast.error('Failed to restore event', {
+          description: error instanceof Error ? error.message : 'An error occurred',
         })
       }
     })
