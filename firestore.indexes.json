@@ -212,19 +212,5 @@
       ],
       "density": "SPARSE_ALL"
     }
-  ],
-  "fieldOverrides": [
-    {
-      "collectionGroup": "inquiries",
-      "fieldPath": "submittedAt",
-      "indexes": [
-        {
-          "order": "ASCENDING"
-        },
-        {
-          "order": "DESCENDING"
-        }
-      ]
-    }
   ]
 }
