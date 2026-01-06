@@ -5,12 +5,17 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
-import { Loader2, Info as InfoIcon } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Loader2, Info as InfoIcon, Link2, Globe, Hash } from 'lucide-react'
 
-import { createEvent, updateEvent } from '@/app/(frontend)/(cms)/dashboard/events/firebase-actions'
+import {
+  checkSlugAvailability,
+  createEvent,
+  updateEvent,
+} from '@/app/(frontend)/(cms)/dashboard/events/firebase-actions'
 import type { Event } from '@/types'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -34,23 +39,41 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
+import { cn } from '@/utilities/ui'
+import { ImageUploadPreview } from './components/ImageUploadPreview'
 
 const currencies = ['USD', 'EUR', 'GBP'] as const
 const formats = ['Conference', 'Seminar', 'Workshop', 'Class', 'Networking'] as const
 const categories = ['Business', 'Science & Tech', 'Health', 'Arts', 'Community'] as const
 
 const tzDefault = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 const baseSchema = z.object({
   title: z.string().min(1, 'Title is required'),
+  slug: z
+    .string()
+    .trim()
+    .min(3, 'Slug must be at least 3 characters')
+    .max(80, 'Slug must be at most 80 characters')
+    .regex(slugPattern, 'Use lowercase letters, numbers, and hyphens only'),
   summary: z.string().optional(),
   descriptionHtml: z.string().optional(),
+  externalRegistrationLink: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (val) => !val || z.string().url().safeParse(val).success,
+      'Enter a valid URL (https://...) or leave blank',
+    ),
   startDate: z.string().min(1, 'Start date is required'),
   startTime: z.string().min(1, 'Start time is required'),
   endDate: z.string().optional(),
   endTime: z.string().optional(),
   timezone: z.string().min(1),
   isOnline: z.boolean().default(false),
+  isRegistrationRequired: z.boolean().default(true),
   venueName: z.string().optional(),
   addressLine1: z.string().optional(),
   addressLine2: z.string().optional(),
@@ -58,6 +81,15 @@ const baseSchema = z.object({
   state: z.string().optional(),
   postalCode: z.string().optional(),
   country: z.string().optional(),
+  onlineMeetingUrl: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (val) => !val || z.string().url().safeParse(val).success,
+      'Enter a valid meeting URL (https://...) or leave blank',
+    ),
+  onlineMeetingDetails: z.string().optional(),
   capacity: z
     .union([z.number().int().min(1), z.string().regex(/^\d+$/)])
     .optional()
@@ -75,6 +107,7 @@ const baseSchema = z.object({
   subcategory: z.string().optional(),
   format: z.enum(formats).optional(),
   imageFile: z.instanceof(File).optional().or(z.literal(undefined)),
+  secondaryImageFile: z.instanceof(File).optional().or(z.literal(undefined)),
 })
 
 const schema = baseSchema
@@ -88,6 +121,16 @@ const schema = baseSchema
     path: ['price'],
     message: 'Price and currency required unless event is free',
   })
+  .refine(
+    (d) => {
+      // Skip validation if end date/time not provided
+      if (!d.endDate || !d.endTime) return true
+      const start = new Date(`${d.startDate}T${d.startTime}:00`)
+      const end = new Date(`${d.endDate}T${d.endTime}:00`)
+      return end >= start
+    },
+    { path: ['endDate'], message: 'End date/time must be after start date/time' },
+  )
 
 type FormValues = z.input<typeof baseSchema>
 
@@ -110,6 +153,8 @@ type EventWithVenueFields = Event & {
   format?: string
   status?: 'draft' | 'published'
   costDescription?: string
+  onlineMeetingUrl?: string
+  onlineMeetingDetails?: string
 }
 
 export type EventFormProps = {
@@ -207,6 +252,10 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false)
   const [isInitializingAddress, setIsInitializingAddress] = useState(false)
+  const [isSlugDirty, setIsSlugDirty] = useState(false)
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>(
+    'idle',
+  )
   const addressAutocompleteRef = useRef<GooglePlacesAutocomplete | null>(null)
   const addressInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -232,14 +281,17 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
 
       return {
         title: event.name || '',
+        slug: event.meta?.slug || event.slug || '',
         summary: event.summary || '',
         descriptionHtml: eventWithFields.descriptionHtml || '',
+        externalRegistrationLink: event.externalRegistrationLink || '',
         startDate,
         startTime,
         endDate: endDate || '',
         endTime: endTime || '',
         timezone: eventWithFields.timezone || tzDefault,
         isOnline: event.modality === 'online' || event.modality === 'hybrid',
+        isRegistrationRequired: event.isRegistrationRequired ?? true,
         venueName: eventWithFields.venueFields?.name || event.location?.venueName || '',
         addressLine1: eventWithFields.venueFields?.addressLine1 || '',
         addressLine2: eventWithFields.venueFields?.addressLine2 || '',
@@ -247,6 +299,9 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
         state: eventWithFields.venueFields?.state || '',
         postalCode: eventWithFields.venueFields?.postalCode || '',
         country: eventWithFields.venueFields?.country || '',
+        onlineMeetingUrl: eventWithFields.onlineMeetingUrl || event.onlineMeeting?.url || '',
+        onlineMeetingDetails:
+          eventWithFields.onlineMeetingDetails || event.onlineMeeting?.details || '',
         capacity: eventWithFields.capacity,
         isFree: event.isFree ?? true,
         price: event.cost?.amount,
@@ -260,21 +315,33 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
         subcategory: eventWithFields.subcategory || '',
         format: (eventWithFields.format as (typeof formats)[number]) || undefined,
         imageFile: undefined,
+        secondaryImageFile: undefined,
         existingImageUrl: imageUrl,
-      } as FormValues & { existingImageUrl?: string }
+        existingSecondaryImageUrl:
+          typeof event.secondaryImage === 'string'
+            ? event.secondaryImage
+            : typeof event.secondaryImage === 'object' &&
+                event.secondaryImage &&
+                'url' in event.secondaryImage
+              ? String(event.secondaryImage.url)
+              : undefined,
+      } as FormValues & { existingImageUrl?: string; existingSecondaryImageUrl?: string }
     }
 
     // Default values for new mode
     return {
       title: '',
+      slug: '',
       summary: '',
       descriptionHtml: '',
+      externalRegistrationLink: '',
       startDate: '',
       startTime: '',
       endDate: '',
       endTime: '',
       timezone: tzDefault,
       isOnline: false,
+      isRegistrationRequired: true,
       venueName: '',
       addressLine1: '',
       addressLine2: '',
@@ -282,6 +349,8 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
       state: '',
       postalCode: '',
       country: '',
+      onlineMeetingUrl: '',
+      onlineMeetingDetails: '',
       capacity: undefined,
       isFree: true,
       price: undefined,
@@ -293,6 +362,7 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
       subcategory: '',
       format: undefined,
       imageFile: undefined,
+      secondaryImageFile: undefined,
     }
   }
 
@@ -305,6 +375,10 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true)
     try {
+      if (slugStatus === 'unavailable') {
+        throw new Error('Slug is already in use. Please choose another.')
+      }
+
       const startAt = new Date(`${values.startDate}T${values.startTime}:00`)
       const endAt =
         values.endDate && values.endTime
@@ -337,15 +411,37 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
               description: values.costDescription || undefined,
             }
 
+      let secondaryImageUrl: string | undefined
+      if (values.secondaryImageFile instanceof File) {
+        secondaryImageUrl = await uploadEventImage(values.secondaryImageFile)
+      } else if (mode === 'edit' && event) {
+        const existingSecondaryImageUrl =
+          typeof event.secondaryImage === 'string'
+            ? event.secondaryImage
+            : typeof event.secondaryImage === 'object' &&
+                event.secondaryImage &&
+                'url' in event.secondaryImage
+              ? String(event.secondaryImage.url)
+              : undefined
+        secondaryImageUrl = existingSecondaryImageUrl
+      }
+
       const eventData = {
         title: values.title,
+        slug: values.slug,
         summary: values.summary,
         descriptionHtml: values.descriptionHtml,
         imageUrl,
+        secondaryImageUrl,
+        externalRegistrationLink: values.externalRegistrationLink || undefined,
         startAt: startAt.toISOString(),
         endAt: endAt?.toISOString(),
         timezone: values.timezone,
         isOnline: values.isOnline ?? false,
+        onlineMeetingUrl: values.isOnline ? values.onlineMeetingUrl || undefined : undefined,
+        onlineMeetingDetails: values.isOnline
+          ? values.onlineMeetingDetails || undefined
+          : undefined,
         venue: values.isOnline
           ? undefined
           : {
@@ -365,6 +461,7 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
         cost,
         listed: values.listed ?? true,
         status: values.status ?? 'published',
+        isRegistrationRequired: values.isRegistrationRequired ?? true,
         category: values.category,
         subcategory: values.subcategory,
         format: values.format,
@@ -403,6 +500,16 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
             event.featuredImage &&
             'url' in event.featuredImage
           ? String(event.featuredImage.url)
+          : undefined
+      : undefined
+  const existingSecondaryImageUrl =
+    mode === 'edit' && event
+      ? typeof event.secondaryImage === 'string'
+        ? event.secondaryImage
+        : typeof event.secondaryImage === 'object' &&
+            event.secondaryImage &&
+            'url' in event.secondaryImage
+          ? String(event.secondaryImage.url)
           : undefined
       : undefined
 
@@ -506,6 +613,56 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
     }
   }, [isGoogleMapsLoaded, isOnline, isSubmitting, form])
 
+  const slugifyValue = useMemo(
+    () => (value: string) =>
+      value
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+        .slice(0, 80),
+    [],
+  )
+
+  // Auto-generate slug from title unless user edits slug
+  const titleValue = form.watch('title')
+  const slugValue = form.watch('slug')
+
+  useEffect(() => {
+    if (isSlugDirty) return
+    if (slugValue) return
+    const nextSlug = slugifyValue(titleValue || '')
+    form.setValue('slug', nextSlug, { shouldValidate: true })
+  }, [titleValue, isSlugDirty, slugValue, form, slugifyValue])
+
+  // Debounced slug availability check
+  useEffect(() => {
+    let active = true
+    if (!slugValue) {
+      setSlugStatus('idle')
+      return
+    }
+    setSlugStatus('checking')
+    const handle = setTimeout(async () => {
+      try {
+        const available = await checkSlugAvailability(
+          slugValue,
+          mode === 'edit' ? eventId : undefined,
+        )
+        if (!active) return
+        setSlugStatus(available ? 'available' : 'unavailable')
+      } catch (error) {
+        console.error('[EventForm] slug check failed', error)
+        if (!active) return
+        setSlugStatus('unavailable')
+      }
+    }, 400)
+    return () => {
+      active = false
+      clearTimeout(handle)
+    }
+  }, [slugValue, mode, eventId])
+
   return (
     <div className="container max-w-4xl py-6">
       <Card>
@@ -538,6 +695,62 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
                     <FormControl>
                       <Input placeholder="Short summary (optional)" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Slug</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          <Hash className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <Input
+                          className={cn('pl-10', slugStatus === 'checking' && 'pr-10')}
+                          placeholder="event-slug"
+                          disabled={slugStatus === 'checking'}
+                          aria-busy={slugStatus === 'checking'}
+                          {...field}
+                          onChange={(e) => {
+                            setIsSlugDirty(true)
+                            field.onChange(
+                              slugifyValue(
+                                e.target.value
+                                  .toLowerCase()
+                                  .normalize('NFKD')
+                                  .replace(/[^a-z0-9]+/g, '-')
+                                  .replace(/(^-|-$)/g, ''),
+                              ),
+                            )
+                          }}
+                        />
+                        {slugStatus === 'checking' && (
+                          <Loader2
+                            className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                            aria-label="Checking availability"
+                          />
+                        )}
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      URL path for this event.{' '}
+                      {slugStatus === 'available' && (
+                        <Badge variant="outline" className="text-green-600 border-green-600">
+                          Available
+                        </Badge>
+                      )}
+                      {slugStatus === 'unavailable' && (
+                        <Badge variant="outline" className="text-destructive border-destructive">
+                          Already in use
+                        </Badge>
+                      )}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -668,6 +881,115 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
                   )}
                 />
               </div>
+
+              {isOnline && (
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="text-base">Online meeting details</CardTitle>
+                    <CardDescription>Share the virtual meeting URL and notes</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="onlineMeetingUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Meeting URL</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                <Globe className="h-4 w-4" aria-hidden="true" />
+                              </span>
+                              <Input
+                                {...field}
+                                className="pl-10"
+                                placeholder="https://zoom.us/j/..."
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="onlineMeetingDetails"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Details</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              rows={3}
+                              placeholder="Agenda, passcode, dial-in info"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card className="border-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Registration Settings</CardTitle>
+                  <CardDescription>Configure how attendees register for this event</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="isRegistrationRequired"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(v) => field.onChange(Boolean(v))}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="text-sm font-medium">
+                            Require registration
+                          </FormLabel>
+                          <FormDescription className="text-xs">
+                            Uncheck if the event is drop-in. Registration is blocked for archived
+                            events.
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="externalRegistrationLink"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>External registration link</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                              <Link2 className="h-4 w-4" aria-hidden="true" />
+                            </span>
+                            <Input
+                              {...field}
+                              className="pl-10"
+                              placeholder="https://example.com/registration (leave blank to use native form)"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          If provided, attendees will be sent to this URL instead of the native
+                          form.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
 
               {/* Publishing Settings */}
               <Card className="border-2">
@@ -1035,33 +1357,34 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
               <FormField
                 control={form.control}
                 name="imageFile"
-                render={({ field: { onChange, value: _value, ...field } }) => (
+                render={({ field: { onChange, value: _value } }) => (
                   <FormItem>
                     <FormLabel>Event image</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        {...field}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          onChange(file || undefined)
-                        }}
-                      />
-                    </FormControl>
-                    {existingImageUrl && (
-                      <p className="text-xs text-muted-foreground">
-                        Current image:{' '}
-                        <a
-                          href={existingImageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline"
-                        >
-                          {existingImageUrl}
-                        </a>
-                      </p>
-                    )}
+                    <ImageUploadPreview
+                      value={_value}
+                      onChange={(file) => onChange(file)}
+                      existingUrl={existingImageUrl}
+                      recommendedSize={{ width: 1200, height: 630 }}
+                    />
+                    <FormDescription>Recommended 1200x630px. JPG or PNG up to 5MB.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="secondaryImageFile"
+                render={({ field: { onChange, value: _value } }) => (
+                  <FormItem>
+                    <FormLabel>Secondary image (optional)</FormLabel>
+                    <ImageUploadPreview
+                      value={_value}
+                      onChange={(file) => onChange(file)}
+                      existingUrl={existingSecondaryImageUrl}
+                      recommendedSize={{ width: 1200, height: 630 }}
+                    />
+                    <FormDescription>Used for alternate layouts or cards.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1076,8 +1399,22 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : mode === 'new' ? 'Create event' : 'Save changes'}
+                <Button
+                  type="submit"
+                  disabled={
+                    isSubmitting || slugStatus === 'checking' || slugStatus === 'unavailable'
+                  }
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : mode === 'new' ? (
+                    'Create event'
+                  ) : (
+                    'Save changes'
+                  )}
                 </Button>
               </div>
             </form>
