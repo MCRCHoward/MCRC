@@ -16,7 +16,11 @@ function timestampToISOString(value: unknown): string | undefined {
   if (typeof value === 'object' && value !== null && 'toDate' in value) {
     const toDate = (value as { toDate: () => Date }).toDate
     if (typeof toDate === 'function') {
-      return toDate().toISOString()
+      try {
+        return toDate().toISOString()
+      } catch {
+        return undefined
+      }
     }
   }
 
@@ -27,17 +31,30 @@ function timestampToISOString(value: unknown): string | undefined {
     '_seconds' in value &&
     '_nanoseconds' in value
   ) {
-    const seconds = (value as { _seconds: number })._seconds
-    const nanoseconds = (value as { _nanoseconds: number })._nanoseconds
-    if (typeof seconds === 'number') {
-      const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
-      return new Date(milliseconds).toISOString()
+    const seconds = (value as { _seconds?: unknown })._seconds
+    const nanoseconds = (value as { _nanoseconds?: unknown })._nanoseconds
+    if (
+      typeof seconds === 'number' &&
+      typeof nanoseconds === 'number' &&
+      !Number.isNaN(seconds) &&
+      !Number.isNaN(nanoseconds)
+    ) {
+      try {
+        const milliseconds = seconds * 1000 + Math.floor(nanoseconds / 1000000)
+        return new Date(milliseconds).toISOString()
+      } catch {
+        return undefined
+      }
     }
   }
 
   // Already a Date object
   if (value instanceof Date) {
-    return value.toISOString()
+    try {
+      return value.toISOString()
+    } catch {
+      return undefined
+    }
   }
 
   // Already a string
