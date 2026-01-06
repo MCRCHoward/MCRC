@@ -12,7 +12,7 @@
 
 // Import UserRole from types - this is the canonical source
 // When adding new roles, update the UserRole type in src/types/user.ts first
-type UserRole = 'admin' | 'coordinator' | 'mediator' | 'participant' | 'volunteer'
+type UserRole = 'admin' | 'editor' | 'coordinator' | 'mediator' | 'participant' | 'volunteer'
 
 /**
  * Role metadata for display and management
@@ -33,6 +33,12 @@ export const ROLES: RoleMetadata[] = [
     value: 'admin',
     label: 'Admin',
     description: 'Full system control; can manage users, roles, content, and settings',
+    level: 6,
+  },
+  {
+    value: 'editor',
+    label: 'Editor',
+    description: 'Can create and manage events and content',
     level: 5,
   },
   {
@@ -148,7 +154,11 @@ export function isCoordinator(role?: UserRole | null): boolean {
 }
 
 export function isStaff(role?: UserRole | null): boolean {
-  return role === 'admin' || role === 'coordinator'
+  return role === 'admin' || role === 'editor' || role === 'coordinator'
+}
+
+export function isEditor(role?: UserRole | null): boolean {
+  return role === 'editor'
 }
 
 /**
