@@ -6,6 +6,8 @@ import { MyEventsClient } from './MyEventsClient'
 import { formatDateTime, formatDate } from '@/utilities/formatDateTime'
 import { logError } from '@/utilities/error-logging'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MyEventsPage() {
   const user = await getCurrentUser()
 
