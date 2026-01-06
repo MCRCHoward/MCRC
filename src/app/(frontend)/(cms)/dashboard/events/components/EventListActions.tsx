@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, Loader2 } from 'lucide-react'
+import { MoreHorizontal, Loader2, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -49,8 +49,8 @@ export function EventListActions({ event }: EventListActionsProps) {
       try {
         await setEventListed(event.id, !event.listed)
         toast.success(event.listed ? 'Event unlisted' : 'Event listed', {
-          description: event.listed 
-            ? 'Event is now hidden from public view.' 
+          description: event.listed
+            ? 'Event is now hidden from public view.'
             : 'Event is now visible to the public.',
         })
         router.refresh()
@@ -101,23 +101,30 @@ export function EventListActions({ event }: EventListActionsProps) {
           <Link href={`/dashboard/events/${event.slug}`}>Edit</Link>
         </Button>
 
+        <Button variant="outline" asChild disabled={isPending}>
+          <Link href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            See Event
+          </Link>
+        </Button>
+
         <Separator orientation="vertical" className="h-6" />
 
-        <Button
-          variant={event.meta?.status === 'published' ? 'secondary' : 'default'}
-          size="default"
-          onClick={handleStatusToggle}
-          disabled={isPending || event.isArchived}
-          aria-disabled={event.isArchived}
-        >
-          {isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : event.meta?.status === 'published' ? (
-            'Move to Draft'
-          ) : (
-            'Publish'
-          )}
-        </Button>
+        {event.isArchived ? (
+          <Button variant="outline" size="default" onClick={handleRestore} disabled={isPending}>
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Restore from Archive'}
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size="default"
+            className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+            onClick={() => setShowArchiveDialog(true)}
+            disabled={isPending}
+          >
+            Archive Event
+          </Button>
+        )}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -131,24 +138,14 @@ export function EventListActions({ event }: EventListActionsProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
-              onSelect={handleListToggle}
-              disabled={event.isArchived}
+              onSelect={handleStatusToggle}
+              disabled={isPending || event.isArchived}
             >
+              {event.meta?.status === 'published' ? 'Move to Draft' : 'Publish'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleListToggle} disabled={event.isArchived}>
               {event.listed ? 'Unlist Event' : 'List Event'}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {event.isArchived ? (
-              <DropdownMenuItem onSelect={handleRestore}>
-                Restore from Archive
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem
-                onSelect={() => setShowArchiveDialog(true)}
-                className="text-destructive focus:text-destructive"
-              >
-                Archive Event
-              </DropdownMenuItem>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
