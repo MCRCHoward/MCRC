@@ -106,6 +106,16 @@ const schema = baseSchema
     path: ['price'],
     message: 'Price and currency required unless event is free',
   })
+  .refine(
+    (d) => {
+      // Skip validation if end date/time not provided
+      if (!d.endDate || !d.endTime) return true
+      const start = new Date(`${d.startDate}T${d.startTime}:00`)
+      const end = new Date(`${d.endDate}T${d.endTime}:00`)
+      return end >= start
+    },
+    { path: ['endDate'], message: 'End date/time must be after start date/time' },
+  )
 
 type FormValues = z.input<typeof baseSchema>
 

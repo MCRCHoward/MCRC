@@ -9,13 +9,16 @@ import {
   X,
   Loader2,
   ExternalLink,
+  Info,
+  Archive,
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -101,6 +104,54 @@ const EventPageClient = ({
   const isRegistered = registrationStatus?.status === 'registered'
   const registrationId = registrationStatus?.registrationId
   const isArchived = event.isArchived === true
+  const registrationDisabledByPolicy = isRegistrationRequired === false
+
+  // Determine registration action (must be declared before useMemo hooks that depend on it)
+  const registrationAction = getRegistrationAction(
+    user,
+    isRegistered,
+    externalRegistrationLink,
+    isRegistrationRequired,
+  )
+
+  const alertRef = useRef<HTMLDivElement>(null)
+
+  // Focus management when registration UI is hidden
+  useEffect(() => {
+    if (registrationDisabledByPolicy && alertRef.current) {
+      alertRef.current.focus()
+    }
+  }, [registrationDisabledByPolicy])
+
+  // Compute conditional renders with useMemo for better readability
+  const shouldShowCancelButton = useMemo(() => {
+    if (registrationAction !== 'cancel') return false
+    if (registrationDisabledByPolicy) return false
+    return true
+  }, [registrationAction, registrationDisabledByPolicy])
+
+  const shouldShowRegistrationForm = useMemo(() => {
+    if (registrationAction !== 'register') return false
+    if (!user) return false
+    if (isArchived) return false
+    if (registrationDisabledByPolicy) return false
+    return true
+  }, [registrationAction, user, isArchived, registrationDisabledByPolicy])
+
+  const shouldShowSignInButton = useMemo(() => {
+    if (registrationAction !== 'signin') return false
+    if (isArchived) return false
+    if (registrationDisabledByPolicy) return false
+    return true
+  }, [registrationAction, isArchived, registrationDisabledByPolicy])
+
+  const shouldShowExternalLink = useMemo(() => {
+    if (registrationAction !== 'external') return false
+    if (!externalRegistrationLink) return false
+    if (isArchived) return false
+    if (registrationDisabledByPolicy) return false
+    return true
+  }, [registrationAction, externalRegistrationLink, isArchived, registrationDisabledByPolicy])
 
   const handleCancelRegistration = async () => {
     if (!registrationId) return
@@ -123,13 +174,6 @@ const EventPageClient = ({
     const returnUrl = `/events/${eventSlug}`
     router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
   }
-
-  const registrationAction = getRegistrationAction(
-    user,
-    isRegistered,
-    externalRegistrationLink,
-    isRegistrationRequired,
-  )
 
   return (
     <article className="py-32 md:py-24">
@@ -390,9 +434,20 @@ const EventPageClient = ({
               {/* Registration Section */}
               <div className="space-y-4" aria-live="polite">
                 {isArchived && (
-                  <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
-                    This event is archived. Registration is closed.
-                  </div>
+                  <Alert>
+                    <Archive className="h-4 w-4" />
+                    <AlertDescription>
+                      This event is archived. Registration is closed.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {!isArchived && registrationDisabledByPolicy && (
+                  <Alert ref={alertRef} tabIndex={-1}>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      No registration is required for this event.
+                    </AlertDescription>
+                  </Alert>
                 )}
                 {/* Registration Count (Admin only) */}
                 {registrationCount !== null && registrationCount !== undefined && (
@@ -403,7 +458,7 @@ const EventPageClient = ({
                 )}
 
                 {/* Registration Status - Registered */}
-                {registrationAction === 'cancel' && (
+                {shouldShowCancelButton && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 rounded-md bg-success/10 p-4 dark:bg-success/20 transition-all duration-200">
                       <CheckCircle2
@@ -438,7 +493,7 @@ const EventPageClient = ({
                 )}
 
                 {/* Registration Form - Authenticated User */}
-                {registrationAction === 'register' && user && !isArchived && (
+                {shouldShowRegistrationForm && user && (
                   <EventRegistrationForm
                     eventId={eventId}
                     userEmail={user.email || ''}
@@ -455,7 +510,7 @@ const EventPageClient = ({
                 )}
 
                 {/* Sign In Button - Unauthenticated User */}
-                {registrationAction === 'signin' && !isArchived && (
+                {shouldShowSignInButton && (
                   <Button
                     size="lg"
                     className="w-full gap-2 h-12 focus-visible:ring-4 focus-visible:ring-primary/20"
@@ -467,7 +522,7 @@ const EventPageClient = ({
                 )}
 
                 {/* External Registration Link */}
-                {registrationAction === 'external' && externalRegistrationLink && !isArchived && (
+                {shouldShowExternalLink && (
                   <Button
                     asChild
                     size="lg"

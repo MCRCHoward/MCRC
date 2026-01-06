@@ -58,11 +58,12 @@ async function fetchEvents(): Promise<Event[]> {
 export default async function EventsPage({
   searchParams,
 }: {
-  searchParams?: { view?: string; q?: string }
+  searchParams?: Promise<{ view?: string; q?: string }>
 }) {
   const events = await fetchEvents()
-  const view = (searchParams?.view === 'archived' ? 'archived' : 'active') as 'active' | 'archived'
-  const query = searchParams?.q ?? ''
+  const params = await searchParams
+  const view = (params?.view === 'archived' ? 'archived' : 'active') as 'active' | 'archived'
+  const query = params?.q ?? ''
 
   return (
     <div className="p-4">
