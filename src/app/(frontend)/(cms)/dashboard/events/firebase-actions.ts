@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
 import { requireRoleAny } from '@/lib/custom-auth'
 
@@ -10,12 +10,15 @@ interface CreateEventInput {
   summary?: string
   descriptionHtml?: string
   imageUrl?: string
+  secondaryImageUrl?: string
   externalRegistrationLink?: string
   slug?: string
   startAt: string // ISO
   endAt?: string // ISO
   timezone?: string
   isOnline: boolean
+  onlineMeetingUrl?: string
+  onlineMeetingDetails?: string
   venue?: {
     name?: string
     addressLine1?: string
@@ -37,6 +40,7 @@ interface CreateEventInput {
   }
   listed?: boolean
   status?: 'draft' | 'published'
+  isRegistrationRequired?: boolean
   category?: string
   subcategory?: string
   format?: string
@@ -51,8 +55,69 @@ function slugify(s: string) {
     .slice(0, 80)
 }
 
+async function assertUniqueSlug(slug: string, excludeId?: string) {
+  const existing = await adminDb
+    .collection('events')
+    .where('slug', '==', slug)
+    .limit(1)
+    .get()
+
+  const conflict = existing.docs.find((doc) => doc.id !== excludeId)
+  if (conflict) {
+    throw new Error('Slug is already in use. Please choose a different slug.')
+  }
+}
+
+/**
+ * Validates that endAt is after startAt (if endAt is provided)
+ */
+function assertValidDateRange(startAt: string, endAt?: string) {
+  if (!endAt) return // endAt is optional
+
+  const startDate = new Date(startAt)
+  const endDate = new Date(endAt)
+
+  if (isNaN(startDate.getTime())) {
+    throw new Error('Invalid start date format')
+  }
+
+  if (isNaN(endDate.getTime())) {
+    throw new Error('Invalid end date format')
+  }
+
+  if (endDate < startDate) {
+    throw new Error('End date/time must be after start date/time')
+  }
+}
+
+/**
+ * Converts an ISO string to a Firestore Timestamp
+ */
+function toFirestoreTimestamp(isoString: string): Timestamp {
+  const date = new Date(isoString)
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid date format: ${isoString}`)
+  }
+  return Timestamp.fromDate(date)
+}
+
+export async function checkSlugAvailability(slug: string, excludeId?: string): Promise<boolean> {
+  await requireRoleAny(['editor', 'coordinator'])
+  if (!slug) return false
+  const snapshot = await adminDb
+    .collection('events')
+    .where('slug', '==', slug)
+    .limit(1)
+    .get()
+  const conflict = snapshot.docs.find((doc) => doc.id !== excludeId)
+  return !conflict
+}
+
 export async function createEvent(data: CreateEventInput) {
   const user = await requireRoleAny(['editor', 'coordinator'])
+
+  // Validate date range (server-side enforcement)
+  assertValidDateRange(data.startAt, data.endAt)
 
   const now = FieldValue.serverTimestamp()
   const cost =
@@ -63,9 +128,20 @@ export async function createEvent(data: CreateEventInput) {
           currency: data.currency || 'USD',
         }
 
+  const slug = data.slug ? slugify(data.slug) : slugify(data.title)
+  await assertUniqueSlug(slug)
+
+  // Convert ISO strings to Firestore Timestamps for consistency
+  const startAtTimestamp = toFirestoreTimestamp(data.startAt)
+  const endAtTimestamp = data.endAt ? toFirestoreTimestamp(data.endAt) : null
+
   const payload = {
     ...data,
-    slug: data.slug || slugify(data.title),
+    slug,
+    // Store as Firestore Timestamps (normalized format)
+    startAt: startAtTimestamp,
+    endAt: endAtTimestamp,
+    isRegistrationRequired: data.isRegistrationRequired ?? true,
     createdAt: now,
     updatedAt: now,
     status: (data.status ?? 'published') as 'draft' | 'published',
@@ -95,6 +171,9 @@ export async function updateEvent(id: string, data: CreateEventInput) {
     throw new Error('Event ID is required')
   }
 
+  // Validate date range (server-side enforcement)
+  assertValidDateRange(data.startAt, data.endAt)
+
   const eventRef = adminDb.doc(`events/${id}`)
   const eventDoc = await eventRef.get()
 
@@ -102,12 +181,20 @@ export async function updateEvent(id: string, data: CreateEventInput) {
     throw new Error('Event not found')
   }
 
+  // Convert ISO strings to Firestore Timestamps for consistency
+  const startAtTimestamp = toFirestoreTimestamp(data.startAt)
+  const endAtTimestamp = data.endAt ? toFirestoreTimestamp(data.endAt) : null
+
   // Preserve createdAt, only update updatedAt
-  const updatePayload: Partial<CreateEventInput> & {
+  // Use Record type to allow Timestamp values instead of string for startAt/endAt
+  const updatePayload: Record<string, unknown> & {
     updatedAt: ReturnType<typeof FieldValue.serverTimestamp>
     slug?: string
   } = {
     ...data,
+    // Store as Firestore Timestamps (normalized format)
+    startAt: startAtTimestamp,
+    endAt: endAtTimestamp,
     updatedAt: FieldValue.serverTimestamp(),
     status: (data.status ?? eventDoc.data()?.status ?? 'draft') as 'draft' | 'published',
     listed: data.listed ?? eventDoc.data()?.listed ?? true,
@@ -135,8 +222,17 @@ export async function updateEvent(id: string, data: CreateEventInput) {
   // Only update slug if title changed
   const existingData = eventDoc.data()
   if (data.title && existingData?.title !== data.title) {
-    updatePayload.slug = data.slug || slugify(data.title)
+    updatePayload.slug = data.slug ? slugify(data.slug) : slugify(data.title)
+  } else if (data.slug && data.slug !== existingData?.slug) {
+    updatePayload.slug = slugify(data.slug)
   }
+
+  if (updatePayload.slug) {
+    await assertUniqueSlug(updatePayload.slug, id)
+  }
+
+  updatePayload.isRegistrationRequired =
+    data.isRegistrationRequired ?? existingData?.isRegistrationRequired ?? true
 
   await eventRef.update(updatePayload)
 

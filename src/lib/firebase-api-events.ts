@@ -83,7 +83,7 @@ function mapFirebaseEventToEvent(
               description: data.costDescription,
             }
           : undefined,
-    isRegistrationRequired: data.isRegistrationRequired ?? false,
+    isRegistrationRequired: data.isRegistrationRequired ?? true,
     externalRegistrationLink: data.externalRegistrationLink,
     isArchived: data.isArchived === true,
     listed: data.listed ?? true,
