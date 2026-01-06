@@ -42,6 +42,10 @@ export async function registerForEvent(
     throw new Error('Registration is closed. This event is archived.')
   }
 
+  if (eventData.isRegistrationRequired === false) {
+    throw new Error('No registration is required for this event.')
+  }
+
   // Check for duplicate registration
   const existingRegistrationsQuery = adminDb
     .collection('eventRegistrations')
