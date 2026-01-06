@@ -64,11 +64,12 @@ async function getUpcomingEvents(): Promise<Event[]> {
   console.log('[DASHBOARD] Fetching upcoming events')
 
   try {
-    const now = new Date()
+    const now = Timestamp.fromDate(new Date())
     const snapshot = await adminDb
       .collection('events')
       .where('status', '==', 'published')
       .where('listed', '==', true)
+      .where('startAt', '>=', now)
       .orderBy('startAt', 'asc')
       .limit(3)
       .get()
@@ -80,34 +81,27 @@ async function getUpcomingEvents(): Promise<Event[]> {
       return []
     }
 
-    const events: Event[] = []
-
-    for (const doc of snapshot.docs) {
+    return snapshot.docs.map((doc) => {
       const data = doc.data()
       const startAt = toDate(data.startAt)
+      const endAt = toDate(data.endAt) || startAt
 
-      // Only include future events
-      if (startAt && startAt > now) {
-        const endAt = toDate(data.endAt) || startAt
-        events.push({
-          id: doc.id,
-          name: data.title || '',
+      return {
+        id: doc.id,
+        name: data.title || '',
+        slug: data.slug || doc.id,
+        eventStartTime: startAt?.toISOString() ?? new Date().toISOString(),
+        eventEndTime: endAt?.toISOString() ?? new Date().toISOString(),
+        modality: data.isOnline ? 'online' : 'in_person',
+        meta: {
           slug: data.slug || doc.id,
-          eventStartTime: startAt.toISOString(),
-          eventEndTime: endAt.toISOString(),
-          modality: data.isOnline ? 'online' : 'in_person',
-          meta: {
-            slug: data.slug || doc.id,
-            status: data.status === 'published' ? 'published' : 'draft',
-            eventType: data.category || data.format,
-          },
-          createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
-          updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
-        } as Event)
-      }
-    }
-
-    return events.slice(0, 3)
+          status: data.status === 'published' ? 'published' : 'draft',
+          eventType: data.category || data.format,
+        },
+        createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
+        updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
+      } as Event
+    })
   } catch (error) {
     console.error('[getUpcomingEvents] Error:', error)
     return []
@@ -143,7 +137,10 @@ async function getInquiryStats() {
     const snapshots = await Promise.all(
       serviceAreas.map(async (serviceArea) => {
         const collectionPath = `serviceAreas/${serviceArea}/inquiries`
-        const q = adminDb.collection(collectionPath).where('submittedAt', '>=', threshold)
+        const q = adminDb
+          .collection(collectionPath)
+          .where('submittedAt', '>=', threshold)
+          .select('status')
         const snap = await q.get()
         return { serviceArea, snap }
       }),
