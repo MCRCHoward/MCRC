@@ -9,6 +9,7 @@ import { toISOString, toDate } from './utils/timestamp-helpers'
 import { getCurrentUser } from '@/lib/custom-auth'
 import { getPendingTaskCount } from '@/lib/actions/task-actions'
 import { isStaff } from '@/lib/user-roles'
+import { SERVICE_AREA_METADATA, type ServiceArea } from '@/lib/service-area-config'
 
 // Server-side rendering configuration
 export const runtime = 'nodejs'
@@ -131,34 +132,49 @@ async function getInquiryStats() {
       timestampSeconds: threshold.seconds,
     })
 
-    const query = adminDb.collectionGroup('inquiries').where('submittedAt', '>=', threshold)
+    // Avoid collectionGroup('inquiries') to prevent brittle single-field collection-group index state.
+    // Instead, query each service area's subcollection and aggregate.
+    const serviceAreas = Object.keys(SERVICE_AREA_METADATA) as ServiceArea[]
     console.log('[getInquiryStats] Query definition', {
-      collectionGroup: 'inquiries',
+      serviceAreas,
       filters: [{ field: 'submittedAt', op: '>=', value: threshold.toDate().toISOString() }],
     })
 
-    const snapshot = await query.get()
+    const snapshots = await Promise.all(
+      serviceAreas.map(async (serviceArea) => {
+        const collectionPath = `serviceAreas/${serviceArea}/inquiries`
+        const q = adminDb.collection(collectionPath).where('submittedAt', '>=', threshold)
+        const snap = await q.get()
+        return { serviceArea, snap }
+      }),
+    )
+
+    const totalDocs = snapshots.reduce((sum, { snap }) => sum + snap.size, 0)
     console.log('[getInquiryStats] Query completed', {
-      documentCount: snapshot.size,
-      readTime: snapshot.readTime.toDate().toISOString(),
+      documentCount: totalDocs,
+      perServiceArea: Object.fromEntries(
+        snapshots.map(({ serviceArea, snap }) => [serviceArea, snap.size]),
+      ),
     })
 
     const statusCounts = new Map<string, number>()
     let scheduled = 0
-    snapshot.forEach((doc) => {
-      const status = (doc.get('status') as string | undefined) ?? 'missing'
-      statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1)
-      if (status === 'intake-scheduled') {
-        scheduled += 1
-      }
-    })
+    for (const { snap } of snapshots) {
+      snap.forEach((doc) => {
+        const status = (doc.get('status') as string | undefined) ?? 'missing'
+        statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1)
+        if (status === 'intake-scheduled') {
+          scheduled += 1
+        }
+      })
+    }
     console.log('[getInquiryStats] Aggregation complete', {
       scheduledIntakes: scheduled,
       statusCounts: Object.fromEntries(statusCounts.entries()),
     })
 
     return {
-      newInquiries: snapshot.size,
+      newInquiries: totalDocs,
       scheduledIntakes: scheduled,
     }
   } catch (error) {
