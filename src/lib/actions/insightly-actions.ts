@@ -78,7 +78,7 @@ export async function syncInquiryWithInsightlyAction({
         hasLastName: !!payload.LAST_NAME,
         hasFirstName: !!payload.FIRST_NAME,
         hasEmail: !!payload.EMAIL,
-        hasPhone: !!payload.PHONE_NUMBER,
+        hasPhone: !!payload.PHONE,
         tagsCount: payload.TAGS?.length || 0,
       })
     } else {
@@ -88,7 +88,7 @@ export async function syncInquiryWithInsightlyAction({
         hasLastName: !!payload.LAST_NAME,
         hasFirstName: !!payload.FIRST_NAME,
         hasEmail: !!payload.EMAIL,
-        hasPhone: !!payload.PHONE_NUMBER,
+        hasPhone: !!payload.PHONE,
         tagsCount: payload.TAGS?.length || 0,
       })
     }
