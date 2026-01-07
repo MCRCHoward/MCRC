@@ -1,6 +1,10 @@
+import 'dotenv/config'
+
 import * as admin from 'firebase-admin'
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore'
 import { setGlobalOptions } from 'firebase-functions/v2/options'
+import { runInsightlySyncForInquiry } from './lib/insightly-sync'
+import { INSIGHTLY_API_KEY_SECRET } from './lib/insightly/params'
 
 const STAFF_ROLES = ['admin', 'coordinator'] as const
 
@@ -190,6 +194,45 @@ export const onInquiryCreated = onDocumentCreated(
       message: `New ${serviceLabel} inquiry from ${participantName}.`,
       link,
       inquiryId,
+    })
+  },
+)
+
+export const onInquiryCreatedInsightly = onDocumentCreated(
+  {
+    document: 'serviceAreas/{serviceId}/inquiries/{inquiryId}',
+    region: 'us-central1',
+    // Keep retries off initially to avoid duplicate-lead creation risk.
+    // We can enable retries after adding explicit idempotency.
+    retry: false,
+    secrets: [INSIGHTLY_API_KEY_SECRET],
+  },
+  async (event) => {
+    const data = event.data?.data()
+    if (!data) return
+
+    const serviceArea = event.params.serviceId as string
+    const inquiryId = event.params.inquiryId as string
+    const formType = data.formType as string | undefined
+
+    const supported =
+      formType === 'mediation-self-referral' || formType === 'restorative-program-referral'
+    if (!supported) {
+      return
+    }
+
+    // If we already have a lead ID, treat it as completed for idempotency.
+    if (typeof data.insightlyLeadId === 'number' && data.insightlyLeadId > 0) {
+      return
+    }
+
+    console.log('[functions][insightly] New inquiry detected', { inquiryId, serviceArea, formType })
+
+    await runInsightlySyncForInquiry({
+      db,
+      inquiryId,
+      serviceArea,
+      data,
     })
   },
 )
