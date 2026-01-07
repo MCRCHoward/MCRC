@@ -61,8 +61,8 @@ function validateLeadPayload(payload) {
     if (!payload.LEAD_SOURCE_ID) {
         errors.push('LEAD_SOURCE_ID is recommended for proper lead tracking');
     }
-    if (!payload.EMAIL && !payload.PHONE_NUMBER && !payload.MOBILE_PHONE_NUMBER) {
-        errors.push('At least one contact method (EMAIL, PHONE_NUMBER, or MOBILE_PHONE_NUMBER) is recommended');
+    if (!payload.EMAIL && !payload.PHONE && !payload.MOBILE) {
+        errors.push('At least one contact method (EMAIL, PHONE, or MOBILE) is recommended');
     }
     if (errors.length > 0) {
         throw new Error(`[Insightly] Payload validation failed: ${errors.join('; ')}`);
@@ -88,7 +88,7 @@ function buildSelfReferralLeadPayload(values) {
         FIRST_NAME: sanitize(values.firstName),
         LAST_NAME: sanitize(values.lastName) ?? 'Unknown',
         EMAIL: sanitize(values.email),
-        PHONE_NUMBER: sanitize(values.phone),
+        PHONE: sanitize(values.phone),
         ADDRESS_STREET: sanitize(values.streetAddress),
         ADDRESS_CITY: sanitize(values.city),
         ADDRESS_STATE: sanitize(values.state),
@@ -122,7 +122,7 @@ function buildRestorativeReferralLeadPayload(values) {
         FIRST_NAME: firstName ?? sanitize(values.referrerName),
         LAST_NAME: lastName ?? firstName ?? 'Unknown',
         EMAIL: sanitize(values.referrerEmail),
-        PHONE_NUMBER: sanitize(values.referrerPhone),
+        PHONE: sanitize(values.referrerPhone),
         TITLE: sanitize(values.referrerRole),
         ORGANIZATION_NAME: organization,
         LEAD_DESCRIPTION: [
