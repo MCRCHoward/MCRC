@@ -13,7 +13,6 @@ import {
   type RestorativeProgramReferralFormValues,
 } from '@/Forms/schema/restorative-program-referral-form'
 import { prepareFormDataForFirestore } from '@/lib/inquiries/form-data'
-import { syncInquiryWithInsightlyAction } from '@/lib/actions/insightly-actions'
 import { buildMediationReferralMondayItem, buildRestorativeProgramMondayItem } from '@/lib/monday/mappers'
 import { createMondayItem } from '@/lib/monday/items'
 import type { CreateMondayItemInput } from '@/lib/monday/items'
@@ -24,11 +23,6 @@ interface SubmissionResult {
   success: boolean
   inquiryId?: string
   error?: string
-  insightly?: {
-    success: boolean
-    leadId?: number
-    error?: string
-  }
   monday?: {
     success: boolean
     itemId?: string
@@ -59,6 +53,11 @@ async function createInquiryDocument(
     submissionType: 'anonymous',
     reviewed: false,
     calendlyScheduling: null,
+    // Insightly sync is handled asynchronously via Firestore trigger for supported forms.
+    insightlySyncStatus:
+      formType === SELF_REFERRAL_FORM_TYPE || formType === RESTORATIVE_FORM_TYPE ? 'pending' : undefined,
+    insightlyLastSyncError:
+      formType === SELF_REFERRAL_FORM_TYPE || formType === RESTORATIVE_FORM_TYPE ? null : undefined,
     mondaySyncStatus: 'pending',
     mondaySyncError: null,
   })
@@ -89,30 +88,6 @@ async function submitPublicForm<T extends Record<string, unknown>>({
     console.log('[PublicFormSubmission] Creating inquiry document...', { serviceArea, formType })
     const inquiryId = await createInquiryDocument(serviceArea, formType, serializedFormData)
     console.log('[PublicFormSubmission] Inquiry created successfully', { inquiryId })
-
-    // Insightly Sync
-    console.log('[PublicFormSubmission] Starting Insightly sync...', { inquiryId, serviceArea })
-    let insightly
-    try {
-      insightly = await syncInquiryWithInsightlyAction({
-        inquiryId,
-        serviceArea,
-      })
-      console.log('[PublicFormSubmission] Insightly sync completed', {
-        success: insightly.success,
-        leadId: insightly.leadId,
-        error: insightly.error,
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown Insightly error'
-      console.error('[PublicFormSubmission] Insightly sync threw exception', { error: message })
-      insightly = { success: false, error: message }
-    }
-
-    if (!insightly) {
-      console.error('[PublicFormSubmission] Insightly sync returned null/undefined')
-      insightly = { success: false, error: 'Unknown Insightly response' }
-    }
 
     // Monday Sync
     console.log('[PublicFormSubmission] Marking Monday sync as pending...', { inquiryId })
@@ -167,14 +142,12 @@ async function submitPublicForm<T extends Record<string, unknown>>({
 
     console.log('[PublicFormSubmission] Form submission complete', {
       inquiryId,
-      insightlySuccess: insightly.success,
       mondaySuccess: mondayResult.success,
     })
 
     return {
       success: true,
       inquiryId,
-      insightly,
       monday: mondayResult,
     }
   } catch (error) {
