@@ -7,8 +7,8 @@ export interface InsightlyLeadPayload {
   LAST_NAME?: string
   TITLE?: string
   EMAIL?: string
-  PHONE_NUMBER?: string
-  MOBILE_PHONE_NUMBER?: string
+  PHONE?: string
+  MOBILE?: string
   ORGANIZATION_NAME?: string
   LEAD_STATUS_ID?: number
   LEAD_SOURCE_ID?: number
