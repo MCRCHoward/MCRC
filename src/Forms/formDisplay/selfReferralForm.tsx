@@ -244,24 +244,8 @@ export function MediationSelfReferralForm() {
         error: result.error,
       })
 
-      // Log Insightly details separately
-      if (result.insightly) {
-        console.log('[SelfReferralForm] Insightly sync result:', {
-          success: result.insightly.success,
-          leadId: result.insightly.leadId,
-          error: result.insightly.error,
-        })
-        if (!result.insightly.success) {
-          console.warn('[SelfReferralForm] Insightly sync failed:', result.insightly.error)
-        } else {
-          console.log(
-            '[SelfReferralForm] Insightly lead created successfully, ID:',
-            result.insightly.leadId,
-          )
-        }
-      } else {
-        console.warn('[SelfReferralForm] No Insightly result returned')
-      }
+      // Insightly sync runs asynchronously (Firestore trigger). Status is visible in the CMS inquiry page.
+      console.log('[SelfReferralForm] Insightly sync is queued (async)')
 
       // Log Monday details separately
       if (result.monday) {
