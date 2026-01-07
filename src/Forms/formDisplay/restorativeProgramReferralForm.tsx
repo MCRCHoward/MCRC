@@ -160,12 +160,8 @@ export function RestorativeProgramReferralForm() {
         throw new Error(result.error ?? 'Unable to submit your referral right now.')
       }
 
-      if (result.insightly && !result.insightly.success) {
-        console.warn(
-          '[RestorativeProgramReferralForm] Insightly sync failed',
-          result.insightly.error,
-        )
-      }
+      // Insightly sync runs asynchronously (Firestore trigger). Status is visible in the CMS inquiry page.
+      console.log('[RestorativeProgramReferralForm] Insightly sync queued (async)')
 
       const displayName = data.referrerName || data.participantName
       void requestFormConfirmationEmail({
