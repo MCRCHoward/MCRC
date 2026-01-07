@@ -77,7 +77,7 @@ export async function syncInquiryWithInsightlyAction({
       console.log('[Insightly] Self-referral payload built', {
         hasLastName: !!payload.LAST_NAME,
         hasFirstName: !!payload.FIRST_NAME,
-        hasEmail: !!payload.EMAIL_ADDRESS,
+        hasEmail: !!payload.EMAIL,
         hasPhone: !!payload.PHONE_NUMBER,
         tagsCount: payload.TAGS?.length || 0,
       })
@@ -87,7 +87,7 @@ export async function syncInquiryWithInsightlyAction({
       console.log('[Insightly] Restorative referral payload built', {
         hasLastName: !!payload.LAST_NAME,
         hasFirstName: !!payload.FIRST_NAME,
-        hasEmail: !!payload.EMAIL_ADDRESS,
+        hasEmail: !!payload.EMAIL,
         hasPhone: !!payload.PHONE_NUMBER,
         tagsCount: payload.TAGS?.length || 0,
       })
