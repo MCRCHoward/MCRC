@@ -112,7 +112,7 @@ export async function createInsightlyLead(payload: InsightlyLeadPayload): Promis
     hasLastName: !!payload.LAST_NAME,
     hasFirstName: !!payload.FIRST_NAME,
     hasEmail: !!payload.EMAIL,
-    hasPhone: !!payload.PHONE_NUMBER,
+    hasPhone: !!payload.PHONE,
     hasDescription: !!payload.LEAD_DESCRIPTION,
     hasLeadSource: !!payload.LEAD_SOURCE_ID,
     tagsCount: payload.TAGS?.length || 0,
