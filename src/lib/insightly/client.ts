@@ -137,7 +137,7 @@ export async function createInsightlyLead(
   console.log('[Insightly API] Request payload structure', {
     hasLastName: !!payload.LAST_NAME,
     hasFirstName: !!payload.FIRST_NAME,
-    hasEmail: !!payload.EMAIL_ADDRESS,
+    hasEmail: !!payload.EMAIL,
     hasPhone: !!payload.PHONE_NUMBER,
     hasDescription: !!payload.LEAD_DESCRIPTION,
     hasLeadSource: !!payload.LEAD_SOURCE_ID,

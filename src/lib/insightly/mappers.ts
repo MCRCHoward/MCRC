@@ -77,9 +77,9 @@ export function validateLeadPayload(payload: InsightlyLeadPayload): void {
   }
 
   // At least one contact method should be provided
-  if (!payload.EMAIL_ADDRESS && !payload.PHONE_NUMBER && !payload.MOBILE_PHONE_NUMBER) {
+  if (!payload.EMAIL && !payload.PHONE_NUMBER && !payload.MOBILE_PHONE_NUMBER) {
     errors.push(
-      'At least one contact method (EMAIL_ADDRESS, PHONE_NUMBER, or MOBILE_PHONE_NUMBER) is recommended',
+      'At least one contact method (EMAIL, PHONE_NUMBER, or MOBILE_PHONE_NUMBER) is recommended',
     )
   }
 
@@ -114,7 +114,7 @@ export function buildSelfReferralLeadPayload(values: MediationFormValues): Insig
     LEAD_SOURCE_ID: insightlyDefaults.selfReferralLeadSourceId,
     FIRST_NAME: sanitize(values.firstName),
     LAST_NAME: sanitize(values.lastName) ?? 'Unknown',
-    EMAIL_ADDRESS: sanitize(values.email),
+    EMAIL: sanitize(values.email),
     PHONE_NUMBER: sanitize(values.phone),
     ADDRESS_STREET: sanitize(values.streetAddress),
     ADDRESS_CITY: sanitize(values.city),
@@ -167,7 +167,7 @@ export function buildRestorativeReferralLeadPayload(
     LEAD_SOURCE_ID: insightlyDefaults.restorativeLeadSourceId,
     FIRST_NAME: firstName ?? sanitize(values.referrerName),
     LAST_NAME: lastName ?? firstName ?? 'Unknown',
-    EMAIL_ADDRESS: sanitize(values.referrerEmail),
+    EMAIL: sanitize(values.referrerEmail),
     PHONE_NUMBER: sanitize(values.referrerPhone),
     TITLE: sanitize(values.referrerRole),
     ORGANIZATION_NAME: organization,
