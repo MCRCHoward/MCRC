@@ -33,10 +33,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onInquiryUpdated = exports.onInquiryCreated = void 0;
+exports.onInquiryUpdated = exports.onInquiryCreatedInsightly = exports.onInquiryCreated = void 0;
+require("dotenv/config");
 const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-functions/v2/firestore");
 const options_1 = require("firebase-functions/v2/options");
+const insightly_sync_1 = require("./lib/insightly-sync");
+const params_1 = require("./lib/insightly/params");
 const STAFF_ROLES = ['admin', 'coordinator'];
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -176,6 +179,36 @@ exports.onInquiryCreated = (0, firestore_1.onDocumentCreated)({
         message: `New ${serviceLabel} inquiry from ${participantName}.`,
         link,
         inquiryId,
+    });
+});
+exports.onInquiryCreatedInsightly = (0, firestore_1.onDocumentCreated)({
+    document: 'serviceAreas/{serviceId}/inquiries/{inquiryId}',
+    region: 'us-central1',
+    // Keep retries off initially to avoid duplicate-lead creation risk.
+    // We can enable retries after adding explicit idempotency.
+    retry: false,
+    secrets: [params_1.INSIGHTLY_API_KEY_SECRET],
+}, async (event) => {
+    const data = event.data?.data();
+    if (!data)
+        return;
+    const serviceArea = event.params.serviceId;
+    const inquiryId = event.params.inquiryId;
+    const formType = data.formType;
+    const supported = formType === 'mediation-self-referral' || formType === 'restorative-program-referral';
+    if (!supported) {
+        return;
+    }
+    // If we already have a lead ID, treat it as completed for idempotency.
+    if (typeof data.insightlyLeadId === 'number' && data.insightlyLeadId > 0) {
+        return;
+    }
+    console.log('[functions][insightly] New inquiry detected', { inquiryId, serviceArea, formType });
+    await (0, insightly_sync_1.runInsightlySyncForInquiry)({
+        db,
+        inquiryId,
+        serviceArea,
+        data,
     });
 });
 exports.onInquiryUpdated = (0, firestore_1.onDocumentUpdated)({
