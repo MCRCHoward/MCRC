@@ -141,7 +141,10 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
             title: 'Users',
             url: '/dashboard/users',
             iconKey: 'users',
-            items: [{ title: 'All Users', url: '/dashboard/users' }],
+            items: [
+              { title: 'All Users', url: '/dashboard/users' },
+              { title: 'Participants', url: '/dashboard/users/participants' },
+            ],
           },
         ]
       : []),

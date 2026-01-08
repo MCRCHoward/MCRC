@@ -198,6 +198,16 @@ service cloud.firestore {
       }
     }
 
+    // ---------- PARTICIPANTS (staff-only access) ----------
+    match /participants/{participantId} {
+      // Staff can read participants for CMS dashboard
+      allow read: if isStaff();
+      
+      // All writes go through Admin SDK server actions (bypasses Firestore rules)
+      // Client-side writes are disabled for security
+      allow create, update, delete: if false;
+    }
+
     // ---------- Catch-all deny ----------
     match /{document=**} {
       allow read, write: if false;
