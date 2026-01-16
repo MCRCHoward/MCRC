@@ -34,7 +34,7 @@ const GetInvolved = () => {
               </div>
             </Link>
             <Link
-              href="/volunteer/request"
+              href="/volunteer"
               className="group relative flex flex-col items-center border-border pt-8 pb-8 text-center transition-all duration-200 md:border-t md:px-8 md:pt-12 md:pb-12 lg:px-12 lg:pt-16 lg:pb-20"
             >
               <div className="absolute top-0 h-px w-full bg-border md:hidden" />
