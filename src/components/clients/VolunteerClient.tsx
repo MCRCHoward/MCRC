@@ -1,11 +1,14 @@
 'use client'
 
+import { Heart, HeartHandshakeIcon, MessageCircleMoreIcon } from 'lucide-react'
 import { PageHero } from '@/heros/PageHero'
 
 import { FAQ } from '@/components/sections/FAQ'
 
-import VolunteerForm from '@/Forms/components/VolunteerForm'
 import { ScrollInViewTitleAndDescription } from '@/components/sections/ScrollInViewTitleAndDescription'
+import PromoCard from '@/components/cards/PromoCard'
+import { IconIllustration } from '@/components/illustrations/IconIllustration'
+import Link from 'next/link'
 
 const VolunteerClient = () => {
   return (
@@ -21,45 +24,99 @@ const VolunteerClient = () => {
         <div className="container max-w-7xl">
           <ScrollInViewTitleAndDescription title={title} />
 
-          <div className="mt-8 flex gap-10 max-md:flex-col md:mt-12 md:divide-x">
-            {/* Contact Information */}
-            <article className="space-y-10 pr-10 md:gap-20">
-              <div>
-                <h2 className="text-lg font-semibold">Corporate office</h2>
-                <p className="mt-3 font-medium tracking-tight text-muted-foreground">
-                  1 Carlsberg Close
-                  <br />
-                  1260 Hillview, Australia
-                </p>
-              </div>
-
-              <div>
-                <h2 className="text-lg font-semibold">Email us</h2>
-                <div className="mt-3 space-y-2">
-                  <div>
-                    <p className="text-primary">Careers</p>
-                    <a href="#" className="mt-3 tracking-tight text-muted-foreground">
-                      careers@example.com
-                    </a>
-                  </div>
-                  <div>
-                    <p className="text-primary">Press</p>
-                    <a href="#" className="mt-3 tracking-tight text-muted-foreground">
-                      press@example.com
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-lg font-semibold">Follow us</h2>
-                <div className="mt-3 flex gap-6"></div>
-              </div>
-            </article>
-
-            {/* Inquiry Form */}
-            <div className="pl-10 w-full">
-              <VolunteerForm />
+          <div className="my-16">
+            <Link href="https://form.typeform.com/to/XUGHC78s" target="_blank">  
+            <PromoCard
+              title="General Interest Form"
+              duration="6 months"
+              cost="Free Training"
+              ctaText="Apply Now"
+              onCtaClick={() => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+              }}
+              illustration={
+                <IconIllustration 
+                  icon={Heart} 
+                  size="md"
+                  color="text-rose-500"
+                  backgroundColor="bg-rose-900/10"
+                  ariaLabel="General interest form"
+                />
+              }
+              jobTitle="In this role, you will facilitate dialogue between parties, helping them to hear one another and work towards mutually agreeable solutions. You may also have the opportunity to support the center through outreach and educational presentations."
+              skillset={[
+                'Active Listening',
+                'Conflict De-escalation',
+                'Facilitation',
+                'Cultural Competency',
+                'Restorative Justice',
+                'Community Building',
+              ]}
+            />
+            </Link>
+            <div className="my-12">
+            <Link href="https://form.typeform.com/to/bkgaNvOM" target="_blank">  
+            <PromoCard
+              title="Mediator Volunteer Program"
+              duration="6 months"
+              cost="Free Training"
+              ctaText="Apply Now"
+              onCtaClick={() => {
+                // Scroll to form or navigate
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+              }}
+              illustration={
+                <IconIllustration 
+                  icon={HeartHandshakeIcon} 
+                  size="md"
+                  color="text-teal-500"
+                  ariaLabel="Mediator volunteer Program"
+                  backgroundColor="bg-teal-900/10"
+                />
+              }
+              jobTitle="In this role, you will facilitate dialogue between parties, helping them to hear one another and work towards mutually agreeable solutions. You may also have the opportunity to support the center through outreach and educational presentations."
+              skillset={[
+                'Active Listening',
+                'Conflict De-escalation',
+                'Facilitation',
+                'Cultural Competency',
+                'Restorative Justice',
+                'Community Building',
+                ]}
+              />
+            </Link>
+            </div>
+            <div className="my-12">
+            <Link href="https://form.typeform.com/to/jtax1ryc" target="_blank">  
+            <PromoCard
+              title="Restorative Facilitator"
+              duration="6 months"
+              cost="Free Training"
+              ctaText="Apply Now"
+              onCtaClick={() => {
+                // Scroll to form or navigate
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+              }}
+              illustration={
+                <IconIllustration 
+                  icon={MessageCircleMoreIcon} 
+                  size="md"
+                  color="text-purple"
+                  backgroundColor="bg-purple-950/10"
+                  ariaLabel="Restorative facilitator handshake"
+                />
+              }
+              jobTitle="In this role, you will facilitate dialogue between parties, helping them to hear one another and work towards mutually agreeable solutions. You may also have the opportunity to support the center through outreach and educational presentations."
+              skillset={[
+                'Active Listening',
+                'Conflict De-escalation',
+                'Facilitation',
+                'Cultural Competency',
+                'Restorative Justice',
+                'Community Building',
+              ]}
+            />
+            </Link>
             </div>
           </div>
         </div>
