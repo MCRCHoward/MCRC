@@ -14,115 +14,94 @@ const VolunteerClient = () => {
   return (
     <>
       <PageHero
-        badge="Thank You for Reaching Out"
-        heading="Volunteer With Us"
-        description="We are so glad you found us and even more grateful that you're interested in supporting our work. At MCRC, we believe in the power of community-led peacebuilding. Volunteers are essential to everything we do, and we deeply appreciate your willingness to offer your time, energy, and care."
+        badge="Join Our Volunteer Community"
+        heading="We are so glad you found us."
+        description="At MCRC, we believe in the power of community-led conflict resolution and restorative practice. Volunteers are at the heart of everything we do, helping to strengthen relationships, build shared capacity, and support community-defined solutions. We deeply appreciate your willingness to contribute your time, skills, and care."
         color="darkyellow"
       />
 
       <section>
         <div className="container max-w-7xl">
-          <ScrollInViewTitleAndDescription title={title} />
+          <ScrollInViewTitleAndDescription title='Because we are a small but mighty team, we welcome new volunteers in cohorts. This approach allows us to build strong relationships, provide thoughtful orientation, and steward our resources responsibly, ensuring every volunteer feels supported and prepared to contribute meaningfully.' />
 
           <div className="my-16">
-            <Link href="https://form.typeform.com/to/XUGHC78s" target="_blank">  
-            <PromoCard
-              title="General Interest Form"
-              duration="6 months"
-              cost="Free Training"
-              ctaText="Apply Now"
-              onCtaClick={() => {
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-              }}
-              illustration={
-                <IconIllustration 
-                  icon={Heart} 
-                  size="md"
-                  color="text-rose-500"
-                  backgroundColor="bg-rose-900/10"
-                  ariaLabel="General interest form"
-                />
-              }
-              jobTitle="In this role, you will facilitate dialogue between parties, helping them to hear one another and work towards mutually agreeable solutions. You may also have the opportunity to support the center through outreach and educational presentations."
-              skillset={[
-                'Active Listening',
-                'Conflict De-escalation',
-                'Facilitation',
-                'Cultural Competency',
-                'Restorative Justice',
-                'Community Building',
-              ]}
-            />
-            </Link>
-            <div className="my-12">
-            <Link href="https://form.typeform.com/to/bkgaNvOM" target="_blank">  
-            <PromoCard
-              title="Mediator Volunteer Program"
-              duration="6 months"
-              cost="Free Training"
-              ctaText="Apply Now"
-              onCtaClick={() => {
-                // Scroll to form or navigate
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-              }}
-              illustration={
-                <IconIllustration 
-                  icon={HeartHandshakeIcon} 
-                  size="md"
-                  color="text-teal-500"
-                  ariaLabel="Mediator volunteer Program"
-                  backgroundColor="bg-teal-900/10"
-                />
-              }
-              jobTitle="In this role, you will facilitate dialogue between parties, helping them to hear one another and work towards mutually agreeable solutions. You may also have the opportunity to support the center through outreach and educational presentations."
-              skillset={[
-                'Active Listening',
-                'Conflict De-escalation',
-                'Facilitation',
-                'Cultural Competency',
-                'Restorative Justice',
-                'Community Building',
+            <Link href="https://form.typeform.com/to/XUGHC78s" target="_blank">
+              <PromoCard
+                title="General Interest Form"
+                duration="Strengthening MCRC&apos;s capacity to engage communities, share resources, and maintain smooth operations."
+                ctaText="Apply Here"
+                illustration={
+                  <IconIllustration
+                    icon={Heart}
+                    size="md"
+                    color="text-rose-500"
+                    backgroundColor="bg-rose-900/10"
+                    ariaLabel="General interest form"
+                  />
+                }
+                jobTitle="Assist with outreach, communications, administrative tasks, or event support."
+                skillset={[
+                  'Flexible',
+                  'Opportunities to grow into other volunteer pathways',
                 ]}
               />
             </Link>
+            <div className="my-12">
+              <Link href="https://form.typeform.com/to/bkgaNvOM" target="_blank">
+                <PromoCard
+                  title="Mediator Volunteer Program"
+                  duration="Supporting self-determination and equitable agreements through impartial, structured processes."
+                  ctaText="Apply Here"
+                  illustration={
+                    <IconIllustration
+                      icon={HeartHandshakeIcon}
+                      size="md"
+                      color="text-teal-500"
+                      ariaLabel="Mediator volunteer Program"
+                      backgroundColor="bg-teal-900/10"
+                    />
+                  }
+                  jobTitle="Facilitate community mediations, helping individuals and groups collaboratively resolve conflict."
+                  skillset={[
+                    'Completion of a minimum of 40 hours of training that satisfies Rule 17 standards',
+                    'Ongoing learning', 'mentorship', 'Peer support are provided to strengthen skills and confidence.',
+                  ]}
+                />
+              </Link>
             </div>
             <div className="my-12">
-            <Link href="https://form.typeform.com/to/jtax1ryc" target="_blank">  
-            <PromoCard
-              title="Restorative Facilitator"
-              duration="6 months"
-              cost="Free Training"
-              ctaText="Apply Now"
-              onCtaClick={() => {
-                // Scroll to form or navigate
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-              }}
-              illustration={
-                <IconIllustration 
-                  icon={MessageCircleMoreIcon} 
-                  size="md"
-                  color="text-purple"
-                  backgroundColor="bg-purple-950/10"
-                  ariaLabel="Restorative facilitator handshake"
+              <Link href="https://form.typeform.com/to/jtax1ryc" target="_blank">
+                <PromoCard
+                  title="Restorative Facilitator"
+                  duration="Center participant voice, choice, and community-defined solutions in restorative processes."
+                  ctaText="Apply Here"
+
+                  illustration={
+                    <IconIllustration
+                      icon={MessageCircleMoreIcon}
+                      size="md"
+                      color="text-purple"
+                      backgroundColor="bg-purple-950/10"
+                      ariaLabel="Restorative facilitator handshake"
+                    />
+                  }
+                  jobTitle="In this role, you will facilitate dialogue between parties, helping them to hear one another and work towards mutually agreeable solutions. You may also have the opportunity to support the center through outreach and educational presentations."
+                  skillset={[
+                    'Completion of approximately 20 hours of training in restorative facilitation', 'Volunteers receive continued support through mentorship and peer learning'
+                  ]}
                 />
-              }
-              jobTitle="In this role, you will facilitate dialogue between parties, helping them to hear one another and work towards mutually agreeable solutions. You may also have the opportunity to support the center through outreach and educational presentations."
-              skillset={[
-                'Active Listening',
-                'Conflict De-escalation',
-                'Facilitation',
-                'Cultural Competency',
-                'Restorative Justice',
-                'Community Building',
-              ]}
-            />
-            </Link>
+              </Link>
             </div>
           </div>
         </div>
       </section>
       <FAQ
-        heading="MCRC Commitment to the The Nine Hallmarks of Community Mediation"
+        heading='Volunteers at MCRC are valued collaborators. Your contribution helps: '
+        subheadingBullets={[
+          'Build equitable access to conflict resolution and restorative practices',
+          'Strengthen community networks and collective capacity',
+          'Foster mutual support and shared learning among staff, volunteers, and partners',
+        ]}
         items={faqItems}
       />
     </>
@@ -131,59 +110,40 @@ const VolunteerClient = () => {
 
 export default VolunteerClient
 
-const title =
-  'Because we are a small but mighty team, we welcome new volunteers in Semi-Annual cohorts. This approach allows us to build strong relationships, provide thoughtful orientation, and steward our resources responsibly.'
 
 const faqItems = [
   {
     id: 'faq-1',
-    question: 'Community-Based',
+    question: ' I work during the week, can I still volunteer?',
     answer:
-      'A private non-profit or public agency or program thereof, with mediators, staff and governing/advisory board representative of the diversity of the community served.',
+      'Yes! We offer flexible volunteer roles, and many opportunities can be scheduled outside of traditional work hours.',
   },
   {
     id: 'faq-2',
-    question: 'Open',
+    question: 'I have a criminal record, can I volunteer?',
     answer:
-      'The use of trained community volunteers as providers of mediation services; the practice of mediation is open to all persons.',
+      'We welcome volunteers with diverse life experiences. All applications are considered individually, with a focus on safety, suitability for the role, and alignment with our mission of community-led conflict resolution. Having a record does not automatically disqualify you.',
   },
   {
     id: 'faq-3',
-    question: 'Accessible',
+    question: 'Do I need prior experience to volunteer?',
     answer:
-      'Providing direct access to the public through self­-referral and striving to reduce barriers to service including physical, linguistic, cultural, programmatic and economic.',
+      'No. While Mediator and Restorative Facilitator roles require specific training, our General Support roles are open to anyone willing to contribute their time and skills. All volunteers receive orientation and mentorship.',
   },
   {
     id: 'faq-4',
-    question: 'Low-Cost',
-    answer: 'Providing service to clients regardless of their ability to pay.',
+    question: 'How much time do I need to commit?',
+    answer: 'Time commitments vary depending on the role. General Support volunteers have flexible schedules, while Mediator and Restorative Facilitator volunteers commit to training hours and ongoing participation in their respective programs. We work with each volunteer to find a schedule that works.',
   },
   {
     id: 'faq-5',
-    question: 'Inclusive',
+    question: 'Will I get training and support?',
     answer:
-      'Providing service and hiring without discrimination on the basis of race, color, religion, gender, age, disabilities, national origin, marital status, personal appearance, gender identity, sexual orientation, family responsibilities, matriculation, political affiliation, source of income.',
+      'Yes. All volunteers receive role-specific orientation, ongoing mentorship, and opportunities for skill-building and reflection. We aim to create a supportive environment where volunteers can grow while contributing meaningfully to the Howard County community.',
   },
   {
     id: 'faq-6',
-    question: 'Timely',
-    answer: 'Providing a forum for dispute resolution at the earliest stage of conflict.',
-  },
-  {
-    id: 'faq-7',
-    question: 'Innovative ',
-    answer: 'Providing an alternative to the judicial system at any stage of a conflict.',
-  },
-  {
-    id: 'faq-8',
-    question: 'Outcome-Oriented',
-    answer:
-      'Initiating, facilitating and educating for collaborative community relationships to effect positive systemic change.',
-  },
-  {
-    id: 'faq-9',
-    question: 'Newsworthy',
-    answer:
-      'Engaging in public awareness and educational activities about the values and practices of mediation.',
+    question: 'Can I switch roles or grow into other volunteer pathways?',
+    answer: 'Absolutely. Many volunteers start in General Support roles and later transition into Mediator or Restorative Facilitator roles or Board Members. We support volunteers in expanding their skills, deepening their engagement, and contributing in ways that strengthen both themselves and the community.',
   },
 ]

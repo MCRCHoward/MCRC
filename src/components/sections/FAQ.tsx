@@ -13,18 +13,38 @@ interface FaqItem {
 }
 
 interface FAQProps {
-  heading: string
+  heading?: string
   subheading?: string
+  subheadingBullets?: string[]
   items?: FaqItem[]
 }
 
-const FAQ = ({ heading = 'Frequently asked questions', subheading, items }: FAQProps) => {
+const FAQ = ({ 
+  heading = 'Frequently asked questions', 
+  subheading, 
+  subheadingBullets,
+  items 
+}: FAQProps) => {
   return (
     <section className="my-32">
       <div className="container space-y-8">
-        <div className="mx-auto flex max-w-3xl flex-col text-left md:text-center">
+        <div className="mx-auto flex max-w-3xl flex-col text-left md:text-center space-y-4">
           <h2 className="mb-3 text-3xl font-semibold md:mb-4 lg:mb-6 lg:text-4xl">{heading}</h2>
-          {subheading && <p className="text-muted-foreground">{subheading}</p>}
+          {subheading && (
+            <p className="text-muted-foreground text-base lg:text-lg leading-relaxed">
+              {subheading}
+            </p>
+          )}
+          {subheadingBullets && subheadingBullets.length > 0 && (
+            <ul className="text-muted-foreground text-base lg:text-lg leading-relaxed space-y-2 text-left mx-auto max-w-2xl">
+              {subheadingBullets.map((bullet, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                  <span className="flex-1">{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <Accordion type="single" collapsible className="mx-auto w-full lg:max-w-3xl">
           {items?.map((item) => (

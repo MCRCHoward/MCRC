@@ -7,8 +7,8 @@ interface PromoCardProps {
 
   // Left column - Main content
   title: string
-  duration: string
-  cost: string
+  duration?: string
+  cost?: string
   ctaText?: string
   ctaHref?: string
   onCtaClick?: () => void
@@ -121,7 +121,7 @@ export default function PromoCard({
           {/* Block 2: Skillset */}
           {skillset && skillset.length > 0 && (
             <div>
-              <h3 className="text-sm md:text-base font-bold text-neutral-900 mb-2">Requirements</h3>
+              <h3 className="text-sm md:text-base font-bold text-neutral-900 mb-2">Commitment</h3>
               <p className="text-sm md:text-base text-neutral-700 leading-relaxed">
                 {skillset.join(', ')}
               </p>
