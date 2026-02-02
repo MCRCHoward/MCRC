@@ -13,6 +13,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -24,7 +25,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { markAsReviewed } from '@/lib/actions/inquiry-actions'
+import { markAsReviewed, deleteInquiry } from '@/lib/actions/inquiry-actions'
 import {
   Table,
   TableBody,
@@ -44,6 +45,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { formatDateTimeShort } from '@/utilities/formatDateTime'
 import { InquiryStatusBadge } from './InquiryStatusBadge'
 import type { Inquiry } from '@/types/inquiry'
@@ -53,6 +64,7 @@ import { SERVICE_AREA_METADATA } from '@/lib/service-area-config'
 interface InquiriesTableProps {
   inquiries: Inquiry[]
   serviceArea: ServiceArea
+  isAdmin?: boolean
 }
 
 /**
@@ -110,11 +122,18 @@ async function copyToClipboard(text: string, label: string) {
   }
 }
 
-export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) {
+export function InquiriesTable({ inquiries, serviceArea, isAdmin = false }: InquiriesTableProps) {
   const router = useRouter()
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'submittedAt', desc: true }])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [inquiryToDelete, setInquiryToDelete] = useState<{
+    id: string
+    name: string
+    hasExternalLinks: boolean
+  } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const metadata = SERVICE_AREA_METADATA[serviceArea]
 
   const handleMarkAsReviewed = useCallback(
@@ -133,6 +152,29 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
     },
     [serviceArea, router],
   )
+
+  const handleDeleteInquiry = useCallback(async () => {
+    if (!inquiryToDelete) return
+
+    setIsDeleting(true)
+    try {
+      const result = await deleteInquiry(serviceArea, inquiryToDelete.id)
+
+      if (result.success) {
+        toast.success('Inquiry deleted successfully')
+        setDeleteDialogOpen(false)
+        setInquiryToDelete(null)
+        router.refresh()
+      } else {
+        toast.error(result.error ?? 'Failed to delete inquiry')
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred')
+      console.error('Error deleting inquiry:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [inquiryToDelete, serviceArea, router])
 
   // Define columns
   const columns = useMemo<ColumnDef<Inquiry>[]>(
@@ -247,18 +289,6 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
         filterFn: (row, columnId, filterValue) => {
           const email = getEmailFromFormData(row.original.formData)
           return email?.toLowerCase().includes(filterValue.toLowerCase()) ?? false
-        },
-      },
-      {
-        accessorKey: 'formType',
-        header: 'Form Type',
-        cell: ({ row }) => (
-          <Badge variant="secondary" className="whitespace-nowrap">
-            {row.original.formType}
-          </Badge>
-        ),
-        filterFn: (row, columnId, filterValue) => {
-          return row.original.formType.toLowerCase().includes(filterValue.toLowerCase())
         },
       },
       {
@@ -377,7 +407,9 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{inquiry.formType}</p>
+                      {email && (
+                        <p className="text-xs text-muted-foreground truncate">{email}</p>
+                      )}
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -425,6 +457,27 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
                       </DropdownMenuItem>
                     </>
                   )}
+
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const hasExternalLinks = !!(inquiry.insightlyLeadId || inquiry.mondayItemId)
+                          setInquiryToDelete({
+                            id: inquiry.id,
+                            name,
+                            hasExternalLinks
+                          })
+                          setDeleteDialogOpen(true)
+                        }}
+                        className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete Inquiry</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -433,7 +486,7 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
         enableSorting: false,
       },
     ],
-    [metadata.slug, processingId, handleMarkAsReviewed],
+    [metadata.slug, processingId, handleMarkAsReviewed, isAdmin],
   )
 
   const table = useReactTable({
@@ -451,7 +504,6 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
     globalFilterFn: (row, columnId, filterValue) => {
       const name = getNameFromFormData(row.original.formData)
       const email = getEmailFromFormData(row.original.formData)
-      const formType = row.original.formType
       const status = row.original.status
       const reviewedStatus = row.original.reviewed ? 'reviewed' : 'new'
       const submittedDate = formatDateTimeShort(row.original.submittedAt)
@@ -461,7 +513,6 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
       return (
         name.toLowerCase().includes(searchValue) ||
         (email?.toLowerCase().includes(searchValue) ?? false) ||
-        formType.toLowerCase().includes(searchValue) ||
         status.toLowerCase().includes(searchValue) ||
         reviewedStatus.includes(searchValue) ||
         submittedDate.toLowerCase().includes(searchValue)
@@ -510,15 +561,13 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
                       className={
                         header.id === 'email'
                           ? 'hidden md:table-cell'
-                          : header.id === 'formType'
-                            ? 'hidden md:table-cell'
-                            : header.id === 'submittedAt'
-                              ? 'hidden lg:table-cell'
-                              : header.id === 'actions'
-                                ? 'w-[80px]'
-                                : header.id === 'name'
-                                  ? 'w-[200px] min-w-[150px]'
-                                  : ''
+                          : header.id === 'submittedAt'
+                            ? 'hidden lg:table-cell'
+                            : header.id === 'actions'
+                              ? 'w-[80px]'
+                              : header.id === 'name'
+                                ? 'w-[200px] min-w-[150px]'
+                                : ''
                       }
                     >
                       {header.isPlaceholder
@@ -539,15 +588,12 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className={`py-3 ${
-                          cell.column.id === 'email'
+                        className={`py-3 ${cell.column.id === 'email'
                             ? 'hidden md:table-cell'
-                            : cell.column.id === 'formType'
-                              ? 'hidden md:table-cell'
-                              : cell.column.id === 'submittedAt'
-                                ? 'hidden lg:table-cell'
-                                : ''
-                        }`}
+                            : cell.column.id === 'submittedAt'
+                              ? 'hidden lg:table-cell'
+                              : ''
+                          }`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
@@ -579,6 +625,37 @@ export function InquiriesTable({ inquiries, serviceArea }: InquiriesTableProps) 
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the inquiry from{' '}
+              <span className="font-semibold">{inquiryToDelete?.name}</span>.
+              {inquiryToDelete?.hasExternalLinks && (
+                <span className="text-amber-600 dark:text-amber-500 block mt-2 font-medium">
+                  ⚠️ Note: This will not delete the associated Insightly Lead or Monday item.
+                </span>
+              )}
+              <span className="block mt-2">
+                This action cannot be undone and will remove all associated data.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteInquiry}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Inquiry'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
