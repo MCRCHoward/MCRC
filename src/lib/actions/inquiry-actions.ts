@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
-import { requireAuth, requireRole } from '@/lib/custom-auth'
+import { requireAuth, requireRole, requireRoleAny } from '@/lib/custom-auth'
 import { toISOString } from '@/app/(frontend)/(cms)/dashboard/utils/timestamp-helpers'
 import type { ServiceArea } from '@/lib/service-area-config'
 import { SERVICE_AREA_METADATA } from '@/lib/service-area-config'
@@ -272,6 +272,107 @@ export async function deleteInquiry(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to delete inquiry',
+    }
+  }
+}
+
+/**
+ * Marks multiple inquiries as reviewed in a single batch operation
+ * Admins and coordinators can mark as reviewed
+ */
+export async function bulkMarkAsReviewed(
+  serviceArea: ServiceArea,
+  inquiryIds: string[],
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await requireRoleAny(['admin', 'coordinator'])
+
+    if (inquiryIds.length === 0) {
+      return { success: false, error: 'No inquiries selected' }
+    }
+
+    // Firestore batch operations are limited to 500 documents
+    if (inquiryIds.length > 500) {
+      return { success: false, error: 'Cannot process more than 500 inquiries at once' }
+    }
+
+    console.log('[bulkMarkAsReviewed] Marking inquiries as reviewed', {
+      serviceArea,
+      count: inquiryIds.length,
+      userId: user.id,
+    })
+
+    const batch = adminDb.batch()
+    for (const id of inquiryIds) {
+      const docRef = adminDb.doc(`serviceAreas/${serviceArea}/inquiries/${id}`)
+      batch.update(docRef, {
+        reviewed: true,
+        reviewedAt: FieldValue.serverTimestamp(),
+        reviewedBy: user.id,
+      })
+    }
+    await batch.commit()
+
+    const metadata = SERVICE_AREA_METADATA[serviceArea]
+    revalidatePath(`/dashboard/${metadata.slug}/inquiries`)
+
+    console.log('[bulkMarkAsReviewed] Successfully marked inquiries as reviewed', {
+      count: inquiryIds.length,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('[bulkMarkAsReviewed] Error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update inquiries',
+    }
+  }
+}
+
+/**
+ * Deletes multiple inquiries in a single batch operation
+ * Only admins can delete inquiries
+ */
+export async function bulkDeleteInquiries(
+  serviceArea: ServiceArea,
+  inquiryIds: string[],
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireRole('admin')
+
+    if (inquiryIds.length === 0) {
+      return { success: false, error: 'No inquiries selected' }
+    }
+
+    // Firestore batch operations are limited to 500 documents
+    if (inquiryIds.length > 500) {
+      return { success: false, error: 'Cannot delete more than 500 inquiries at once' }
+    }
+
+    console.log('[bulkDeleteInquiries] Deleting inquiries', {
+      serviceArea,
+      count: inquiryIds.length,
+    })
+
+    const batch = adminDb.batch()
+    for (const id of inquiryIds) {
+      const docRef = adminDb.doc(`serviceAreas/${serviceArea}/inquiries/${id}`)
+      batch.delete(docRef)
+    }
+    await batch.commit()
+
+    const metadata = SERVICE_AREA_METADATA[serviceArea]
+    revalidatePath(`/dashboard/${metadata.slug}/inquiries`)
+
+    console.log('[bulkDeleteInquiries] Successfully deleted inquiries', {
+      count: inquiryIds.length,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('[bulkDeleteInquiries] Error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete inquiries',
     }
   }
 }
