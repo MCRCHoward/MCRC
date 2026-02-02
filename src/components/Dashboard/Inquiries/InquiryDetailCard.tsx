@@ -228,18 +228,18 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
   const insightlyStatus =
     (inquiry.insightlySyncStatus ??
       (inquiry.insightlyLeadId ? 'success' : undefined)) as
-      | 'pending'
-      | 'success'
-      | 'failed'
-      | undefined
+    | 'pending'
+    | 'success'
+    | 'failed'
+    | undefined
 
   const mondayStatus =
     (inquiry.mondaySyncStatus ??
       (inquiry.mondayItemId ? 'success' : undefined)) as
-      | 'pending'
-      | 'success'
-      | 'failed'
-      | undefined
+    | 'pending'
+    | 'success'
+    | 'failed'
+    | undefined
 
   const handleSyncInsightly = async () => {
     setSyncingInsightly(true)
@@ -384,19 +384,39 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
                 Last error: {inquiry.insightlyLastSyncError}
               </div>
             ) : null}
-            <div>
-              <Button onClick={handleSyncInsightly} disabled={syncingInsightly}>
-                {syncingInsightly ? (
+            <div className="space-y-2">
+              {(() => {
+                const isLeadCreated = !!inquiry.insightlyLeadId
+                const isPending = inquiry.insightlySyncStatus === 'pending'
+                const isFailed = inquiry.insightlySyncStatus === 'failed'
+
+                const buttonDisabled = syncingInsightly || isLeadCreated || isPending
+                const buttonText = isLeadCreated
+                  ? 'Lead Created ✓'
+                  : isPending
+                    ? 'Sync Pending...'
+                    : syncingInsightly
+                      ? 'Creating...'
+                      : isFailed
+                        ? 'Retry Sync'
+                        : 'Create Insightly Lead'
+
+                return (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Syncing…
+                    <Button onClick={handleSyncInsightly} disabled={buttonDisabled}>
+                      {(syncingInsightly || isPending) && !isLeadCreated ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      {buttonText}
+                    </Button>
+                    {isLeadCreated ? (
+                      <p className="text-xs text-muted-foreground">
+                        Lead already exists in Insightly. Creating another would result in a duplicate.
+                      </p>
+                    ) : null}
                   </>
-                ) : inquiry.insightlyLeadId ? (
-                  'Resync Insightly Lead'
-                ) : (
-                  'Create Insightly Lead'
-                )}
-              </Button>
+                )
+              })()}
             </div>
           </CardContent>
         </Card>
@@ -507,117 +527,117 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
             <div className="grid gap-4 md:grid-cols-2">
               {inquiry.formData.phone ? (
                 <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Phone
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      Phone
+                    </div>
+                    <a
+                      href={`tel:${inquiry.formData.phone}`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      {String(inquiry.formData.phone)}
+                    </a>
+                    {inquiry.formData.allowText === 'Yes' && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        Text OK
+                      </Badge>
+                    )}
+                    {inquiry.formData.allowVoicemail === 'Yes' && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        VM OK
+                      </Badge>
+                    )}
                   </div>
-                  <a
-                    href={`tel:${inquiry.formData.phone}`}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {String(inquiry.formData.phone)}
-                  </a>
-                  {inquiry.formData.allowText === 'Yes' && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
-                      Text OK
-                    </Badge>
-                  )}
-                  {inquiry.formData.allowVoicemail === 'Yes' && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
-                      VM OK
-                    </Badge>
-                  )}
-                </div>
-                <CopyButton
-                  value={String(inquiry.formData.phone)}
-                  label="Phone"
-                  fieldName="phone"
-                />
+                  <CopyButton
+                    value={String(inquiry.formData.phone)}
+                    label="Phone"
+                    fieldName="phone"
+                  />
                 </div>
               ) : null}
               {inquiry.formData.email ? (
                 <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      Email
+                    </div>
+                    <a
+                      href={`mailto:${inquiry.formData.email}`}
+                      className="text-sm text-primary hover:underline break-all"
+                    >
+                      {String(inquiry.formData.email)}
+                    </a>
+                  </div>
+                  <CopyButton
+                    value={String(inquiry.formData.email)}
+                    label="Email"
+                    fieldName="email"
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            {(inquiry.formData.streetAddress ||
+              inquiry.formData.city ||
+              inquiry.formData.state ||
+              inquiry.formData.zipCode) ? (
+              <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Email
+                    <MapPin className="h-4 w-4" />
+                    Address
                   </div>
-                  <a
-                    href={`mailto:${inquiry.formData.email}`}
-                    className="text-sm text-primary hover:underline break-all"
-                  >
-                    {String(inquiry.formData.email)}
-                  </a>
+                  <div className="text-sm">
+                    {inquiry.formData.streetAddress ? (
+                      <div>{String(inquiry.formData.streetAddress)}</div>
+                    ) : null}
+                    <div>
+                      {[
+                        inquiry.formData.city,
+                        inquiry.formData.state,
+                        inquiry.formData.zipCode,
+                      ]
+                        .filter(Boolean)
+                        .map(String)
+                        .join(', ')}
+                    </div>
+                  </div>
                 </div>
-                <CopyButton
-                  value={String(inquiry.formData.email)}
-                  label="Email"
-                  fieldName="email"
-                />
-                </div>
-              ) : null}
-            </div>
+                {inquiry.formData.streetAddress ? (
+                  <CopyButton
+                    value={`${inquiry.formData.streetAddress}, ${[inquiry.formData.city, inquiry.formData.state, inquiry.formData.zipCode].filter(Boolean).join(', ')}`}
+                    label="Address"
+                    fieldName="address"
+                  />
+                ) : null}
+              </div>
+            ) : null}
 
-          {(inquiry.formData.streetAddress ||
-            inquiry.formData.city ||
-            inquiry.formData.state ||
-            inquiry.formData.zipCode) ? (
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Address
-                </div>
-                <div className="text-sm">
-                  {inquiry.formData.streetAddress ? (
-                    <div>{String(inquiry.formData.streetAddress)}</div>
-                  ) : null}
-                  <div>
-                    {[
-                      inquiry.formData.city,
-                      inquiry.formData.state,
-                      inquiry.formData.zipCode,
-                    ]
-                      .filter(Boolean)
-                      .map(String)
-                      .join(', ')}
+            {inquiry.formData.preferredContactMethod ? (
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-muted-foreground mb-1">
+                    Preferred Contact Method
+                  </div>
+                  <div className="text-sm">
+                    <Badge variant="outline">{String(inquiry.formData.preferredContactMethod)}</Badge>
                   </div>
                 </div>
               </div>
-              {inquiry.formData.streetAddress ? (
-                <CopyButton
-                  value={`${inquiry.formData.streetAddress}, ${[inquiry.formData.city, inquiry.formData.state, inquiry.formData.zipCode].filter(Boolean).join(', ')}`}
-                  label="Address"
-                  fieldName="address"
-                />
-              ) : null}
-            </div>
-          ) : null}
+            ) : null}
 
-          {inquiry.formData.preferredContactMethod ? (
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="text-sm font-medium text-muted-foreground mb-1">
-                  Preferred Contact Method
-                </div>
-                <div className="text-sm">
-                  <Badge variant="outline">{String(inquiry.formData.preferredContactMethod)}</Badge>
+            {inquiry.formData.referralSource ? (
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-muted-foreground mb-1">
+                    How They Heard About Us
+                  </div>
+                  <div className="text-sm">{String(inquiry.formData.referralSource)}</div>
                 </div>
               </div>
-            </div>
-          ) : null}
-
-          {inquiry.formData.referralSource ? (
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="text-sm font-medium text-muted-foreground mb-1">
-                  How They Heard About Us
-                </div>
-                <div className="text-sm">{String(inquiry.formData.referralSource)}</div>
-              </div>
-            </div>
-          ) : null}
+            ) : null}
           </>
         </CardContent>
       </Card>
@@ -756,49 +776,49 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
       {otherFields.length > 0 && (
         <>
           <Separator />
-      <div className="space-y-4">
+          <div className="space-y-4">
             <h3 className="text-lg font-semibold">Other Details</h3>
             {otherFields.map(([fieldName, value], index) => {
               const formattedValue = formatFieldValue(value, fieldName)
-            const isCopied = copiedFields.has(fieldName)
-            const canCopy = typeof value === 'string' && value.length > 0
+              const isCopied = copiedFields.has(fieldName)
+              const canCopy = typeof value === 'string' && value.length > 0
 
-            return (
-              <div key={fieldName}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-muted-foreground mb-1">
-                      {formatFieldName(fieldName)}
-                    </div>
+              return (
+                <div key={fieldName}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-muted-foreground mb-1">
+                        {formatFieldName(fieldName)}
+                      </div>
                       <div className="text-sm break-words whitespace-pre-wrap">
                         {formattedValue}
                       </div>
+                    </div>
+                    {canCopy && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() =>
+                          handleCopy(String(value), formatFieldName(fieldName), fieldName)
+                        }
+                        title={`Copy ${formatFieldName(fieldName)}`}
+                      >
+                        {isCopied ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
                   </div>
-                  {canCopy && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 shrink-0"
-                      onClick={() =>
-                        handleCopy(String(value), formatFieldName(fieldName), fieldName)
-                      }
-                      title={`Copy ${formatFieldName(fieldName)}`}
-                    >
-                      {isCopied ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
-                </div>
                   {index < otherFields.length - 1 && <Separator className="mt-4" />}
-              </div>
-            )
+                </div>
+              )
             })}
           </div>
         </>
-        )}
+      )}
     </div>
   )
 }
