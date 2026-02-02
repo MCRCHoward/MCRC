@@ -1,13 +1,19 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { fetchInquiries } from '@/lib/actions/inquiry-actions'
 import { InquiriesTable } from '@/components/Dashboard/Inquiries/InquiriesTable'
+import { getCurrentUser } from '@/lib/custom-auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function MediationInquiriesPage() {
-  const inquiries = await fetchInquiries('mediation')
+  const [inquiries, user] = await Promise.all([
+    fetchInquiries('mediation'),
+    getCurrentUser(),
+  ])
+
+  const isAdmin = user?.role === 'admin'
 
   return (
     <div className="space-y-6">
@@ -26,7 +32,7 @@ export default async function MediationInquiriesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <InquiriesTable inquiries={inquiries} serviceArea="mediation" />
+          <InquiriesTable inquiries={inquiries} serviceArea="mediation" isAdmin={isAdmin} />
         </CardContent>
       </Card>
     </div>
