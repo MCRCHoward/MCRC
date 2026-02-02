@@ -120,9 +120,11 @@ export async function syncInquiryWithInsightlyAction({
     const lead = await createInsightlyLead(payload)
     console.log('[Insightly] Lead created successfully', { leadId: lead.LEAD_ID })
 
+    // FIX: Use ?? null to convert undefined to null for Firestore compatibility
+    // buildInsightlyLeadUrl returns undefined when INSIGHTLY_WEB_BASE_URL is not set
     await updateInsightlySyncFields(serviceArea, inquiryId, {
       insightlyLeadId: lead.LEAD_ID,
-      insightlyLeadUrl: buildInsightlyLeadUrl(lead.LEAD_ID),
+      insightlyLeadUrl: buildInsightlyLeadUrl(lead.LEAD_ID) ?? null,
       insightlySyncStatus: 'success',
       insightlyLastSyncError: null,
     })

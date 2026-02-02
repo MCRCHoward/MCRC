@@ -33,8 +33,20 @@ export interface InsightlyLeadResponse {
 
 export type InsightlySyncStatus = 'pending' | 'success' | 'failed'
 
+export interface InsightlySyncFields {
+  insightlyLeadId?: number
+  /** URL to the lead in Insightly web UI. Can be null if INSIGHTLY_WEB_BASE_URL is not configured. */
+  insightlyLeadUrl?: string | null
+  insightlySyncStatus: InsightlySyncStatus
+  insightlyLastSyncError?: string | null
+  /**
+   * Stored as Firestore Timestamp in DB, converted to ISO string when read.
+   * Use toISOString() helper when fetching from Firestore.
+   */
+  insightlyLastSyncedAt?: string
+}
+
 export interface InsightlyClientConfig {
   apiUrl: string
   apiKey: string
 }
-
