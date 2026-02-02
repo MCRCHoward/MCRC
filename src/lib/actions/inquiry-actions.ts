@@ -71,32 +71,40 @@ export async function fetchInquiries(
     const data = doc.data()
     // Recursively serialize formData to convert any Timestamp objects to ISO strings
     const serializedFormData = serializeFormData(data.formData ?? {}) as Record<string, unknown>
-    
+
     // Convert submittedAt - handle various timestamp formats
     // DEBUG: Log raw submittedAt value to help diagnose date issues
     if (process.env.NODE_ENV === 'development') {
       console.log('[DEBUG] Raw submittedAt for inquiry:', doc.id, {
         submittedAt: data.submittedAt,
         submittedAtType: typeof data.submittedAt,
-        hasToDate: data.submittedAt && typeof data.submittedAt === 'object' && 'toDate' in data.submittedAt,
-        submittedAtKeys: data.submittedAt && typeof data.submittedAt === 'object' ? Object.keys(data.submittedAt) : null,
+        hasToDate:
+          data.submittedAt && typeof data.submittedAt === 'object' && 'toDate' in data.submittedAt,
+        submittedAtKeys:
+          data.submittedAt && typeof data.submittedAt === 'object'
+            ? Object.keys(data.submittedAt)
+            : null,
       })
     }
-    
+
     // Only use current date fallback if submittedAt is truly missing (null/undefined)
     // If submittedAt exists but conversion fails, log warning
-    const submittedAtISO = data.submittedAt 
-      ? toISOString(data.submittedAt) ?? (() => {
+    const submittedAtISO = data.submittedAt
+      ? (toISOString(data.submittedAt) ??
+        (() => {
           console.warn('[fetchInquiries] Failed to convert submittedAt for inquiry:', doc.id, {
             submittedAt: data.submittedAt,
             submittedAtType: typeof data.submittedAt,
             submittedAtValue: JSON.stringify(data.submittedAt),
-            hasToDate: data.submittedAt && typeof data.submittedAt === 'object' && 'toDate' in data.submittedAt,
+            hasToDate:
+              data.submittedAt &&
+              typeof data.submittedAt === 'object' &&
+              'toDate' in data.submittedAt,
           })
           return undefined // Return undefined so we can detect conversion failures
-        })()
+        })())
       : undefined
-    
+
     return {
       id: doc.id,
       formType: data.formType ?? '',
@@ -111,7 +119,9 @@ export async function fetchInquiries(
       reviewedAt: toISOString(data.reviewedAt),
       reviewedBy: data.reviewedBy,
       status: (data.status as InquiryStatus) ?? 'submitted',
-      calendlyScheduling: serializeFormData(data.calendlyScheduling) as Inquiry['calendlyScheduling'],
+      calendlyScheduling: serializeFormData(
+        data.calendlyScheduling,
+      ) as Inquiry['calendlyScheduling'],
       insightlyLeadId: data.insightlyLeadId,
       insightlyLeadUrl: data.insightlyLeadUrl,
       insightlySyncStatus: data.insightlySyncStatus,
@@ -145,21 +155,22 @@ export async function getInquiryById(
   const data = doc.data()
   // Recursively serialize formData to convert any Timestamp objects to ISO strings
   const serializedFormData = serializeFormData(data?.formData ?? {}) as Record<string, unknown>
-  
+
   // Convert submittedAt - handle various timestamp formats
   // Only use current date fallback if submittedAt is truly missing (null/undefined)
   // If submittedAt exists but conversion fails, log warning
-  const submittedAtISO = data?.submittedAt 
-    ? toISOString(data.submittedAt) ?? (() => {
+  const submittedAtISO = data?.submittedAt
+    ? (toISOString(data.submittedAt) ??
+      (() => {
         console.warn('[getInquiryById] Failed to convert submittedAt for inquiry:', doc.id, {
           submittedAt: data.submittedAt,
           submittedAtType: typeof data.submittedAt,
           submittedAtValue: JSON.stringify(data.submittedAt),
         })
         return undefined // Return undefined so we can detect conversion failures
-      })()
+      })())
     : undefined
-  
+
   return {
     id: doc.id,
     formType: data?.formType ?? '',
@@ -174,7 +185,9 @@ export async function getInquiryById(
     reviewedAt: toISOString(data?.reviewedAt),
     reviewedBy: data?.reviewedBy,
     status: (data?.status as InquiryStatus) ?? 'submitted',
-    calendlyScheduling: serializeFormData(data?.calendlyScheduling) as Inquiry['calendlyScheduling'],
+    calendlyScheduling: serializeFormData(
+      data?.calendlyScheduling,
+    ) as Inquiry['calendlyScheduling'],
     insightlyLeadId: data?.insightlyLeadId,
     insightlyLeadUrl: data?.insightlyLeadUrl,
     insightlySyncStatus: data?.insightlySyncStatus,
@@ -224,3 +237,41 @@ export async function updateInquiryStatus(
   revalidatePath(`/dashboard/${metadata.slug}/inquiries/${id}`)
 }
 
+/**
+ * Deletes an inquiry
+ * Only admins can delete inquiries
+ */
+export async function deleteInquiry(
+  serviceArea: ServiceArea,
+  inquiryId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Require admin role
+    await requireRole('admin')
+
+    const docPath = `serviceAreas/${serviceArea}/inquiries/${inquiryId}`
+
+    // Log deletion for audit trail
+    console.log('[deleteInquiry] Deleting inquiry', {
+      serviceArea,
+      inquiryId,
+      docPath,
+    })
+
+    await adminDb.doc(docPath).delete()
+
+    // Revalidate both the list and detail pages
+    const metadata = SERVICE_AREA_METADATA[serviceArea]
+    revalidatePath(`/dashboard/${metadata.slug}/inquiries`)
+    revalidatePath(`/dashboard/${metadata.slug}/inquiries/${inquiryId}`)
+
+    console.log('[deleteInquiry] Successfully deleted inquiry', { inquiryId })
+    return { success: true }
+  } catch (error) {
+    console.error('[deleteInquiry] Error deleting inquiry:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete inquiry',
+    }
+  }
+}
