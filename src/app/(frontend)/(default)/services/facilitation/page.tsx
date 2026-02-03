@@ -29,13 +29,13 @@ export default function Facilitation() {
       <TwoColTitleCheckListImage
         data={WhoWeWorkWith}
         imagePosition="left"
-        imageSize={{ maxHeight: '300px', height: 300, width: 500 }}
+        imageSize={{ maxHeight: '400px', height: 400, width: 500 }}
       />
 
       <TwoColTitleCheckListImage
         data={HowOurFacilitationServicesCanHelp}
         imagePosition="right"
-        imageSize={{ maxHeight: '300px', height: 300, width: 500 }}
+        imageSize={{ maxHeight: '600px', height: 600, width: 500 }}
       />
 
       <TwoBoxes data={TwoBoxesData} />
@@ -48,13 +48,23 @@ export default function Facilitation() {
 const WhoWeWorkWith = {
   imageUrl: '/images/mediation/mediation-group-tictactoe.jpg',
   imageAlt: 'Mediation',
+  videoSrc: '/videos/facilitation/people_talking_with_coffee.mp4',
   title: 'Who We Work With: ',
+  checkListPosition: 'bottom',
+  checkList: [
+    'Neighborhood groups',
+    'Nonprofits',
+    'Schools',
+    'Families',
+    'Community colleges',
+    'Coalitions',
+  ],
   description:
-    'We support neighborhood groups, nonprofits, schools, families, community colleges, and coalitions who are doing the work of building stronger communities. If your group is facing a big question, a shift in direction, or a time of tension or change, we’re here to help guide the conversation.',
+    'Any group that is doing the work of building stronger communities. If your group is facing a big question, a shift in direction, or a time of tension or change, we are here to help guide the conversation.',
 }
 
 const HowOurFacilitationServicesCanHelp = {
-  imageUrl: '/images/mediation/mediation-group-tictactoe.jpg',
+  imageUrl: '/images/facilitation/group-office-work.jpg',
   imageAlt: 'Mediation',
   title: 'How Our Facilitation Services Can Help',
   description:

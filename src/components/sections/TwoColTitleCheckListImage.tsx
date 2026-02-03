@@ -6,6 +6,7 @@ import { CheckList } from './CheckList'
 
 interface TwoColImageProps {
   imagePosition?: 'left' | 'right'
+  checkListPosition?: 'top' | 'bottom'
   data: {
     icon?: React.ReactNode
     iconColor?: string
@@ -30,6 +31,7 @@ interface TwoColImageProps {
 const TwoColTitleCheckListImage = ({
   data,
   imagePosition = 'left',
+  checkListPosition = 'bottom',
   imageSize = {
     width: 500,
     height: 500,
@@ -64,10 +66,20 @@ const TwoColTitleCheckListImage = ({
         </span>
       )}
       <h3 className="my-6 text-3xl font-bold text-pretty lg:text-4xl">{title}</h3>
-      <p className={`${checkList ? 'mb-8' : ''} max-w-xl text-muted-foreground lg:text-lg`}>
+      {checkList && checkListPosition === 'top' && (
+        <div className="mb-6 w-full">
+          <CheckList items={checkList} customIcon={listIcon} showSeparator={showSeparator} />
+        </div>
+      )}
+      <p
+        className={cn(
+          'max-w-xl text-muted-foreground lg:text-lg',
+          checkList && checkListPosition === 'bottom' ? 'mb-8' : '',
+        )}
+      >
         {description}
       </p>
-      {checkList && (
+      {checkList && checkListPosition === 'bottom' && (
         <CheckList items={checkList} customIcon={listIcon} showSeparator={showSeparator} />
       )}
       {bottomDescription && (
