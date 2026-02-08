@@ -64,7 +64,7 @@ describe('Insightly payload mappers', () => {
     expect(payload.FIRST_NAME).toBe('Alex')
     expect(payload.LAST_NAME).toBe('Rivera')
     expect(payload.LEAD_DESCRIPTION).toContain('neighbor dispute')
-    expect(payload.TAGS?.map((tag) => tag.TAG_NAME)).toContain('Self Referral')
+    expect(payload.TAGS?.map((tag) => tag.TAG_NAME)).toContain('Self_Referral')
   })
 
   it('builds restorative payload with parsed referrer name and service tag', () => {
@@ -72,7 +72,7 @@ describe('Insightly payload mappers', () => {
     expect(payload.FIRST_NAME).toBe('Jordan')
     expect(payload.LAST_NAME).toBe('Blake')
     expect(payload.LEAD_DESCRIPTION).toContain('restorative circle')
-    expect(payload.TAGS?.map((tag) => tag.TAG_NAME)).toContain('Service: Restorative Circle')
+    expect(payload.TAGS?.map((tag) => tag.TAG_NAME)).toContain('Service_Restorative_Circle')
   })
 })
 

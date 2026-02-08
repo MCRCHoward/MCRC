@@ -16,6 +16,9 @@ describe('createInsightlyLead', () => {
     const mockResponse = { LEAD_ID: 42 }
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
+      headers: {
+        get: () => null,
+      },
       json: () => Promise.resolve(mockResponse),
     })
     vi.stubGlobal('fetch', fetchMock)
