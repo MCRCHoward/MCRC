@@ -49,9 +49,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# supabase
-supabase/*
-
+# docs
+docs/*
+how-it-works/*
 
 public/robots.txt
 public/sitemap*.xml

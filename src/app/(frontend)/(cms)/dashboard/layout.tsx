@@ -46,6 +46,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         { title: 'Overview', url: '/dashboard/mediation' },
         { title: 'Inquiries', url: '/dashboard/mediation/inquiries' },
         { title: 'Intake Queue', url: '/dashboard/mediation/intake' },
+        { title: 'Paper Intake', url: '/dashboard/mediation/data-entry' },
         { title: 'Scheduling', url: '/dashboard/mediation/scheduling' },
         { title: 'Activity Log', url: '/dashboard/mediation/activity' },
       ],
