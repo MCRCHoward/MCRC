@@ -340,9 +340,12 @@ export function parseCaseNumber(caseNumber: string): {
   const match = caseNumber.match(/^(\d{4})FM(\d+)$/)
   if (!match) return null
 
+  const [, yearString, sequenceString] = match
+  if (!yearString || !sequenceString) return null
+
   return {
-    year: parseInt(match[1], 10),
-    sequence: parseInt(match[2], 10),
+    year: parseInt(yearString, 10),
+    sequence: parseInt(sequenceString, 10),
   }
 }
 

@@ -161,11 +161,12 @@ function parseFullName(fullName: string): { firstName: string; lastName: string 
   if (parts.length === 0) {
     return { firstName: '', lastName: '' }
   }
+  const first = parts[0] ?? ''
   if (parts.length === 1) {
-    return { firstName: parts[0], lastName: '' }
+    return { firstName: first, lastName: '' }
   }
   return {
-    firstName: parts[0],
+    firstName: first,
     lastName: parts.slice(1).join(' '),
   }
 }
