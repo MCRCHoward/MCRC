@@ -208,6 +208,19 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---------- PAPER INTAKES (staff-only access) ----------
+    // Stores digitized paper mediation intake forms with Insightly sync status.
+    // All writes go through Admin SDK server actions (bypasses Firestore rules).
+    match /paperIntakes/{intakeId} {
+      // Staff can read paper intakes for CMS dashboard and history table
+      allow read: if isStaff();
+      
+      // All writes (create, update, delete) are disabled for client-side access
+      // All paper intake operations must go through Admin SDK server actions
+      // This matches the pattern used for donations, participants, etc.
+      allow create, update, delete: if false;
+    }
+
     // ---------- Catch-all deny ----------
     match /{document=**} {
       allow read, write: if false;
