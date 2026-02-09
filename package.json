@@ -15,6 +15,11 @@
     "reinstall": "cross-env NODE_OPTIONS=--no-deprecation rm -rf node_modules && rm pnpm-lock.yaml && pnpm --ignore-workspace install",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "vitest": "node scripts/vitest-glob.mjs",
+    "verify:firestore": "tsx scripts/verify-firestore-paperintakes.ts",
+    "verify:insightly": "tsx scripts/verify-insightly-config.ts",
+    "verify:all": "pnpm verify:firestore && pnpm verify:insightly",
+    "test:paper-intake": "node scripts/vitest-glob.mjs paper-intake",
+    "test:integration": "vitest --config vitest.integration.config.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
