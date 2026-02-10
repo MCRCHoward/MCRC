@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ExternalLink,
   Link as LinkIcon,
+  Mail,
   Plus,
   UserPlus,
 } from 'lucide-react'
@@ -166,6 +167,7 @@ function ParticipantSearchCard({
         {state.searched && state.result && (
           <DuplicateResults
             result={state.result}
+            searchEmail={email}
             selectedAction={state.action}
             linkedLeadId={state.linkedLeadId}
             onAction={onAction}
@@ -182,6 +184,7 @@ function ParticipantSearchCard({
 
 interface DuplicateResultsProps {
   result: DuplicateCheckResult
+  searchEmail?: string
   selectedAction: 'create' | 'link' | null
   linkedLeadId?: number
   onAction: (action: 'create' | 'link', leadId?: number, leadUrl?: string) => void
@@ -189,6 +192,7 @@ interface DuplicateResultsProps {
 
 function DuplicateResults({
   result,
+  searchEmail,
   selectedAction,
   linkedLeadId,
   onAction,
@@ -206,24 +210,49 @@ function DuplicateResults({
     )
   }
 
+  // Filter to exact email matches (case-insensitive) when the user provided an email
+  const normalizedSearchEmail = searchEmail?.trim().toLowerCase()
+  const exactEmailMatches = normalizedSearchEmail
+    ? result.matches.filter(
+        (lead) => lead.email?.trim().toLowerCase() === normalizedSearchEmail
+      )
+    : []
+  const hasExactEmailMatch = exactEmailMatches.length > 0
+  const displayMatches = hasExactEmailMatch ? exactEmailMatches : result.matches
+
   return (
     <div className="space-y-4">
-      <Alert className="border-amber-200 bg-amber-50">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <AlertTitle className="text-amber-800">Potential Duplicates Found</AlertTitle>
-        <AlertDescription className="text-amber-700">
-          Found {result.matches.length} existing Lead{result.matches.length > 1 ? 's' : ''} that may
-          match this participant. Please choose an action below.
-        </AlertDescription>
-      </Alert>
+      {hasExactEmailMatch ? (
+        <Alert className="border-green-200 bg-green-50">
+          <Mail className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">Exact Email Match Found</AlertTitle>
+          <AlertDescription className="text-green-700">
+            Showing {exactEmailMatches.length} exact email{' '}
+            {exactEmailMatches.length > 1 ? 'matches' : 'match'} out of{' '}
+            {result.matches.length} total result{result.matches.length > 1 ? 's' : ''}. Please
+            link to the existing Lead or create a new one.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800">Potential Duplicates Found</AlertTitle>
+          <AlertDescription className="text-amber-700">
+            Found {result.matches.length} existing Lead
+            {result.matches.length > 1 ? 's' : ''} that may match this participant. Please choose
+            an action below.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Match List */}
       <div className="space-y-2" role="list" aria-label="Potential duplicate leads">
-        {result.matches.map((lead) => (
+        {displayMatches.map((lead) => (
           <LeadMatchCard
             key={lead.leadId}
             lead={lead}
             isSelected={selectedAction === 'link' && linkedLeadId === lead.leadId}
+            isExactEmailMatch={hasExactEmailMatch}
             onSelect={() => onAction('link', lead.leadId, lead.leadUrl)}
           />
         ))}
@@ -250,24 +279,40 @@ function DuplicateResults({
 interface LeadMatchCardProps {
   lead: LeadSearchResult
   isSelected: boolean
+  isExactEmailMatch?: boolean
   onSelect: () => void
 }
 
-function LeadMatchCard({ lead, isSelected, onSelect }: LeadMatchCardProps) {
+function LeadMatchCard({ lead, isSelected, isExactEmailMatch, onSelect }: LeadMatchCardProps) {
   return (
     <div
       role="listitem"
       className={cn(
         'flex items-center justify-between p-4 rounded-lg border transition-colors',
-        isSelected
-          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-          : 'border-border hover:border-muted-foreground/50'
+        isExactEmailMatch && !isSelected
+          ? 'border-green-300 bg-green-50 ring-1 ring-green-300'
+          : isSelected
+            ? 'border-primary bg-primary/5 ring-1 ring-primary'
+            : 'border-border hover:border-muted-foreground/50'
       )}
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{lead.fullName}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          {lead.email && <span className="truncate">{lead.email}</span>}
+          {lead.email && (
+            <span className="truncate inline-flex items-center gap-1">
+              {lead.email}
+              {isExactEmailMatch && (
+                <Badge
+                  variant="outline"
+                  className="border-green-500 bg-green-100 text-green-800 text-[10px] px-1.5 py-0"
+                >
+                  <Check className="h-2.5 w-2.5 mr-0.5" aria-hidden="true" />
+                  Exact match
+                </Badge>
+              )}
+            </span>
+          )}
           {lead.phone && <span>{lead.phone}</span>}
           <Badge variant="secondary" className="text-xs">
             {lead.leadStatus}
