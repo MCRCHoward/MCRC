@@ -16,6 +16,7 @@ import {
 import { FirebaseError } from 'firebase/app'
 import { db } from '@/firebase/client'
 import type { Event } from '@/types'
+import { timestampToISOString } from '@/utilities/event-helpers'
 
 /**
  * Maps Firebase event data to Event type
@@ -42,8 +43,10 @@ function mapFirebaseEventToEvent(
     slug: data.slug || doc.id,
     summary: data.summary,
     content: [], // Empty for now, can be populated if needed
-    eventStartTime: data.startAt || '',
-    eventEndTime: data.endAt || data.startAt || '',
+    eventStartTime: timestampToISOString(data.startAt),
+    eventEndTime: data.endAt
+      ? timestampToISOString(data.endAt)
+      : timestampToISOString(data.startAt),
     modality,
     location:
       data.venue?.name || data.venue?.addressLine1
@@ -104,12 +107,8 @@ function mapFirebaseEventToEvent(
       status: data.status === 'published' ? 'published' : 'draft',
       eventType: data.category || data.format || undefined,
     },
-    createdAt:
-      data.createdAt?.toDate?.()?.toISOString() ||
-      (data.createdAt instanceof Date ? data.createdAt.toISOString() : new Date().toISOString()),
-    updatedAt:
-      data.updatedAt?.toDate?.()?.toISOString() ||
-      (data.updatedAt instanceof Date ? data.updatedAt.toISOString() : new Date().toISOString()),
+    createdAt: timestampToISOString(data.createdAt),
+    updatedAt: timestampToISOString(data.updatedAt),
     // Add descriptionHtml as an extension
     descriptionHtml: data.descriptionHtml,
   }
