@@ -1,6 +1,7 @@
 import { adminDb } from '@/lib/firebase-admin'
 import type { Event } from '@/types'
-import { toISOString, toDate } from '../utils/timestamp-helpers'
+import type { FirestoreEventData } from '@/types/event-firestore'
+import { firestoreToEvent } from '@/lib/events'
 import { EventListClient } from './components/EventListClient'
 
 export const dynamic = 'force-dynamic'
@@ -18,34 +19,9 @@ async function fetchEvents(): Promise<Event[]> {
       return []
     }
 
-    return snapshot.docs.map((doc) => {
-      const data = doc.data()
-
-      const startAt = toDate(data.startAt)
-      const endAt = toDate(data.endAt)
-
-      const status = data.status === 'published' ? 'published' : 'draft'
-      const listed = data.listed ?? true
-      const isArchived = data.isArchived === true
-
-      return {
-        id: doc.id,
-        name: data.title || '',
-        slug: data.slug || doc.id,
-        eventStartTime: startAt?.toISOString() || '',
-        eventEndTime: endAt?.toISOString() || startAt?.toISOString() || '',
-        modality: data.isOnline ? 'online' : 'in_person',
-        meta: {
-          slug: data.slug || doc.id,
-          status,
-          eventType: data.category || data.format,
-        },
-        listed,
-        isArchived,
-        createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
-        updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
-      } as Event
-    })
+    return snapshot.docs.map((doc) =>
+      firestoreToEvent(doc.id, doc.data() as FirestoreEventData),
+    )
   } catch (error) {
     console.error('[fetchEvents] Error:', error)
     return []
