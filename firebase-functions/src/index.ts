@@ -5,6 +5,7 @@ import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/fire
 import { setGlobalOptions } from 'firebase-functions/v2/options'
 import { runInsightlySyncForInquiry } from './lib/insightly-sync'
 import { INSIGHTLY_API_KEY_SECRET } from './lib/insightly/params'
+export { onEventUpdate } from './lib/events/on-event-update'
 
 const STAFF_ROLES = ['admin', 'coordinator'] as const
 

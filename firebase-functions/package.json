@@ -7,7 +7,9 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf lib",
     "lint": "tsc --noEmit",
-    "test": "npm run lint",
+    "test": "npm run lint && vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
     "deploy": "npm run lint && npm run test && npm run build && firebase deploy --only functions",
     "serve": "npm run build && firebase emulators:start --only functions"
   },
@@ -18,7 +20,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
+    "@vitest/coverage-v8": "^4.0.18",
     "rimraf": "^6.0.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
   }
 }
