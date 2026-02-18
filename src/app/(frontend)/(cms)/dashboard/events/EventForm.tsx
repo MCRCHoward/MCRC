@@ -13,7 +13,7 @@ import {
   createEvent,
   updateEvent,
 } from '@/app/(frontend)/(cms)/dashboard/events/firebase-actions'
-import type { Event } from '@/types'
+import type { EventWithEditFields } from '@/lib/events'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -134,32 +134,9 @@ const schema = baseSchema
 
 type FormValues = z.input<typeof baseSchema>
 
-type EventWithVenueFields = Event & {
-  descriptionHtml?: string
-  venueFields?: {
-    name?: string
-    addressLine1?: string
-    addressLine2?: string
-    city?: string
-    state?: string
-    postalCode?: string
-    country?: string
-  }
-  timezone?: string
-  capacity?: number
-  listed?: boolean
-  category?: string
-  subcategory?: string
-  format?: string
-  status?: 'draft' | 'published'
-  costDescription?: string
-  onlineMeetingUrl?: string
-  onlineMeetingDetails?: string
-}
-
 export type EventFormProps = {
   mode: 'new' | 'edit'
-  event?: EventWithVenueFields | null
+  event?: EventWithEditFields | null
   eventId?: string
 }
 
@@ -277,7 +254,7 @@ export default function EventForm({ mode, event, eventId }: EventFormProps) {
             ? String(event.featuredImage.url)
             : undefined
 
-      const eventWithFields = event as EventWithVenueFields
+      const eventWithFields = event
 
       return {
         title: event.name || '',

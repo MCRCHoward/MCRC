@@ -106,8 +106,8 @@ export async function registerForEvent(
         .where('eventId', '==', eventId)
         .where('status', '==', 'registered')
 
-      const currentRegistrationsSnapshot = await currentRegistrationsQuery.get()
-      const currentCount = currentRegistrationsSnapshot.size
+      const currentRegistrationsCountSnapshot = await currentRegistrationsQuery.count().get()
+      const currentCount = currentRegistrationsCountSnapshot.data().count
 
       if (currentCount >= eventCapacity) {
         throw new Error('This event is full. Registration is no longer available.')
@@ -323,8 +323,8 @@ export async function getEventRegistrationCount(eventId: string): Promise<number
       .where('eventId', '==', eventId)
       .where('status', '==', 'registered')
 
-    const snapshot = await registrationsQuery.get()
-    return snapshot.size
+    const countSnapshot = await registrationsQuery.count().get()
+    return countSnapshot.data().count
   } catch (error) {
     if (isMissingIndexError(error)) {
       throw new Error(formatIndexError(error))
