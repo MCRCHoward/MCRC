@@ -20,6 +20,11 @@
     "verify:all": "pnpm verify:firestore && pnpm verify:insightly",
     "test:paper-intake": "node scripts/vitest-glob.mjs paper-intake",
     "test:integration": "vitest --config vitest.integration.config.ts",
+    "emulators": "firebase emulators:start --only firestore,auth",
+    "emulators:ci": "firebase emulators:exec --only firestore,auth 'pnpm test:integration'",
+    "preemulators": "node scripts/check-emulator-deps.mjs",
+    "test:all": "pnpm vitest run --project unit && pnpm test:integration",
+    "test:unit:coverage": "vitest run --project unit --coverage",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
