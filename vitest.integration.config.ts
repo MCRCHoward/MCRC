@@ -19,10 +19,17 @@ export default defineConfig({
       'src/**/*.integration.test.ts',
       'src/**/*-integration.test.ts',
       'src/**/*integration*.test.ts',
+      'src/__tests__/integration/**/*.test.ts',
     ],
-    setupFiles: ['./vitest.integration.setup.ts'],
+    setupFiles: ['./src/__tests__/utils/integration-setup.ts'],
     testTimeout: 30000,
     hookTimeout: 30000,
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     coverage: {
       enabled: false,
     },
