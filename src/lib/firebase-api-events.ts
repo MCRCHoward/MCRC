@@ -11,108 +11,12 @@ import {
   limit,
   type DocumentData,
   type Query,
-  type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { FirebaseError } from 'firebase/app'
 import { db } from '@/firebase/client'
 import type { Event } from '@/types'
-import { timestampToISOString } from '@/utilities/event-helpers'
-
-/**
- * Maps Firebase event data to Event type
- */
-function mapFirebaseEventToEvent(
-  doc: QueryDocumentSnapshot<DocumentData>,
-): Event & { descriptionHtml?: string } {
-  const data = doc.data() || {}
-
-  // Determine modality
-  let modality: 'in_person' | 'online' | 'hybrid' = 'in_person'
-  if (data.isOnline === true) {
-    modality = 'online'
-  } else if (data.isOnline === false && data.venue) {
-    modality = 'in_person'
-  } else if (data.isOnline === true && data.venue) {
-    modality = 'hybrid'
-  }
-
-  // Map Firebase structure to Event type
-  return {
-    id: doc.id,
-    name: data.title || '',
-    slug: data.slug || doc.id,
-    summary: data.summary,
-    content: [], // Empty for now, can be populated if needed
-    eventStartTime: timestampToISOString(data.startAt),
-    eventEndTime: data.endAt
-      ? timestampToISOString(data.endAt)
-      : timestampToISOString(data.startAt),
-    modality,
-    location:
-      data.venue?.name || data.venue?.addressLine1
-        ? {
-            venueName: data.venue?.name || '',
-            address: [
-              data.venue?.addressLine1,
-              data.venue?.addressLine2,
-              data.venue?.city,
-              data.venue?.state,
-              data.venue?.postalCode,
-              data.venue?.country,
-            ]
-              .filter(Boolean)
-              .join(', '),
-          }
-        : undefined,
-    onlineMeeting:
-      data.isOnline && data.onlineMeetingUrl
-        ? {
-            url: data.onlineMeetingUrl,
-            details: data.onlineMeetingDetails || '',
-          }
-        : undefined,
-    isFree: data.isFree ?? true,
-    cost:
-      data.cost && !data.isFree
-        ? {
-            amount: data.cost.amount,
-            currency: data.cost.currency || 'USD',
-            description: data.cost.description,
-          }
-        : data.price && !data.isFree
-          ? {
-              amount: data.price,
-              currency: data.currency || 'USD',
-              description: data.costDescription,
-            }
-          : undefined,
-    isRegistrationRequired: data.isRegistrationRequired ?? true,
-    externalRegistrationLink: data.externalRegistrationLink,
-    isArchived: data.isArchived === true,
-    listed: data.listed ?? true,
-    featuredImage: data.imageUrl
-      ? ({
-          url: data.imageUrl,
-          alt: data.title || 'Event image',
-        } as { url: string; alt: string })
-      : undefined,
-    secondaryImage: data.secondaryImageUrl
-      ? ({
-          url: data.secondaryImageUrl,
-          alt: `${data.title || 'Event'} - secondary image`,
-        } as { url: string; alt: string })
-      : undefined,
-    meta: {
-      slug: data.slug || doc.id,
-      status: data.status === 'published' ? 'published' : 'draft',
-      eventType: data.category || data.format || undefined,
-    },
-    createdAt: timestampToISOString(data.createdAt),
-    updatedAt: timestampToISOString(data.updatedAt),
-    // Add descriptionHtml as an extension
-    descriptionHtml: data.descriptionHtml,
-  }
-}
+import type { FirestoreEventData } from '@/types/event-firestore'
+import { firestoreToEvent, firestoreToEventForEdit } from '@/lib/events'
 
 /**
  * Fetches all published or listed events from Firebase.
@@ -143,7 +47,7 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
     try {
       const snapshot = await getDocs(eventsQuery)
       return snapshot.docs
-        .map((doc) => mapFirebaseEventToEvent(doc))
+        .map((doc) => firestoreToEvent(doc.id, doc.data() as FirestoreEventData))
         .filter((ev) => ev.isArchived !== true)
     } catch (error) {
       if (isIndexError(error)) {
@@ -162,7 +66,7 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
           )
           const snapshot = await getDocs(eventsQuery)
           const events = snapshot.docs
-            .map((doc) => mapFirebaseEventToEvent(doc))
+            .map((doc) => firestoreToEvent(doc.id, doc.data() as FirestoreEventData))
             .filter((ev) => ev.isArchived !== true)
           return sortByDateDesc(events)
         } catch (_fallbackError) {
@@ -177,7 +81,7 @@ export async function fetchPublishedEvents(): Promise<Event[]> {
             .map((doc) => {
               const data = doc.data()
               return {
-                event: mapFirebaseEventToEvent(doc),
+                event: firestoreToEvent(doc.id, data as FirestoreEventData),
                 listed: data.listed ?? true,
                 isArchived: data.isArchived === true,
               }
@@ -234,6 +138,7 @@ export async function fetchEventTypeBadges(): Promise<string[]> {
 
 /**
  * Fetches a single event by its slug.
+ * Uses firestoreToEventForEdit to include descriptionHtml for detail pages.
  */
 export async function fetchEventBySlug(
   slug: string,
@@ -246,7 +151,7 @@ export async function fetchEventBySlug(
 
     const doc = snapshot.docs[0]
     if (!doc) return null
-    return mapFirebaseEventToEvent(doc)
+    return firestoreToEventForEdit(doc.id, doc.data() as FirestoreEventData)
   } catch (error) {
     console.error('Error fetching event by slug:', error)
     return null
