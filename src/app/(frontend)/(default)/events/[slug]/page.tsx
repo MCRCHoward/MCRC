@@ -97,6 +97,7 @@ export default async function EventPage({ params }: { params: RouteParams }) {
       user={user}
       registrationStatus={registrationStatus}
       registrationCount={registrationCount}
+      capacity={event.capacity ?? null}
     />
   )
 }
