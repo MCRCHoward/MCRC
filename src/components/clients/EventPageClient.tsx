@@ -1,6 +1,8 @@
 'use client'
 
 import {
+  AlertTriangle,
+  ArrowLeft,
   Calendar,
   MapPin,
   Globe,
@@ -14,11 +16,19 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -39,6 +49,7 @@ interface EventPageClientProps {
     status: EventRegistration['status']
   } | null
   registrationCount?: number | null
+  capacity?: number | null
 }
 
 /**
@@ -74,6 +85,7 @@ const EventPageClient = ({
   user,
   registrationStatus,
   registrationCount,
+  capacity,
 }: EventPageClientProps) => {
   const {
     id: eventId,
@@ -94,7 +106,9 @@ const EventPageClient = ({
   } = event
 
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isCancelling, setIsCancelling] = useState(false)
+  const [showRegistrationSuccess, setShowRegistrationSuccess] = useState(false)
   const imageData = getImageData(featuredImage)
   const isSameDay =
     eventStartTime && eventEndTime
@@ -122,6 +136,17 @@ const EventPageClient = ({
       alertRef.current.focus()
     }
   }, [registrationDisabledByPolicy])
+
+  useEffect(() => {
+    if (searchParams.get('registered') === 'true') {
+      setShowRegistrationSuccess(true)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('registered')
+      window.history.replaceState({}, '', url.toString())
+      const timer = setTimeout(() => setShowRegistrationSuccess(false), 10000)
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams])
 
   // Compute conditional renders with useMemo for better readability
   const shouldShowCancelButton = useMemo(() => {
@@ -178,6 +203,26 @@ const EventPageClient = ({
   return (
     <article className="py-32 md:py-24">
       <div className="container max-w-7xl">
+        <Breadcrumb className="mb-6">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/">Home</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/events">Events</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
         {/* Hero Section */}
         <header className="mb-12 space-y-6 text-center">
           <div className="flex justify-center">
@@ -185,7 +230,9 @@ const EventPageClient = ({
               variant={modality === 'online' ? 'secondary' : 'default'}
               className="capitalize text-xs font-semibold"
             >
-              {modality?.replace('_', ' ')}
+              {modality === 'hybrid'
+                ? 'Hybrid (In-Person + Online)'
+                : modality?.replace('_', ' ')}
             </Badge>
           </div>
           <div className="max-w-4xl mx-auto space-y-4">
@@ -232,10 +279,12 @@ const EventPageClient = ({
               </div>
             )}
 
-            {modality === 'online' && onlineMeeting?.url && (
+            {(modality === 'online' || modality === 'hybrid') && onlineMeeting?.url && (
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                <span className="text-foreground">Online Event</span>
+                <span className="text-foreground">
+                  {modality === 'hybrid' ? 'Hybrid Event' : 'Online Event'}
+                </span>
               </div>
             )}
 
@@ -341,7 +390,7 @@ const EventPageClient = ({
                 </div>
               )}
 
-              {/* Location */}
+              {/* Location — shown for in_person and hybrid */}
               {location && (
                 <div className="space-y-2">
                   <div className="flex items-start gap-3">
@@ -350,7 +399,9 @@ const EventPageClient = ({
                       aria-hidden="true"
                     />
                     <div className="space-y-1 text-sm md:text-base">
-                      <p className="font-semibold text-foreground">Location</p>
+                      <p className="font-semibold text-foreground">
+                        {modality === 'hybrid' ? 'In-Person Location' : 'Location'}
+                      </p>
                       <address className="not-italic text-muted-foreground leading-relaxed">
                         {location.venueName && (
                           <span className="block font-semibold text-foreground">
@@ -364,8 +415,8 @@ const EventPageClient = ({
                 </div>
               )}
 
-              {/* Online Meeting */}
-              {modality === 'online' && onlineMeeting?.url && (
+              {/* Online Meeting — shown for online and hybrid */}
+              {(modality === 'online' || modality === 'hybrid') && onlineMeeting?.url && (
                 <div className="space-y-2">
                   <div className="flex items-start gap-3">
                     <Globe
@@ -373,7 +424,9 @@ const EventPageClient = ({
                       aria-hidden="true"
                     />
                     <div className="space-y-1 text-sm md:text-base">
-                      <p className="font-semibold text-foreground">Online Meeting</p>
+                      <p className="font-semibold text-foreground">
+                        {modality === 'hybrid' ? 'Online Option' : 'Online Meeting'}
+                      </p>
                       <a
                         href={onlineMeeting.url}
                         target="_blank"
@@ -391,6 +444,15 @@ const EventPageClient = ({
                     </div>
                   </div>
                 </div>
+              )}
+
+              {modality === 'hybrid' && (
+                <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-blue-800 dark:text-blue-300">
+                    This is a hybrid event. You can attend in person or join online.
+                  </AlertDescription>
+                </Alert>
               )}
 
               {/* Pricing */}
@@ -433,6 +495,28 @@ const EventPageClient = ({
 
               {/* Registration Section */}
               <div className="space-y-4" aria-live="polite">
+                {(showRegistrationSuccess || isRegistered) &&
+                  registrationStatus?.status !== 'cancelled' && (
+                    <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <AlertDescription className="text-green-800 dark:text-green-300">
+                        <strong>You&apos;re registered!</strong> Check your email for
+                        confirmation details.
+                        {showRegistrationSuccess && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-2 h-auto p-1 text-green-700 hover:text-green-800 dark:text-green-400"
+                            onClick={() => setShowRegistrationSuccess(false)}
+                            aria-label="Dismiss notification"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                 {isArchived && (
                   <Alert>
                     <Archive className="h-4 w-4" />
@@ -449,6 +533,46 @@ const EventPageClient = ({
                     </AlertDescription>
                   </Alert>
                 )}
+
+                {/* Spots Remaining */}
+                {capacity != null && capacity > 0 && (
+                  <div className="flex items-center gap-2 text-sm">
+                    {registrationCount != null ? (
+                      <>
+                        {capacity - registrationCount > 5 ? (
+                          <span className="text-muted-foreground">
+                            <span className="font-semibold text-foreground">
+                              {capacity - registrationCount}
+                            </span>{' '}
+                            spots remaining
+                          </span>
+                        ) : capacity - registrationCount > 0 ? (
+                          <span className="text-amber-600 dark:text-amber-400 font-medium">
+                            Only {capacity - registrationCount}{' '}
+                            {capacity - registrationCount === 1 ? 'spot' : 'spots'} left!
+                          </span>
+                        ) : (
+                          <span className="text-destructive font-medium">Event is full</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">Capacity: {capacity}</span>
+                    )}
+                  </div>
+                )}
+
+                {capacity != null &&
+                  registrationCount != null &&
+                  registrationCount >= capacity &&
+                  !isRegistered && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        This event has reached capacity. Registration is closed.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                 {/* Registration Count (Admin only) */}
                 {registrationCount !== null && registrationCount !== undefined && (
                   <div className="text-sm md:text-base text-muted-foreground">
@@ -503,8 +627,10 @@ const EventPageClient = ({
                       cost ? { amount: cost.amount, currency: cost.currency || 'USD' } : undefined
                     }
                     onSuccess={() => {
+                      setShowRegistrationSuccess(true)
                       toast.success(`Successfully registered for ${name}`)
                       router.refresh()
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
                     }}
                   />
                 )}
@@ -541,7 +667,7 @@ const EventPageClient = ({
                 )}
 
                 {/* Online Meeting Link */}
-                {modality === 'online' && onlineMeeting?.url && (
+                {(modality === 'online' || modality === 'hybrid') && onlineMeeting?.url && (
                   <Button
                     asChild
                     variant="secondary"
@@ -559,6 +685,15 @@ const EventPageClient = ({
                     </Link>
                   </Button>
                 )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t">
+                <Button variant="ghost" asChild className="w-full justify-start">
+                  <Link href="/events">
+                    <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Back to All Events
+                  </Link>
+                </Button>
               </div>
             </div>
           </aside>
