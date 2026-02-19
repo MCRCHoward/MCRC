@@ -42,13 +42,14 @@ const registrationSchema = z.object({
       (val) => !val || /^[\d\s\-()\+]+$/.test(val),
       'Phone number can only contain digits, spaces, dashes, parentheses, and plus sign',
     ),
-  serviceInterest: z.enum(['Mediation', 'Facilitation', 'Restorative Practices', 'Other', 'None'], {
-    required_error: 'Please select a service interest',
-  }),
-  emailMarketingConsent: z.boolean().refine((val) => val === true, {
-    message: 'You must consent to email marketing to register',
-  }),
+  serviceInterest: z
+    .enum(['Mediation', 'Facilitation', 'Restorative Practices', 'Other', 'None'])
+    .optional()
+    .default('None'),
+  emailMarketingConsent: z.boolean().default(false),
 })
+
+export { registrationSchema }
 
 type RegistrationFormValues = z.infer<typeof registrationSchema>
 
@@ -82,7 +83,6 @@ export function EventRegistrationForm({
       name: userName,
       email: userEmail,
       phone: userPhone,
-      serviceInterest: undefined,
       emailMarketingConsent: false,
     },
   })
@@ -231,18 +231,17 @@ export function EventRegistrationForm({
           name="serviceInterest"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Which service interests you most?</FormLabel>
+              <FormLabel>Which service interests you most? (Optional)</FormLabel>
               <Select
                 onValueChange={field.onChange}
-                defaultValue={field.value}
+                value={field.value}
                 disabled={isSubmitting}
               >
                 <FormControl>
                   <SelectTrigger
-                    aria-required="true"
-                    aria-describedby={form.formState.errors.serviceInterest ? 'service-interest-error' : 'service-interest-description'}
+                    aria-describedby="service-interest-description"
                   >
-                    <SelectValue placeholder="Select a service interest" />
+                    <SelectValue placeholder="Select if you'd like to tell us" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -250,11 +249,11 @@ export function EventRegistrationForm({
                   <SelectItem value="Facilitation">Facilitation</SelectItem>
                   <SelectItem value="Restorative Practices">Restorative Practices</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
-                  <SelectItem value="None">None</SelectItem>
+                  <SelectItem value="None">None / Not sure</SelectItem>
                 </SelectContent>
               </Select>
-              <FormDescription id="service-interest-description">Help us understand your interests for better event planning</FormDescription>
-              <FormMessage id="service-interest-error" />
+              <FormDescription id="service-interest-description">Helps us tailor future communications to your interests</FormDescription>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -269,22 +268,17 @@ export function EventRegistrationForm({
                   checked={field.value}
                   onCheckedChange={field.onChange}
                   disabled={isSubmitting}
-                  aria-required="true"
-                  aria-describedby={form.formState.errors.emailMarketingConsent ? 'consent-error' : 'consent-description'}
+                  aria-describedby="consent-description"
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel className="cursor-pointer" htmlFor="emailMarketingConsent">
-                  I consent to receive email marketing communications
+                <FormLabel className="cursor-pointer">
+                  Keep me updated about upcoming events and programs
                 </FormLabel>
                 <FormDescription id="consent-description">
-                  You&apos;ll receive updates about upcoming events and programs that match your interests.
+                  Optional. You can unsubscribe at any time. We will only use your
+                  email for event-related communications regardless of this setting.
                 </FormDescription>
-                {form.formState.errors.emailMarketingConsent && (
-                  <p id="consent-error" className="text-sm font-medium text-destructive">
-                    {form.formState.errors.emailMarketingConsent.message}
-                  </p>
-                )}
               </div>
             </FormItem>
           )}
