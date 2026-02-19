@@ -61,12 +61,19 @@ interface TimezoneSelectProps {
   value?: string
   onValueChange: (value: string) => void
   className?: string
+  disabled?: boolean
 }
 
-export function TimezoneSelect({ value, onValueChange, className }: TimezoneSelectProps) {
+export function TimezoneSelect({ value, onValueChange, className, disabled }: TimezoneSelectProps) {
   const [open, setOpen] = React.useState(false)
   const timezones = React.useMemo(() => getTimezones(), [])
   const [searchQuery, setSearchQuery] = React.useState('')
+
+  React.useEffect(() => {
+    if (disabled) {
+      setOpen(false)
+    }
+  }, [disabled])
 
   // Group timezones by region
   const groupedTimezones = React.useMemo(() => {
@@ -124,13 +131,20 @@ export function TimezoneSelect({ value, onValueChange, className }: TimezoneSele
   }, [value])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (disabled) return
+        setOpen(nextOpen)
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn('w-full justify-between', className)}
+          disabled={disabled}
+          className={cn('w-full justify-between', disabled && 'opacity-50 cursor-not-allowed', className)}
         >
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -155,6 +169,7 @@ export function TimezoneSelect({ value, onValueChange, className }: TimezoneSele
                     key={tz.value}
                     value={tz.value}
                     onSelect={() => {
+                      if (disabled) return
                       onValueChange(tz.value)
                       setOpen(false)
                       setSearchQuery('')
