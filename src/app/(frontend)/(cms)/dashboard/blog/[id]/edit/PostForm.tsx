@@ -24,6 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { FileInput } from '@/components/ui/file-inputs'
 import { Editor } from '@/components/editor/editor'
 import { AuthorSelect, AuthorChips } from '@/components/ui/author-select'
+import { slugify } from '@/lib/utils/slugify'
 
 type CategoryLike = { id: string | number; title?: string | null; slug?: string | null }
 type PostSectionLike = { title?: string | null; contentHtml?: string | null }
@@ -68,15 +69,6 @@ const FormSchema = z.object({
 })
 
 type FormValues = z.infer<typeof FormSchema>
-
-function slugify(input: string) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/['"']/g, '')
-    .replace(/\W+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
 
 function asString(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback
