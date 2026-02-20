@@ -205,6 +205,8 @@ const mockCoordinatorUser = {
   email: 'coordinator@mcrc.test',
   name: 'Test Coordinator',
   role: 'coordinator' as const,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
 }
 
 const mockAdminUser = {
@@ -212,6 +214,8 @@ const mockAdminUser = {
   email: 'admin@mcrc.test',
   name: 'Test Admin',
   role: 'admin' as const,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
 }
 
 const createValidIntakeInput = (overrides?: Partial<PaperIntakeInput>): PaperIntakeInput => ({
@@ -313,7 +317,12 @@ describe('Paper Intake Integration Tests', () => {
     // Default mock implementations
     vi.mocked(getCurrentUser).mockResolvedValue(mockCoordinatorUser)
     vi.mocked(requireRoleAny).mockResolvedValue(mockCoordinatorUser)
-    vi.mocked(ensureLeadSourcesExist).mockResolvedValue(undefined)
+    vi.mocked(ensureLeadSourcesExist).mockResolvedValue({
+      success: true,
+      leadSources: {},
+      created: [],
+      errors: [],
+    })
 
     vi.mocked(checkForDuplicates).mockResolvedValue({
       hasPotentialDuplicates: false,
@@ -369,19 +378,25 @@ describe('Paper Intake Integration Tests', () => {
         matches: [
           {
             leadId: 12345,
+            firstName: 'John',
+            lastName: 'Doe',
             fullName: 'John Doe',
             email: 'john@example.com',
             phone: '(410) 555-1234',
             leadStatus: 'Not Contacted',
             leadUrl: 'https://crm.na1.insightly.com/details/Lead/12345',
+            createdAt: '2026-01-15T00:00:00.000Z',
             tags: ['Mediation', 'MCRC'],
           },
           {
             leadId: 67890,
+            firstName: 'John',
+            lastName: 'D.',
             fullName: 'John D.',
             email: 'johnd@example.com',
             leadStatus: 'Contacted',
             leadUrl: 'https://crm.na1.insightly.com/details/Lead/67890',
+            createdAt: '2026-01-10T00:00:00.000Z',
             tags: ['Paper_Intake'],
           },
         ],
@@ -393,7 +408,7 @@ describe('Paper Intake Integration Tests', () => {
       expect(result.success).toBe(true)
       expect(result.result?.hasPotentialDuplicates).toBe(true)
       expect(result.result?.matches).toHaveLength(2)
-      expect(result.result?.matches[0].fullName).toBe('John Doe')
+      expect(result.result?.matches[0]!.fullName).toBe('John Doe')
     })
 
     it('should search without email', async () => {
@@ -655,7 +670,12 @@ describe('Data Validation Edge Cases', () => {
     resetFirestoreStore()
     vi.mocked(getCurrentUser).mockResolvedValue(mockCoordinatorUser)
     vi.mocked(requireRoleAny).mockResolvedValue(mockCoordinatorUser)
-    vi.mocked(ensureLeadSourcesExist).mockResolvedValue(undefined)
+    vi.mocked(ensureLeadSourcesExist).mockResolvedValue({
+      success: true,
+      leadSources: {},
+      created: [],
+      errors: [],
+    })
     vi.mocked(insightlyRequest).mockResolvedValue({ LEAD_ID: 1, OPPORTUNITY_ID: 1 })
   })
 

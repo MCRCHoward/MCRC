@@ -58,7 +58,7 @@ describe('Paper Intake Config', () => {
     })
 
     it('should map referral sources to lead sources', () => {
-      const referralSources = ['Staff/Volunteer', 'District Court', 'Circuit Court']
+      const referralSources = ['Staff/Volunteer', 'District Court', 'Circuit Court'] as const
       referralSources.forEach((source) => {
         expect(REFERRAL_TO_LEAD_SOURCE[source]).toBeDefined()
       })

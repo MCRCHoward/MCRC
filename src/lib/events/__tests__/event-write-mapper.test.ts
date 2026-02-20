@@ -12,7 +12,7 @@ describe('slugify', () => {
   })
 
   it('normalizes unicode characters', () => {
-    expect(slugify('Café Résumé')).toBe('cafe-re-sume')
+    expect(slugify('Café Résumé')).toBe('cafe-resume')
   })
 
   it('removes special characters', () => {

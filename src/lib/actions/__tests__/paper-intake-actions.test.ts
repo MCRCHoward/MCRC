@@ -53,7 +53,7 @@ describe('Paper Intake Actions', () => {
     id: 'user-123',
     email: 'staff@example.com',
     name: 'Staff Member',
-    role: 'coordinator',
+    role: 'coordinator' as const,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }

@@ -43,7 +43,7 @@ describe('Insightly Search', () => {
       const result = await searchModule.fetchLeadSources()
 
       expect(result).toHaveLength(2)
-      expect(result[0].LEAD_SOURCE).toBe('Web')
+      expect(result[0]!.LEAD_SOURCE).toBe('Web')
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/LeadSources'),
         expect.any(Object),
@@ -114,8 +114,8 @@ describe('Insightly Search', () => {
       const results = await searchModule.searchLeadsByName('John', 'Doe')
 
       expect(results).toHaveLength(1)
-      expect(results[0].fullName).toBe('John Doe')
-      expect(results[0].leadId).toBe(123)
+      expect(results[0]!.fullName).toBe('John Doe')
+      expect(results[0]!.leadId).toBe(123)
     })
 
     it('should return empty array for empty name', async () => {
@@ -147,7 +147,7 @@ describe('Insightly Search', () => {
       const results = await searchModule.searchLeadsByEmail('jane@example.com')
 
       expect(results).toHaveLength(1)
-      expect(results[0].email).toBe('jane@example.com')
+      expect(results[0]!.email).toBe('jane@example.com')
     })
   })
 
