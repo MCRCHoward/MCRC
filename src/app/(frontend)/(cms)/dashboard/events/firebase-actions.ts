@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue, type WriteBatch } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
 import { requireRoleAny } from '@/lib/custom-auth'
 import { eventInputToFirestore, slugify, type EventFormInput } from '@/lib/events/server'
@@ -193,4 +193,132 @@ export async function setEventListed(id: string, listed: boolean) {
   revalidatePath('/dashboard/events')
   revalidatePath('/events')
   return { id, listed }
+}
+
+// ============================================================================
+// BULK OPERATIONS
+// ============================================================================
+
+export interface BulkOperationResult {
+  success: number
+  failed: number
+  failedIds: string[]
+}
+
+const BATCH_SIZE = 100
+
+async function executeBatchUpdate(
+  eventIds: string[],
+  updateFn: (batch: WriteBatch, eventRef: FirebaseFirestore.DocumentReference) => void,
+): Promise<BulkOperationResult> {
+  if (eventIds.length === 0) {
+    return { success: 0, failed: 0, failedIds: [] }
+  }
+
+  if (eventIds.length > BATCH_SIZE) {
+    throw new Error(`Cannot process more than ${BATCH_SIZE} events at once`)
+  }
+
+  const result: BulkOperationResult = { success: 0, failed: 0, failedIds: [] }
+
+  try {
+    const batch = adminDb.batch()
+    for (const id of eventIds) {
+      const eventRef = adminDb.doc(`events/${id}`)
+      updateFn(batch, eventRef)
+    }
+    await batch.commit()
+    result.success = eventIds.length
+  } catch (error) {
+    console.error('[executeBatchUpdate] Batch failed:', error)
+    for (const id of eventIds) {
+      try {
+        const singleBatch = adminDb.batch()
+        const eventRef = adminDb.doc(`events/${id}`)
+        updateFn(singleBatch, eventRef)
+        await singleBatch.commit()
+        result.success++
+      } catch (individualError) {
+        console.error(`[executeBatchUpdate] Failed for event ${id}:`, individualError)
+        result.failed++
+        result.failedIds.push(id)
+      }
+    }
+  }
+
+  return result
+}
+
+export async function bulkArchiveEvents(eventIds: string[]): Promise<BulkOperationResult> {
+  const user = await requireRoleAny(['editor', 'coordinator'])
+
+  const result = await executeBatchUpdate(eventIds, (batch, eventRef) => {
+    batch.update(eventRef, {
+      isArchived: true,
+      archivedAt: FieldValue.serverTimestamp(),
+      archivedBy: user.id ?? null,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  })
+
+  revalidatePath('/dashboard/events')
+  revalidatePath('/events')
+
+  return result
+}
+
+export async function bulkRestoreEvents(eventIds: string[]): Promise<BulkOperationResult> {
+  await requireRoleAny(['editor', 'coordinator'])
+
+  const result = await executeBatchUpdate(eventIds, (batch, eventRef) => {
+    batch.update(eventRef, {
+      isArchived: false,
+      archivedAt: null,
+      archivedBy: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  })
+
+  revalidatePath('/dashboard/events')
+  revalidatePath('/events')
+
+  return result
+}
+
+export async function bulkSetEventStatus(
+  eventIds: string[],
+  status: 'draft' | 'published',
+): Promise<BulkOperationResult> {
+  await requireRoleAny(['editor', 'coordinator'])
+
+  const result = await executeBatchUpdate(eventIds, (batch, eventRef) => {
+    batch.update(eventRef, {
+      status,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  })
+
+  revalidatePath('/dashboard/events')
+  revalidatePath('/events')
+
+  return result
+}
+
+export async function bulkSetEventListed(
+  eventIds: string[],
+  listed: boolean,
+): Promise<BulkOperationResult> {
+  await requireRoleAny(['editor', 'coordinator'])
+
+  const result = await executeBatchUpdate(eventIds, (batch, eventRef) => {
+    batch.update(eventRef, {
+      listed,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  })
+
+  revalidatePath('/dashboard/events')
+  revalidatePath('/events')
+
+  return result
 }

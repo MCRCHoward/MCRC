@@ -1,16 +1,28 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, X, Calendar, Archive as ArchiveIcon, ChevronLeft, ChevronRight, Users } from 'lucide-react'
+import {
+  Search,
+  X,
+  Calendar,
+  Archive as ArchiveIcon,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import type { Event } from '@/types'
 import { EventListActions } from './EventListActions'
+import { useBulkSelection, MAX_SELECTION } from './useBulkSelection'
+import { BulkActionsBar } from './BulkActionsBar'
 
 interface CmsEventInfo extends Event {
   capacity?: number
@@ -38,7 +50,13 @@ function formatDate(dateString?: string): string {
   }
 }
 
-export function EventListClient({ events, view, query, nextCursor, hasMore }: EventListClientProps) {
+export function EventListClient({
+  events,
+  view,
+  query,
+  nextCursor,
+  hasMore,
+}: EventListClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -54,8 +72,28 @@ export function EventListClient({ events, view, query, nextCursor, hasMore }: Ev
     )
   })
 
+  const {
+    selectedIds,
+    selectedCount,
+    hasSelection,
+    isAllSelected,
+    isIndeterminate,
+    isSelected,
+    toggle,
+    toggleAll,
+    clearSelection,
+    getSelectedItems,
+    isMaxReached,
+  } = useBulkSelection(currentList)
+
   const isSearching = Boolean(normalizedQuery)
   const hasCursor = Boolean(searchParams.get('cursor'))
+
+  const selectedEventNames = getSelectedItems().map((event) => event.name)
+
+  useEffect(() => {
+    clearSelection()
+  }, [view, clearSelection])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -63,60 +101,74 @@ export function EventListClient({ events, view, query, nextCursor, hasMore }: Ev
         e.preventDefault()
         searchInputRef.current?.focus()
       }
+      if (e.key === 'Escape' && hasSelection) {
+        e.preventDefault()
+        clearSelection()
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [hasSelection, clearSelection])
 
-  const handleTabChange = (value: string) => {
-    const params = new URLSearchParams()
-    if (value === 'archived') {
-      params.set('view', 'archived')
-    }
-    if (searchValue) {
-      params.set('q', searchValue)
-    }
-    router.push(`/dashboard/events?${params.toString()}`)
-  }
+  const handleTabChange = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams()
+      if (value === 'archived') {
+        params.set('view', 'archived')
+      }
+      if (searchValue) {
+        params.set('q', searchValue)
+      }
+      router.push(`/dashboard/events?${params.toString()}`)
+    },
+    [router, searchValue],
+  )
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    const params = new URLSearchParams()
-    if (view === 'archived') {
-      params.set('view', 'archived')
-    }
-    if (searchValue) {
-      params.set('q', searchValue)
-    }
-    router.push(`/dashboard/events?${params.toString()}`)
-  }
+  const handleSearch = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      clearSelection()
+      const params = new URLSearchParams()
+      if (view === 'archived') {
+        params.set('view', 'archived')
+      }
+      if (searchValue) {
+        params.set('q', searchValue)
+      }
+      router.push(`/dashboard/events?${params.toString()}`)
+    },
+    [router, view, searchValue, clearSelection],
+  )
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchValue('')
+    clearSelection()
     const params = new URLSearchParams()
     if (view === 'archived') {
       params.set('view', 'archived')
     }
     router.push(`/dashboard/events?${params.toString()}`)
-  }
+  }, [router, view, clearSelection])
 
-  const handleFirstPage = () => {
+  const handleFirstPage = useCallback(() => {
+    clearSelection()
     const params = new URLSearchParams()
     if (view === 'archived') {
       params.set('view', 'archived')
     }
     router.push(`/dashboard/events?${params.toString()}`)
-  }
+  }, [router, view, clearSelection])
 
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     if (!nextCursor) return
+    clearSelection()
     const params = new URLSearchParams()
     if (view === 'archived') {
       params.set('view', 'archived')
     }
     params.set('cursor', nextCursor)
     router.push(`/dashboard/events?${params.toString()}`)
-  }
+  }, [router, view, nextCursor, clearSelection])
 
   return (
     <>
@@ -153,7 +205,7 @@ export function EventListClient({ events, view, query, nextCursor, hasMore }: Ev
               <Search className="h-4 w-4" />
             </Button>
           </form>
-          
+
           <Tabs value={view} onValueChange={handleTabChange} className="w-auto">
             <TabsList>
               <TabsTrigger value="active">Active</TabsTrigger>
@@ -168,13 +220,17 @@ export function EventListClient({ events, view, query, nextCursor, hasMore }: Ev
       </div>
 
       <div role="status" aria-live="polite" className="sr-only">
-        {normalizedQuery && `${currentList.length} ${currentList.length === 1 ? 'event' : 'events'} found`}
-        {!normalizedQuery && `Showing ${currentList.length} ${view === 'archived' ? 'archived' : 'active'} ${currentList.length === 1 ? 'event' : 'events'}`}
+        {normalizedQuery &&
+          `${currentList.length} ${currentList.length === 1 ? 'event' : 'events'} found`}
+        {!normalizedQuery &&
+          `Showing ${currentList.length} ${view === 'archived' ? 'archived' : 'active'} ${currentList.length === 1 ? 'event' : 'events'}`}
+        {hasSelection && ` ${selectedCount} event${selectedCount !== 1 ? 's' : ''} selected`}
       </div>
 
       {normalizedQuery && (
         <div className="mb-3 text-sm text-muted-foreground">
-          {currentList.length} {currentList.length === 1 ? 'result' : 'results'} for &quot;{searchValue}&quot;
+          {currentList.length} {currentList.length === 1 ? 'result' : 'results'} for &quot;
+          {searchValue}&quot;
         </div>
       )}
 
@@ -206,44 +262,102 @@ export function EventListClient({ events, view, query, nextCursor, hasMore }: Ev
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {currentList.map((event) => (
-            <Card key={event.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-lg">{event.name}</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={
-                        event.capacity && event.registrationCount >= event.capacity
-                          ? 'destructive'
-                          : 'outline'
-                      }
-                      className="flex items-center gap-1 whitespace-nowrap"
-                    >
-                      <Users className="h-3 w-3" />
-                      {event.registrationCount}
-                      {event.capacity ? `/${event.capacity}` : ''}
-                    </Badge>
-                    <Badge variant={event.meta?.status === 'published' ? 'default' : 'secondary'}>
-                      {event.meta?.status ?? 'draft'}
-                    </Badge>
-                  </div>
-                </div>
-                <CardDescription>
-                  {event.slug ? `/${event.slug}` : ''} &middot; {formatDate(event.eventStartTime)}
-                  {event.meta?.eventType && ` \u00B7 ${event.meta.eventType}`}
-                  {event.capacity != null && ` \u00B7 Capacity: ${event.capacity}`}
-                  {!event.listed && ' \u2022 Unlisted'}
-                  {event.isArchived && ' \u2022 Archived'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <EventListActions event={event} />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all"
+                checked={isAllSelected}
+                {...(isIndeterminate && { 'data-state': 'indeterminate' })}
+                onCheckedChange={toggleAll}
+                aria-label={isAllSelected ? 'Deselect all events' : 'Select all events'}
+                className={cn(isIndeterminate && 'data-[state=indeterminate]:bg-primary')}
+              />
+              <label
+                htmlFor="select-all"
+                className="cursor-pointer select-none text-sm font-medium text-muted-foreground"
+              >
+                {isAllSelected
+                  ? 'Deselect all'
+                  : isIndeterminate
+                    ? `${selectedCount} selected`
+                    : 'Select all'}
+              </label>
+              {isMaxReached && (
+                <span className="text-xs text-amber-600">(max {MAX_SELECTION} events)</span>
+              )}
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {currentList.length} event{currentList.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="grid gap-3">
+            {currentList.map((event) => {
+              const selected = isSelected(event.id)
+
+              return (
+                <Card
+                  key={event.id}
+                  className={cn(
+                    'transition-colors',
+                    selected && 'ring-2 ring-primary ring-offset-2',
+                  )}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selected}
+                        onCheckedChange={() => toggle(event.id)}
+                        aria-label={`Select ${event.name}`}
+                        disabled={!selected && isMaxReached}
+                        className="shrink-0"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="truncate text-lg">{event.name}</CardTitle>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Badge
+                              variant={
+                                event.capacity && event.registrationCount >= event.capacity
+                                  ? 'destructive'
+                                  : 'outline'
+                              }
+                              className="flex items-center gap-1 whitespace-nowrap"
+                            >
+                              <Users className="h-3 w-3" />
+                              {event.registrationCount}
+                              {event.capacity ? `/${event.capacity}` : ''}
+                            </Badge>
+                            <Badge
+                              variant={
+                                event.meta?.status === 'published' ? 'default' : 'secondary'
+                              }
+                            >
+                              {event.meta?.status ?? 'draft'}
+                            </Badge>
+                          </div>
+                        </div>
+                        <CardDescription className="truncate">
+                          {event.slug ? `/${event.slug}` : ''} &middot;{' '}
+                          {formatDate(event.eventStartTime)}
+                          {event.meta?.eventType && ` \u00B7 ${event.meta.eventType}`}
+                          {event.capacity != null && ` \u00B7 Capacity: ${event.capacity}`}
+                          {!event.listed && ' \u2022 Unlisted'}
+                          {event.isArchived && ' \u2022 Archived'}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <EventListActions event={event} />
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {isSearching && currentList.length >= 100 && (
@@ -254,11 +368,7 @@ export function EventListClient({ events, view, query, nextCursor, hasMore }: Ev
 
       {!isSearching && (hasMore || hasCursor) && (
         <div className="mt-6 flex items-center justify-between">
-          <Button
-            variant="outline"
-            disabled={!hasCursor}
-            onClick={handleFirstPage}
-          >
+          <Button variant="outline" disabled={!hasCursor} onClick={handleFirstPage}>
             <ChevronLeft className="mr-2 h-4 w-4" />
             First Page
           </Button>
@@ -267,16 +377,22 @@ export function EventListClient({ events, view, query, nextCursor, hasMore }: Ev
             Showing {currentList.length} events
           </span>
 
-          <Button
-            variant="outline"
-            disabled={!hasMore}
-            onClick={handleNextPage}
-          >
+          <Button variant="outline" disabled={!hasMore} onClick={handleNextPage}>
             Next Page
             <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       )}
+
+      <BulkActionsBar
+        selectedIds={selectedIds}
+        selectedCount={selectedCount}
+        view={view}
+        onClearSelection={clearSelection}
+        selectedEventNames={selectedEventNames}
+      />
+
+      {hasSelection && <div className="h-20" aria-hidden="true" />}
     </>
   )
 }

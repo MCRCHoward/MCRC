@@ -5,6 +5,7 @@ import { getStorageBucket, adminDb } from '@/lib/firebase-admin'
 import { requireAuth } from '@/lib/custom-auth'
 import { FieldValue } from 'firebase-admin/firestore'
 import type { PostInput } from '@/types'
+import { slugify } from '@/lib/utils/slugify'
 
 /* -------------------------------------------------------------------------- */
 /* Utils & Auth                                                               */
@@ -36,16 +37,6 @@ function coerceTitle(title: string | undefined, html: string | undefined, idx: n
   if (t) return t
   const fromBody = textFromHtml(html).slice(0, 80)
   return fromBody || `Section ${idx + 1}`
-}
-
-function slugify(s: string) {
-  return s
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .slice(0, 80)
 }
 
 function escapeHtml(s: string) {

@@ -50,11 +50,4 @@ export async function uploadEventImage(file: File): Promise<string | undefined> 
   return data?.url as string
 }
 
-export function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .slice(0, 80)
-}
+export { slugify } from '@/lib/utils/slugify'
