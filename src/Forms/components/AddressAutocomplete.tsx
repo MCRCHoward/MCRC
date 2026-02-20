@@ -1,6 +1,6 @@
 'use client'
 
-import * as React from 'react'
+import { useCallback, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import {
   FormControl,
@@ -11,7 +11,11 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Loader2 } from 'lucide-react'
-import type { UseFormReturn } from 'react-hook-form'
+import type { FieldValues, Path, PathValue, UseFormReturn } from 'react-hook-form'
+import {
+  useGooglePlacesAutocomplete,
+  type ParsedAddress,
+} from '@/hooks/useGooglePlacesAutocomplete'
 
 /**
  * Google Maps Places Autocomplete Integration
@@ -32,52 +36,12 @@ import type { UseFormReturn } from 'react-hook-form'
  * in Google Cloud Console: https://console.cloud.google.com/apis/library/places-backend.googleapis.com
  */
 
-// Extend Window interface for Google Maps types
-declare global {
-  interface Window {
-    google: {
-      maps: {
-        places: {
-          Autocomplete: new (
-            input: HTMLInputElement,
-            options?: { types?: string[] },
-          ) => {
-            addListener: (event: string, callback: () => void) => void
-            getPlace: () => {
-              address_components?: Array<{
-                long_name: string
-                short_name: string
-                types: string[]
-              }>
-              formatted_address?: string
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-// Type for Google Places Autocomplete
-type GooglePlacesAutocomplete = {
-  addListener: (event: string, callback: () => void) => void
-  getPlace: () => {
-    address_components?: Array<{
-      long_name: string
-      short_name: string
-      types: string[]
-    }>
-    formatted_address?: string
-  }
-}
-
-interface completeProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>
-  streetAddressFieldName: string
-  cityFieldName: string
-  stateFieldName: string
-  zipCodeFieldName: string
+interface AddressAutocompleteProps<T extends FieldValues = FieldValues> {
+  form: UseFormReturn<T>
+  streetAddressFieldName: Path<T>
+  cityFieldName: Path<T>
+  stateFieldName: Path<T>
+  zipCodeFieldName: Path<T>
   streetAddressLabel?: string
   cityLabel?: string
   stateLabel?: string
@@ -87,50 +51,7 @@ interface completeProps {
   className?: string
 }
 
-/**
- * Parses Google Places address components and extracts address parts
- */
-function parseAddressComponents(
-  addressComponents: Array<{
-    long_name: string
-    short_name: string
-    types: string[]
-  }>,
-): {
-  streetNumber: string
-  streetName: string
-  city: string
-  state: string
-  zipCode: string
-} {
-  const result = {
-    streetNumber: '',
-    streetName: '',
-    city: '',
-    state: '',
-    zipCode: '',
-  }
-
-  for (const component of addressComponents) {
-    const types = component.types
-
-    if (types.includes('street_number')) {
-      result.streetNumber = component.long_name
-    } else if (types.includes('route')) {
-      result.streetName = component.long_name
-    } else if (types.includes('locality')) {
-      result.city = component.long_name
-    } else if (types.includes('administrative_area_level_1')) {
-      result.state = component.short_name // Use short name for state (e.g., "MD" instead of "Maryland")
-    } else if (types.includes('postal_code')) {
-      result.zipCode = component.long_name
-    }
-  }
-
-  return result
-}
-
-export function AddressAutocomplete({
+export function AddressAutocomplete<T extends FieldValues = FieldValues>({
   form,
   streetAddressFieldName,
   cityFieldName,
@@ -143,99 +64,36 @@ export function AddressAutocomplete({
   streetAddressDescription,
   disabled = false,
   className,
-}: completeProps) {
-  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = React.useState(false)
-  const [isInitializing, setIsInitializing] = React.useState(false)
-  const autocompleteRef = React.useRef<GooglePlacesAutocomplete | null>(null)
-  const inputRef = React.useRef<HTMLInputElement | null>(null)
+}: AddressAutocompleteProps<T>) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
-  // Check if Google Maps is loaded
-  React.useEffect(() => {
-    const checkGoogleMaps = () => {
-      if (typeof window !== 'undefined' && window.google?.maps?.places) {
-        setIsGoogleMapsLoaded(true)
-        return true
-      }
-      return false
-    }
-
-    // Check immediately
-    if (checkGoogleMaps()) {
-      return
-    }
-
-    // Poll for Google Maps to load (in case script loads after component mounts)
-    const interval = setInterval(() => {
-      if (checkGoogleMaps()) {
-        clearInterval(interval)
-      }
-    }, 100)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  // Initialize autocomplete when Google Maps is loaded
-  React.useEffect(() => {
-    if (!isGoogleMapsLoaded || !inputRef.current || disabled) {
-      return
-    }
-
-    if (autocompleteRef.current) {
-      return // Already initialized
-    }
-
-    setIsInitializing(true)
-
-    try {
-      const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-        types: ['address'], // Restrict to addresses only
+  const handlePlaceSelect = useCallback(
+    (address: ParsedAddress) => {
+      form.setValue(
+        streetAddressFieldName,
+        address.addressLine1 as PathValue<T, typeof streetAddressFieldName>,
+        { shouldValidate: true },
+      )
+      form.setValue(cityFieldName, address.city as PathValue<T, typeof cityFieldName>, {
+        shouldValidate: true,
       })
-
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace()
-
-        if (!place.address_components) {
-          setIsInitializing(false)
-          return
-        }
-
-        const addressParts = parseAddressComponents(place.address_components)
-
-        // Set form values
-        const streetAddress = [addressParts.streetNumber, addressParts.streetName]
-          .filter(Boolean)
-          .join(' ')
-
-        form.setValue(streetAddressFieldName, streetAddress, { shouldValidate: true })
-        form.setValue(cityFieldName, addressParts.city, { shouldValidate: true })
-        form.setValue(stateFieldName, addressParts.state, { shouldValidate: true })
-        form.setValue(zipCodeFieldName, addressParts.zipCode, { shouldValidate: true })
-
-        setIsInitializing(false)
+      form.setValue(stateFieldName, address.state as PathValue<T, typeof stateFieldName>, {
+        shouldValidate: true,
       })
+      form.setValue(
+        zipCodeFieldName,
+        address.postalCode as PathValue<T, typeof zipCodeFieldName>,
+        { shouldValidate: true },
+      )
+    },
+    [form, streetAddressFieldName, cityFieldName, stateFieldName, zipCodeFieldName],
+  )
 
-      autocompleteRef.current = autocomplete
-      setIsInitializing(false)
-    } catch (error) {
-      console.error('[complete] Error initializing Google Places:', error)
-      setIsInitializing(false)
-    }
-
-    return () => {
-      if (autocompleteRef.current) {
-        // Cleanup if needed
-        autocompleteRef.current = null
-      }
-    }
-  }, [
-    isGoogleMapsLoaded,
-    disabled,
-    form,
-    streetAddressFieldName,
-    cityFieldName,
-    stateFieldName,
-    zipCodeFieldName,
-  ])
+  const { isLoaded: isGoogleMapsLoaded, isInitializing } = useGooglePlacesAutocomplete({
+    inputRef,
+    onPlaceSelect: handlePlaceSelect,
+    enabled: !disabled,
+  })
 
   return (
     <div className={className}>
@@ -267,7 +125,11 @@ export function AddressAutocomplete({
                   value={field.value || ''}
                   onChange={(e) => {
                     field.onChange(e)
-                    form.setValue(streetAddressFieldName, e.target.value, { shouldValidate: true })
+                    form.setValue(
+                      streetAddressFieldName,
+                      e.target.value as PathValue<T, typeof streetAddressFieldName>,
+                      { shouldValidate: true },
+                    )
                   }}
                   onBlur={field.onBlur}
                   name={field.name}
