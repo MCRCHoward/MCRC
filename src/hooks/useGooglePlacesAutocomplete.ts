@@ -2,6 +2,16 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
 
+/**
+ * Shared Google Places Autocomplete hook.
+ *
+ * This hook is the single source of truth for Google Maps typing and
+ * initialization patterns in this project.
+ *
+ * Do not add `declare global { interface Window { google: ... } }` blocks in
+ * feature files. Instead, keep local interface narrowing in this hook and reuse
+ * it from consumers.
+ */
 interface GoogleAddressComponent {
   long_name: string
   short_name: string
