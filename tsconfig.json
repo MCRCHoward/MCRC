@@ -46,6 +46,7 @@
   ],
   "exclude": [
     "node_modules",
-    "firebase-functions"
+    "firebase-functions",
+    "docs"
   ]
 }
