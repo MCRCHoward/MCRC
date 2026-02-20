@@ -13,6 +13,10 @@ import { Link as LinkIcon, Loader2 } from 'lucide-react'
 
 import { createEvent } from '@/app/(frontend)/(cms)/dashboard/events/firebase-actions'
 import { useFormAutoSave } from '@/hooks/useFormAutoSave'
+import {
+  useGooglePlacesAutocomplete,
+  type ParsedAddress,
+} from '@/hooks/useGooglePlacesAutocomplete'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -119,44 +123,6 @@ const schema = baseSchema
 
 type FormValues = z.input<typeof baseSchema>
 
-// Google Maps types
-declare global {
-  interface Window {
-    google: {
-      maps: {
-        places: {
-          Autocomplete: new (
-            input: HTMLInputElement,
-            options?: { types?: string[] },
-          ) => {
-            addListener: (event: string, callback: () => void) => void
-            getPlace: () => {
-              address_components?: Array<{
-                long_name: string
-                short_name: string
-                types: string[]
-              }>
-              formatted_address?: string
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-type GooglePlacesAutocomplete = {
-  addListener: (event: string, callback: () => void) => void
-  getPlace: () => {
-    address_components?: Array<{
-      long_name: string
-      short_name: string
-      types: string[]
-    }>
-    formatted_address?: string
-  }
-}
-
 async function uploadEventImage(file: File): Promise<string | undefined> {
   if (!file) return undefined
   const fd = new FormData()
@@ -176,11 +142,8 @@ export default function NewEventPage() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false)
-  const [isInitializingAddress, setIsInitializingAddress] = useState(false)
   const [showDraftModal, setShowDraftModal] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | undefined>()
-  const addressAutocompleteRef = useRef<GooglePlacesAutocomplete | null>(null)
   const addressInputRef = useRef<HTMLInputElement | null>(null)
 
   const form = useForm<FormValues>({
@@ -243,102 +206,23 @@ export default function NewEventPage() {
   const isFree = form.watch('isFree')
   const title = form.watch('title')
 
-  // Google Maps initialization (same as before)
-  useEffect(() => {
-    const checkGoogleMaps = () => {
-      if (typeof window !== 'undefined' && window.google?.maps?.places) {
-        setIsGoogleMapsLoaded(true)
-        return true
-      }
-      return false
-    }
+  const handlePlaceSelect = useCallback(
+    (address: ParsedAddress) => {
+      form.setValue('addressLine1', address.addressLine1, { shouldValidate: true })
+      form.setValue('city', address.city, { shouldValidate: true })
+      form.setValue('state', address.state, { shouldValidate: true })
+      form.setValue('postalCode', address.postalCode, { shouldValidate: true })
+      form.setValue('country', address.country, { shouldValidate: true })
+    },
+    [form],
+  )
 
-    if (checkGoogleMaps()) {
-      return
-    }
-
-    const interval = setInterval(() => {
-      if (checkGoogleMaps()) {
-        clearInterval(interval)
-      }
-    }, 100)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    if (!isGoogleMapsLoaded || !addressInputRef.current || isOnline) {
-      return
-    }
-
-    if (addressAutocompleteRef.current) {
-      return
-    }
-
-    setIsInitializingAddress(true)
-
-    try {
-      const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-        types: ['address'],
-      })
-
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace()
-
-        if (!place.address_components) {
-          setIsInitializingAddress(false)
-          return
-        }
-
-        let streetNumber = ''
-        let streetName = ''
-        let city = ''
-        let state = ''
-        let postalCode = ''
-        let country = ''
-
-        for (const component of place.address_components) {
-          const types = component.types
-
-          if (types.includes('street_number')) {
-            streetNumber = component.long_name
-          } else if (types.includes('route')) {
-            streetName = component.long_name
-          } else if (types.includes('locality')) {
-            city = component.long_name
-          } else if (types.includes('administrative_area_level_1')) {
-            state = component.short_name
-          } else if (types.includes('postal_code')) {
-            postalCode = component.long_name
-          } else if (types.includes('country')) {
-            country = component.long_name
-          }
-        }
-
-        const addressLine1 = [streetNumber, streetName].filter(Boolean).join(' ')
-
-        form.setValue('addressLine1', addressLine1, { shouldValidate: true })
-        form.setValue('city', city, { shouldValidate: true })
-        form.setValue('state', state, { shouldValidate: true })
-        form.setValue('postalCode', postalCode, { shouldValidate: true })
-        form.setValue('country', country, { shouldValidate: true })
-
-        setIsInitializingAddress(false)
-      })
-
-      addressAutocompleteRef.current = autocomplete
-      setIsInitializingAddress(false)
-    } catch (error) {
-      console.error('[NewEventPage] Error initializing Google Places:', error)
-      setIsInitializingAddress(false)
-    }
-
-    return () => {
-      if (addressAutocompleteRef.current) {
-        addressAutocompleteRef.current = null
-      }
-    }
-  }, [isGoogleMapsLoaded, isOnline, form])
+  const { isLoaded: isGoogleMapsLoaded, isInitializing: isInitializingAddress } =
+    useGooglePlacesAutocomplete({
+      inputRef: addressInputRef,
+      onPlaceSelect: handlePlaceSelect,
+      enabled: !isOnline,
+    })
 
   const handleNext = useCallback(async () => {
     // Validate current step fields

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Edit2, Lock, Globe } from 'lucide-react'
 import { cn } from '@/utilities/ui'
+import { slugify } from '@/lib/utils/slugify'
 
 interface SlugInputProps {
   value: string
@@ -13,15 +14,6 @@ interface SlugInputProps {
   title: string
   baseUrl?: string
   className?: string
-}
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .slice(0, 80)
 }
 
 export function SlugInput({
