@@ -67,17 +67,9 @@ export interface FirestoreEventWritePayload {
   listed: boolean
 }
 
-/**
- * Generates URL-safe slug from a string.
- */
-export function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .slice(0, 80)
-}
+import { slugify } from '@/lib/utils/slugify'
+
+export { slugify }
 
 /**
  * Converts an ISO string to a Firestore Timestamp.
