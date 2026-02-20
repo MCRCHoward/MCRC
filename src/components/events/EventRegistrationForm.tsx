@@ -51,6 +51,7 @@ const registrationSchema = z.object({
 
 export { registrationSchema }
 
+type RegistrationFormInput = z.input<typeof registrationSchema>
 type RegistrationFormValues = z.infer<typeof registrationSchema>
 
 interface EventRegistrationFormProps {
@@ -77,7 +78,7 @@ export function EventRegistrationForm({
   const [showPayPalButtons, setShowPayPalButtons] = useState(false)
   const [formData, setFormData] = useState<EventRegistrationInput | null>(null)
 
-  const form = useForm<RegistrationFormValues>({
+  const form = useForm<RegistrationFormInput, unknown, RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
       name: userName,

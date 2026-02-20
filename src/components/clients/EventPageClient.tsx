@@ -32,7 +32,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
 import type { Event } from '@/types'
 import type { User } from '@/types'
 import { EventRegistrationForm } from '@/components/events/EventRegistrationForm'
