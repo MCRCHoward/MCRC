@@ -13,6 +13,7 @@ export interface Event {
   onlineMeeting?: EventOnlineMeeting
   isFree: boolean
   cost?: EventCost
+  capacity?: number
   isRegistrationRequired: boolean
   externalRegistrationLink?: string
   featuredImage?: string | Media | { url: string; alt?: string }
