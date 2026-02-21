@@ -47,7 +47,31 @@ export async function syncInquiryWithInsightlyAction({
 
   const data = docSnapshot.data()
   const formType = data?.formType as FormType | undefined
-  console.log('[Insightly] Inquiry data retrieved', { formType, hasFormData: !!data?.formData })
+  const existingLeadId = data?.insightlyLeadId as number | undefined
+  const currentStatus = data?.insightlySyncStatus as string | undefined
+
+  console.log('[Insightly] Inquiry data retrieved', {
+    formType,
+    hasFormData: !!data?.formData,
+    existingLeadId,
+    currentStatus,
+  })
+
+  if (typeof existingLeadId === 'number' && existingLeadId > 0) {
+    if (currentStatus !== 'success') {
+      console.log('[Insightly] Reconciling: lead exists but status is not success', {
+        inquiryId,
+        existingLeadId,
+        currentStatus,
+      })
+      await updateInsightlySyncFields(serviceArea, inquiryId, {
+        insightlySyncStatus: 'success',
+        insightlyLastSyncError: null,
+      })
+      revalidateInquiry(serviceArea, inquiryId)
+    }
+    return { success: true, leadId: existingLeadId }
+  }
 
   if (!formType || !SUPPORTED_FORM_TYPES.includes(formType)) {
     console.error('[Insightly] Form type not supported', {

@@ -13,6 +13,22 @@ type InquiryDocData = Record<string, unknown> & {
   formData?: Record<string, unknown>
 }
 
+function syncLog(
+  level: 'info' | 'warn' | 'error',
+  stage: string,
+  ctx: { inquiryId: string; serviceArea: string; formType?: string },
+  extra?: Record<string, unknown>,
+): void {
+  const payload = { ...ctx, stage, ...extra }
+  if (level === 'error') {
+    console.error(`[functions][insightly] ${stage}`, payload)
+  } else if (level === 'warn') {
+    console.warn(`[functions][insightly] ${stage}`, payload)
+  } else {
+    console.log(`[functions][insightly] ${stage}`, payload)
+  }
+}
+
 export async function runInsightlySyncForInquiry(params: {
   db: FirebaseFirestore.Firestore
   inquiryId: string
@@ -22,10 +38,11 @@ export async function runInsightlySyncForInquiry(params: {
   const { db, inquiryId, serviceArea } = params
   const data = params.data as InquiryDocData
 
-  const formType = data.formType
+  const formType = data.formType ?? 'unknown'
+  const logCtx = { inquiryId, serviceArea, formType }
   const docRef = db.doc(`serviceAreas/${serviceArea}/inquiries/${inquiryId}`)
 
-  // Mark pending up-front so CMS can show progress.
+  syncLog('info', 'pending-set', logCtx)
   await docRef.set(
     {
       insightlySyncStatus: 'pending',
@@ -36,6 +53,7 @@ export async function runInsightlySyncForInquiry(params: {
   )
 
   try {
+    syncLog('info', 'payload-build-start', logCtx)
     const hydrated = hydrateFormDataFromFirestore((data.formData ?? {}) as Record<string, unknown>)
 
     let payload
@@ -48,13 +66,14 @@ export async function runInsightlySyncForInquiry(params: {
         typeof buildRestorativeReferralLeadPayload
       >[0])
     } else {
-      // Unsupported; leave pending state as-is? Prefer to mark failed with message.
-      throw new Error(`[Insightly] Unsupported formType: ${String(formType)}`)
+      throw new Error(`Unsupported formType: ${formType}`)
     }
 
     validateLeadPayload(payload)
+    syncLog('info', 'api-call-start', logCtx)
     const lead = await createInsightlyLead(payload)
 
+    syncLog('info', 'success-write', logCtx, { leadId: lead.LEAD_ID })
     await docRef.set(
       {
         insightlyLeadId: lead.LEAD_ID,
@@ -66,14 +85,14 @@ export async function runInsightlySyncForInquiry(params: {
       { merge: true },
     )
 
-    console.log('[functions][insightly] Sync succeeded', {
-      inquiryId,
-      serviceArea,
-      leadId: lead.LEAD_ID,
-    })
+    syncLog('info', 'sync-complete', logCtx, { leadId: lead.LEAD_ID })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 
+    syncLog('error', 'failure-write', logCtx, {
+      error: message,
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     await docRef.set(
       {
         insightlySyncStatus: 'failed',
@@ -82,8 +101,6 @@ export async function runInsightlySyncForInquiry(params: {
       },
       { merge: true },
     )
-
-    console.error('[functions][insightly] Sync failed', { inquiryId, serviceArea, error: message })
   }
 }
 

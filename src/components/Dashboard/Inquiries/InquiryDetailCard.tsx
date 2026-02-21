@@ -390,21 +390,31 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
                 const isPending = inquiry.insightlySyncStatus === 'pending'
                 const isFailed = inquiry.insightlySyncStatus === 'failed'
 
-                const buttonDisabled = syncingInsightly || isLeadCreated || isPending
+                const STALE_THRESHOLD_MS = 5 * 60 * 1000
+                const pendingTimestamp = inquiry.insightlyLastSyncedAt ?? inquiry.submittedAt
+                const isStalePending =
+                  isPending &&
+                  !!pendingTimestamp &&
+                  Date.now() - new Date(pendingTimestamp).getTime() > STALE_THRESHOLD_MS
+
+                const buttonDisabled =
+                  syncingInsightly || isLeadCreated || (isPending && !isStalePending)
                 const buttonText = isLeadCreated
                   ? 'Lead Created ✓'
-                  : isPending
-                    ? 'Sync Pending...'
-                    : syncingInsightly
-                      ? 'Creating...'
-                      : isFailed
-                        ? 'Retry Sync'
-                        : 'Create Insightly Lead'
+                  : syncingInsightly
+                    ? 'Creating...'
+                    : isStalePending
+                      ? 'Retry Stale Sync'
+                      : isPending
+                        ? 'Sync Pending...'
+                        : isFailed
+                          ? 'Retry Sync'
+                          : 'Create Insightly Lead'
 
                 return (
                   <>
                     <Button onClick={handleSyncInsightly} disabled={buttonDisabled}>
-                      {(syncingInsightly || isPending) && !isLeadCreated ? (
+                      {(syncingInsightly || (isPending && !isStalePending)) && !isLeadCreated ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : null}
                       {buttonText}
@@ -412,6 +422,11 @@ export function InquiryDetailCard({ inquiry, serviceArea }: InquiryDetailCardPro
                     {isLeadCreated ? (
                       <p className="text-xs text-muted-foreground">
                         Lead already exists in Insightly. Creating another would result in a duplicate.
+                      </p>
+                    ) : null}
+                    {isStalePending ? (
+                      <p className="text-xs text-amber-600">
+                        Sync has been pending for over 5 minutes. You can retry manually.
                       </p>
                     ) : null}
                   </>

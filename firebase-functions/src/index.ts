@@ -203,14 +203,15 @@ export const onInquiryCreatedInsightly = onDocumentCreated(
   {
     document: 'serviceAreas/{serviceId}/inquiries/{inquiryId}',
     region: 'us-central1',
-    // Keep retries off initially to avoid duplicate-lead creation risk.
-    // We can enable retries after adding explicit idempotency.
     retry: false,
     secrets: [INSIGHTLY_API_KEY_SECRET],
   },
   async (event) => {
     const data = event.data?.data()
-    if (!data) return
+    if (!data) {
+      console.warn('[functions][insightly] Trigger fired with no document data, skipping')
+      return
+    }
 
     const serviceArea = event.params.serviceId as string
     const inquiryId = event.params.inquiryId as string
@@ -219,22 +220,53 @@ export const onInquiryCreatedInsightly = onDocumentCreated(
     const supported =
       formType === 'mediation-self-referral' || formType === 'restorative-program-referral'
     if (!supported) {
+      console.log('[functions][insightly] Unsupported formType, skipping', { inquiryId, formType })
       return
     }
 
-    // If we already have a lead ID, treat it as completed for idempotency.
     if (typeof data.insightlyLeadId === 'number' && data.insightlyLeadId > 0) {
+      console.log('[functions][insightly] Lead already exists, skipping', {
+        inquiryId,
+        leadId: data.insightlyLeadId,
+      })
       return
     }
 
     console.log('[functions][insightly] New inquiry detected', { inquiryId, serviceArea, formType })
 
-    await runInsightlySyncForInquiry({
-      db,
-      inquiryId,
-      serviceArea,
-      data,
-    })
+    try {
+      await runInsightlySyncForInquiry({
+        db,
+        inquiryId,
+        serviceArea,
+        data,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('[functions][insightly] Unhandled error in trigger wrapper', {
+        inquiryId,
+        serviceArea,
+        formType,
+        error: message,
+        stack: error instanceof Error ? error.stack : undefined,
+      })
+
+      try {
+        await db.doc(`serviceAreas/${serviceArea}/inquiries/${inquiryId}`).set(
+          {
+            insightlySyncStatus: 'failed',
+            insightlyLastSyncError: `Trigger error: ${message}`,
+            insightlyLastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        )
+      } catch (writeError) {
+        console.error('[functions][insightly] Failed to write failure status after trigger error', {
+          inquiryId,
+          writeError: writeError instanceof Error ? writeError.message : String(writeError),
+        })
+      }
+    }
   },
 )
 
