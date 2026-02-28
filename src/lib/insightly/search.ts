@@ -280,60 +280,145 @@ async function getLeadStatusName(statusId: number | null): Promise<string> {
   return leadStatusCache[statusId] || 'Unknown'
 }
 
+// =============================================================================
+// Client-Side OR Matching Filter
+// =============================================================================
+
 /**
- * Search for Leads by name
- * Uses the Insightly search API
+ * Filter leads to only include those where at least one field matches.
+ * Uses OR logic: firstName OR lastName OR email must match (case-insensitive).
+ *
+ * @param leads - Array of leads to filter
+ * @param searchFirstName - First name from search input
+ * @param searchLastName - Last name from search input
+ * @param searchEmail - Email from search input (optional)
+ * @returns Filtered array of matching leads
+ */
+export function filterMatchingLeads(
+  leads: LeadSearchResult[],
+  searchFirstName: string,
+  searchLastName: string,
+  searchEmail?: string,
+): LeadSearchResult[] {
+  const normalizedSearchFirst = searchFirstName?.trim().toLowerCase() || ''
+  const normalizedSearchLast = searchLastName?.trim().toLowerCase() || ''
+  const normalizedSearchEmail = searchEmail?.trim().toLowerCase() || ''
+
+  return leads.filter((lead) => {
+    const leadFirst = lead.firstName?.trim().toLowerCase() || ''
+    const leadLast = lead.lastName?.trim().toLowerCase() || ''
+    const leadEmail = lead.email?.trim().toLowerCase() || ''
+
+    // Match if ANY of the following are true (OR logic):
+    const firstNameMatches =
+      normalizedSearchFirst !== '' &&
+      leadFirst !== '' &&
+      leadFirst === normalizedSearchFirst
+
+    const lastNameMatches =
+      normalizedSearchLast !== '' &&
+      leadLast !== '' &&
+      leadLast === normalizedSearchLast
+
+    const emailMatches =
+      normalizedSearchEmail !== '' &&
+      leadEmail !== '' &&
+      leadEmail === normalizedSearchEmail
+
+    return firstNameMatches || lastNameMatches || emailMatches
+  })
+}
+
+// =============================================================================
+// Lead Search
+// =============================================================================
+
+/**
+ * Search for Leads by first name OR last name (separate queries).
+ *
+ * Makes separate API calls to achieve OR matching:
+ * - GET /Leads?first_name={firstName}&top=50&brief=false
+ * - GET /Leads?last_name={lastName}&top=50&brief=false
+ *
+ * Returns the union of results, deduplicated by leadId.
  */
 export async function searchLeadsByName(
   firstName: string,
   lastName: string,
 ): Promise<LeadSearchResult[]> {
-  try {
-    const params = new URLSearchParams()
-
-    if (firstName && lastName) {
-      params.set('first_name', firstName)
-      params.set('last_name', lastName)
-    } else if (lastName) {
-      params.set('last_name', lastName)
-    } else if (firstName) {
-      params.set('first_name', firstName)
-    } else {
-      return []
-    }
-
-    params.set('top', '20')
-    params.set('brief', 'false')
-
-    const leads = await insightlyRequest<InsightlyLead[]>(
-      `/Leads?${params.toString()}`,
-    )
-
-    const results: LeadSearchResult[] = []
-
-    for (const lead of leads) {
-      const statusName = await getLeadStatusName(lead.LEAD_STATUS_ID)
-
-      results.push({
-        leadId: lead.LEAD_ID,
-        firstName: lead.FIRST_NAME || '',
-        lastName: lead.LAST_NAME || '',
-        fullName:
-          [lead.FIRST_NAME, lead.LAST_NAME].filter(Boolean).join(' ') || 'Unknown',
-        email: lead.EMAIL || undefined,
-        phone: lead.PHONE || undefined,
-        leadStatus: statusName,
-        leadUrl: buildLeadUrl(lead.LEAD_ID),
-        createdAt: lead.DATE_CREATED_UTC,
-        tags: lead.TAGS?.map((t) => t.TAG_NAME),
-      })
-    }
-
-    return results
-  } catch (error) {
-    console.error('[Insightly] Error searching leads:', error)
-    throw error
+  // Short-circuit if no name provided
+  if (!firstName && !lastName) {
+    return []
   }
+
+  const allMatches: LeadSearchResult[] = []
+  const seenIds = new Set<number>()
+
+  // Helper to convert Insightly lead to our result type
+  const mapLead = async (lead: InsightlyLead): Promise<LeadSearchResult> => {
+    const statusName = await getLeadStatusName(lead.LEAD_STATUS_ID)
+    return {
+      leadId: lead.LEAD_ID,
+      firstName: lead.FIRST_NAME || '',
+      lastName: lead.LAST_NAME || '',
+      fullName:
+        [lead.FIRST_NAME, lead.LAST_NAME].filter(Boolean).join(' ') || 'Unknown',
+      email: lead.EMAIL || undefined,
+      phone: lead.PHONE || undefined,
+      leadStatus: statusName,
+      leadUrl: buildLeadUrl(lead.LEAD_ID),
+      createdAt: lead.DATE_CREATED_UTC,
+      tags: lead.TAGS?.map((t) => t.TAG_NAME),
+    }
+  }
+
+  // Helper to add results without duplicates
+  const addResults = async (leads: InsightlyLead[]) => {
+    for (const lead of leads) {
+      if (!seenIds.has(lead.LEAD_ID)) {
+        seenIds.add(lead.LEAD_ID)
+        allMatches.push(await mapLead(lead))
+      }
+    }
+  }
+
+  // Search by first name only (if provided)
+  if (firstName) {
+    try {
+      const params = new URLSearchParams()
+      params.set('first_name', firstName)
+      params.set('top', '50')
+      params.set('brief', 'false')
+
+      const leads = await insightlyRequest<InsightlyLead[]>(
+        `/Leads?${params.toString()}`,
+      )
+      await addResults(leads)
+    } catch (error) {
+      console.error('[Insightly] First name search failed:', error)
+      // Continue - don't fail the entire search
+    }
+  }
+
+  // Search by last name only (if provided)
+  if (lastName) {
+    try {
+      const params = new URLSearchParams()
+      params.set('last_name', lastName)
+      params.set('top', '50')
+      params.set('brief', 'false')
+
+      const leads = await insightlyRequest<InsightlyLead[]>(
+        `/Leads?${params.toString()}`,
+      )
+      await addResults(leads)
+    } catch (error) {
+      console.error('[Insightly] Last name search failed:', error)
+      // Continue - don't fail the entire search
+    }
+  }
+
+  return allMatches
 }
 
 /**
@@ -380,8 +465,11 @@ export async function searchLeadsByEmail(email: string): Promise<LeadSearchResul
 }
 
 /**
- * Check for potential duplicate Leads
- * Searches by name and optionally by email
+ * Check for potential duplicate Leads.
+ *
+ * Uses OR logic: returns leads where firstName OR lastName OR email matches.
+ * Makes separate API calls for each search term to maximize recall,
+ * then filters client-side to ensure at least one field actually matches.
  */
 export async function checkForDuplicates(
   name: string,
@@ -391,40 +479,51 @@ export async function checkForDuplicates(
   const firstName = nameParts[0] || ''
   const lastName = nameParts.slice(1).join(' ') || ''
 
-  const allMatches: LeadSearchResult[] = []
+  const allApiResults: LeadSearchResult[] = []
   const seenIds = new Set<number>()
 
+  // Helper to add results without duplicates
+  const addResults = (results: LeadSearchResult[]) => {
+    for (const match of results) {
+      if (!seenIds.has(match.leadId)) {
+        seenIds.add(match.leadId)
+        allApiResults.push(match)
+      }
+    }
+  }
+
+  // Search by name (firstName OR lastName via separate calls)
   if (firstName || lastName) {
     try {
       const nameMatches = await searchLeadsByName(firstName, lastName)
-      for (const match of nameMatches) {
-        if (!seenIds.has(match.leadId)) {
-          seenIds.add(match.leadId)
-          allMatches.push(match)
-        }
-      }
+      addResults(nameMatches)
     } catch (error) {
       console.error('[Insightly] Name search failed:', error)
     }
   }
 
+  // Search by email
   if (email) {
     try {
       const emailMatches = await searchLeadsByEmail(email)
-      for (const match of emailMatches) {
-        if (!seenIds.has(match.leadId)) {
-          seenIds.add(match.leadId)
-          allMatches.push(match)
-        }
-      }
+      addResults(emailMatches)
     } catch (error) {
       console.error('[Insightly] Email search failed:', error)
     }
   }
 
+  // Apply client-side filtering to ensure at least one field actually matches
+  // This is critical for C.4: API may return partial matches that don't meet our criteria
+  const filteredMatches = filterMatchingLeads(
+    allApiResults,
+    firstName,
+    lastName,
+    email,
+  )
+
   return {
-    hasPotentialDuplicates: allMatches.length > 0,
-    matches: allMatches,
+    hasPotentialDuplicates: filteredMatches.length > 0,
+    matches: filteredMatches,
     searchedName: name,
   }
 }
