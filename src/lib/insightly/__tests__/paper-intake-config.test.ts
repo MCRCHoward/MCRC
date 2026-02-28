@@ -7,7 +7,9 @@ import {
   EXISTING_LEAD_SOURCES,
   LEAD_SOURCES_TO_CREATE,
   REFERRAL_TO_LEAD_SOURCE,
+  REFERRAL_TO_INSIGHTLY_SOURCE,
   DISPUTE_TYPE_TO_CASE_TYPE,
+  DISPUTE_TYPE_TO_CASE_SUBTYPE,
   buildLeadTags,
   buildLeadUrl,
   buildCaseUrl,
@@ -65,10 +67,29 @@ describe('Paper Intake Config', () => {
     })
   })
 
+  describe('Referral to Insightly Source Mapping', () => {
+    it('should map referral sources to valid Insightly Referral_Source__c values', () => {
+      expect(REFERRAL_TO_INSIGHTLY_SOURCE['District Court']).toBe(
+        'District Court ADR Pre-Trial',
+      )
+      expect(REFERRAL_TO_INSIGHTLY_SOURCE['Circuit Court']).toBe('Circuit Court Civil')
+      expect(REFERRAL_TO_INSIGHTLY_SOURCE['Law Enforcement']).toBe('Police Department')
+    })
+  })
+
   describe('Dispute Type Mapping', () => {
-    it('should map dispute types to case type values', () => {
-      expect(DISPUTE_TYPE_TO_CASE_TYPE['Landlord/Tenant']).toBe('Landlord/Tenant')
-      expect(DISPUTE_TYPE_TO_CASE_TYPE.Neighbor).toBe('Neighbor')
+    it('should map dispute types to case type values (broad category)', () => {
+      expect(DISPUTE_TYPE_TO_CASE_TYPE['Landlord/Tenant']).toBe('Community')
+      expect(DISPUTE_TYPE_TO_CASE_TYPE.Neighbor).toBe('Community')
+      expect(DISPUTE_TYPE_TO_CASE_TYPE['Parenting Plan']).toBe(
+        'Co-parenting/Parenting Plan',
+      )
+    })
+
+    it('should map dispute types to case subtype values (specific)', () => {
+      expect(DISPUTE_TYPE_TO_CASE_SUBTYPE['Landlord/Tenant']).toBe('Landlord/Tenant')
+      expect(DISPUTE_TYPE_TO_CASE_SUBTYPE.Neighbor).toBe('Neighbor Dispute')
+      expect(DISPUTE_TYPE_TO_CASE_SUBTYPE['Employment/EEO']).toBe('Workplace')
     })
   })
 

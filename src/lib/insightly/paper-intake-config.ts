@@ -113,6 +113,7 @@ export const LEAD_SOURCES_TO_CREATE = [
 /**
  * Map paper form referral source to Insightly Lead Source name
  * Some sources map to existing ones, others need to be created
+ * Used for LEAD_SOURCE_ID on Lead records only
  */
 export const REFERRAL_TO_LEAD_SOURCE: Record<ReferralSource, string> = {
   'Staff/Volunteer': 'Staff/Volunteer',
@@ -126,6 +127,26 @@ export const REFERRAL_TO_LEAD_SOURCE: Record<ReferralSource, string> = {
   'Circuit Court': 'Circuit Court',
   Outreach: 'Outreach', // Maps to existing
   Other: 'Other', // Maps to existing
+}
+
+/**
+ * Map paper form referral source → Insightly Referral_Source__c dropdown values
+ *
+ * This is DIFFERENT from REFERRAL_TO_LEAD_SOURCE (Lead Source IDs).
+ * The Opportunity custom field has its own set of valid dropdown values.
+ */
+export const REFERRAL_TO_INSIGHTLY_SOURCE: Record<ReferralSource, string> = {
+  'Staff/Volunteer': 'Other',
+  'Government Agency': 'Government Agency',
+  'Previous Client': 'Former Participant/User of Services',
+  "State's Attorney": "State Attorney's Office",
+  'Community Organization': 'Community Organization',
+  'Law Enforcement': 'Police Department',
+  'Professional Referral': 'Private Practitioner',
+  'District Court': 'District Court ADR Pre-Trial',
+  'Circuit Court': 'Circuit Court Civil',
+  Outreach: 'Outreach/Publicity',
+  Other: 'Other',
 }
 
 // =============================================================================
@@ -150,26 +171,49 @@ export const CASE_CUSTOM_FIELDS = {
 } as const
 
 /**
- * Map dispute type to Insightly Mediation_Case_Type__c dropdown values
- * Note: These must match exactly what's configured in Insightly
+ * Map paper form dispute type → Insightly Mediation_Case_Type__c dropdown values
+ * (Broad category only - valid values: Community, Family, Co-parenting/Parenting Plan, School, etc.)
  */
 export const DISPUTE_TYPE_TO_CASE_TYPE: Record<DisputeType, string> = {
-  'Business/Contract': 'Business/Contract',
-  'Employment/EEO': 'Employment/EEO',
-  'Landlord/Tenant': 'Landlord/Tenant',
+  'Business/Contract': 'Community',
+  'Employment/EEO': 'Community',
+  'Landlord/Tenant': 'Community',
   'Parenting Plan': 'Co-parenting/Parenting Plan',
   Community: 'Community',
   Family: 'Family',
-  Medical: 'Medical',
-  Roommate: 'Roommate',
-  Divorce: 'Divorce',
-  Insurance: 'Insurance',
-  Neighbor: 'Neighbor',
+  Medical: 'Community',
+  Roommate: 'Community',
+  Divorce: 'Family',
+  Insurance: 'Community',
+  Neighbor: 'Community',
   School: 'School',
-  ElderCare: 'ElderCare',
-  Juvenile: 'Juvenile',
-  'Parent/Child': 'Parent/Child',
-  Separation: 'Separation',
+  ElderCare: 'Family',
+  Juvenile: 'Family',
+  'Parent/Child': 'Family',
+  Separation: 'Family',
+}
+
+/**
+ * Map paper form dispute type → Insightly Mediation_Case_Subtype__c dropdown values
+ * (Specific type - valid values: Business/Contract, Landlord/Tenant, Neighbor Dispute, etc.)
+ */
+export const DISPUTE_TYPE_TO_CASE_SUBTYPE: Record<DisputeType, string> = {
+  'Business/Contract': 'Business/Contract',
+  'Employment/EEO': 'Workplace',
+  'Landlord/Tenant': 'Landlord/Tenant',
+  'Parenting Plan': 'Parenting Plan',
+  Community: 'Interpersonal Dispute',
+  Family: 'Family',
+  Medical: 'Medical',
+  Roommate: 'Interpersonal Dispute',
+  Divorce: 'Divorce/Separation',
+  Insurance: 'Personal Debt',
+  Neighbor: 'Neighbor Dispute',
+  School: 'Nothing Selected',
+  ElderCare: 'Elder Care',
+  Juvenile: 'Family',
+  'Parent/Child': 'Family',
+  Separation: 'Divorce/Separation',
 }
 
 /**
