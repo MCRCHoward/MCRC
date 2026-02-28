@@ -289,6 +289,33 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
   }
 
   // ==========================================================================
+  // Form Keyboard Handling
+  // ==========================================================================
+
+  const handleFormKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLFormElement>) => {
+      // Allow Enter in textareas (for newlines)
+      if ((e.target as HTMLElement).tagName === 'TEXTAREA') {
+        return
+      }
+
+      // Prevent Enter from submitting the form
+      // Only explicit clicks on the submit button should submit
+      if (e.key === 'Enter') {
+        const target = e.target as HTMLElement
+        const isSubmitButton =
+          target.tagName === 'BUTTON' &&
+          target.getAttribute('type') === 'submit'
+
+        if (!isSubmitButton) {
+          e.preventDefault()
+        }
+      }
+    },
+    [],
+  )
+
+  // ==========================================================================
   // Render
   // ==========================================================================
 
@@ -297,6 +324,7 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
       <form
         ref={formRef}
         onSubmit={form.handleSubmit(onSubmit)}
+        onKeyDown={handleFormKeyDown}
         className="space-y-8"
         aria-busy={isSubmitting}
       >

@@ -654,46 +654,46 @@ export function PaperIntakeHistoryTable({ intakes }: PaperIntakeHistoryTableProp
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <Collapsible
-                  key={row.id}
-                  open={expandedId === row.original.id}
-                  onOpenChange={(open) => setExpandedId(open ? row.original.id : null)}
-                  asChild
-                >
-                  <>
-                    <TableRow
-                      className={cn(
-                        'cursor-pointer hover:bg-muted/50',
-                        expandedId === row.original.id && 'bg-muted/50'
-                      )}
-                      onClick={() =>
-                        setExpandedId(expandedId === row.original.id ? null : row.original.id)
-                      }
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
+              <Collapsible
+                key={row.id}
+                open={expandedId === row.original.id}
+                onOpenChange={(open) => setExpandedId(open ? row.original.id : null)}
+                asChild
+              >
+                <tbody className="[&_tr:last-child]:border-0">
+                  <TableRow
+                    className={cn(
+                      'cursor-pointer hover:bg-muted/50',
+                      expandedId === row.original.id && 'bg-muted/50'
+                    )}
+                    onClick={() =>
+                      setExpandedId(expandedId === row.original.id ? null : row.original.id)
+                    }
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  <CollapsibleContent asChild>
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={columns.length} className="p-0">
+                        <ExpandedRowContent
+                          intake={row.original}
+                          onRetry={() => handleRetry(row.original.id)}
+                          isRetrying={retryingId === row.original.id}
+                        />
+                      </TableCell>
                     </TableRow>
-                    <CollapsibleContent asChild>
-                      <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={columns.length} className="p-0">
-                          <ExpandedRowContent
-                            intake={row.original}
-                            onRetry={() => handleRetry(row.original.id)}
-                            isRetrying={retryingId === row.original.id}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    </CollapsibleContent>
-                  </>
-                </Collapsible>
-              ))
-            ) : (
+                  </CollapsibleContent>
+                </tbody>
+              </Collapsible>
+            ))
+          ) : (
+            <TableBody>
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   <div className="flex flex-col items-center justify-center">
@@ -705,8 +705,8 @@ export function PaperIntakeHistoryTable({ intakes }: PaperIntakeHistoryTableProp
                   </div>
                 </TableCell>
               </TableRow>
-            )}
-          </TableBody>
+            </TableBody>
+          )}
         </Table>
       </div>
 
