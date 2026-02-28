@@ -15,8 +15,10 @@ import {
   DEFAULT_CASE_STAGE_ID,
   CASE_CUSTOM_FIELDS,
   DISPUTE_TYPE_TO_CASE_TYPE,
+  DISPUTE_TYPE_TO_CASE_SUBTYPE,
   SESSION_TYPE_MEDIATION,
   REFERRAL_TO_LEAD_SOURCE,
+  REFERRAL_TO_INSIGHTLY_SOURCE,
   buildLeadTags,
 } from './paper-intake-config'
 import { getLeadSourceId } from './search'
@@ -369,19 +371,29 @@ export function buildCasePayload(intake: PaperIntake): InsightlyOpportunityPaylo
     }
   }
 
+  // Referral Source - Map to Insightly's Referral_Source__c dropdown values
   if (intake.referralSource) {
+    const insightlySource = REFERRAL_TO_INSIGHTLY_SOURCE[intake.referralSource]
     customFields.push({
       FIELD_NAME: CASE_CUSTOM_FIELDS.REFERRAL_SOURCE,
-      FIELD_VALUE: intake.referralSource,
+      FIELD_VALUE: insightlySource,
     })
   }
 
+  // Dispute Type - Map to both Case Type (broad category) and Subtype (specific)
   if (intake.disputeType) {
     const caseType = DISPUTE_TYPE_TO_CASE_TYPE[intake.disputeType]
     if (caseType) {
       customFields.push({
         FIELD_NAME: CASE_CUSTOM_FIELDS.MEDIATION_CASE_TYPE,
         FIELD_VALUE: caseType,
+      })
+    }
+    const caseSubtype = DISPUTE_TYPE_TO_CASE_SUBTYPE[intake.disputeType]
+    if (caseSubtype) {
+      customFields.push({
+        FIELD_NAME: CASE_CUSTOM_FIELDS.MEDIATION_CASE_SUBTYPE,
+        FIELD_VALUE: caseSubtype,
       })
     }
   }

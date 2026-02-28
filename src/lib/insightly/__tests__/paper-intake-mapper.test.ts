@@ -142,7 +142,17 @@ describe('Paper Intake Mapper', () => {
       const referralField = payload.CUSTOMFIELDS.find(
         (f) => f.FIELD_NAME === 'Referral_Source__c',
       )
-      expect(referralField?.FIELD_VALUE).toBe('District Court')
+      expect(referralField?.FIELD_VALUE).toBe('District Court ADR Pre-Trial')
+
+      const caseTypeField = payload.CUSTOMFIELDS.find(
+        (f) => f.FIELD_NAME === 'Mediation_Case_Type__c',
+      )
+      expect(caseTypeField?.FIELD_VALUE).toBe('Community')
+
+      const caseSubtypeField = payload.CUSTOMFIELDS.find(
+        (f) => f.FIELD_NAME === 'Mediation_Case_Subtype__c',
+      )
+      expect(caseSubtypeField?.FIELD_VALUE).toBe('Neighbor Dispute')
     })
 
     it('should include dispute description in details', () => {
