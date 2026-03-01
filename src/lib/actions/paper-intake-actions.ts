@@ -830,6 +830,7 @@ export async function updatePaperIntake(
 
     revalidatePath('/dashboard/mediation/data-entry')
     revalidatePath('/dashboard/mediation/data-entry/history')
+    revalidatePath(`/dashboard/mediation/data-entry/edit/${intakeId}`)
 
     return { success: true, intake: updatedIntake }
   } catch (error) {

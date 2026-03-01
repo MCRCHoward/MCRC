@@ -21,6 +21,7 @@ import {
   INCOME_RANGES,
   EDUCATION_LEVELS,
   MILITARY_STATUSES,
+  type PaperIntake,
 } from '@/types/paper-intake'
 
 // =============================================================================
@@ -277,3 +278,132 @@ export const DEFAULT_FORM_VALUES = {
   },
   staffNotes: undefined,
 } satisfies PaperIntakeFormValues
+
+// =============================================================================
+// Edit Mode Helpers
+// =============================================================================
+
+/**
+ * Convert a PaperIntake document to form values for edit mode.
+ *
+ * This handles the mapping between Firestore document shape and
+ * react-hook-form values:
+ * - Converts undefined to empty strings for required text inputs
+ * - Uses undefined for optionalString fields (participantNumber, firstName, lastName)
+ * - Sets hasParticipant2 boolean based on P2 presence
+ * - Excludes sync status and timestamp fields (not editable)
+ *
+ * @param intake - The PaperIntake document from Firestore
+ * @returns Form values compatible with PaperIntakeFormValues
+ */
+export function convertIntakeToFormValues(intake: PaperIntake): PaperIntakeFormValues {
+  const hasParticipant2 = Boolean(intake.participant2?.name?.trim())
+
+  return {
+    caseNumber: intake.caseNumber ?? '',
+    intakeDate: intake.intakeDate,
+    intakePerson: intake.intakePerson ?? '',
+    referralSource: intake.referralSource,
+    isCourtOrdered: intake.isCourtOrdered,
+    magistrateJudge: intake.magistrateJudge ?? '',
+
+    disputeType: intake.disputeType,
+    disputeDescription: intake.disputeDescription,
+    hasParticipant2,
+
+    participant1: {
+      participantNumber: intake.participant1.participantNumber ?? undefined,
+      name: intake.participant1.name,
+      firstName: intake.participant1.firstName ?? undefined,
+      lastName: intake.participant1.lastName ?? undefined,
+      email: intake.participant1.email ?? '',
+      phone: intake.participant1.phone ?? '',
+      homePhone: intake.participant1.homePhone ?? '',
+      address: {
+        street: intake.participant1.address?.street ?? '',
+        city: intake.participant1.address?.city ?? '',
+        state: intake.participant1.address?.state ?? '',
+        zipCode: intake.participant1.address?.zipCode ?? '',
+      },
+      canSendJointEmail: intake.participant1.canSendJointEmail ?? false,
+      attorney: intake.participant1.attorney ?? '',
+      bestCallTime: intake.participant1.bestCallTime ?? '',
+      bestMeetTime: intake.participant1.bestMeetTime ?? '',
+      demographics: {
+        gender: intake.participant1.demographics?.gender,
+        race: intake.participant1.demographics?.race,
+        ageRange: intake.participant1.demographics?.ageRange,
+        income: intake.participant1.demographics?.income,
+        education: intake.participant1.demographics?.education,
+        militaryStatus: intake.participant1.demographics?.militaryStatus,
+      },
+    },
+
+    participant2: intake.participant2
+      ? {
+          participantNumber: intake.participant2.participantNumber ?? undefined,
+          name: intake.participant2.name,
+          firstName: intake.participant2.firstName ?? undefined,
+          lastName: intake.participant2.lastName ?? undefined,
+          email: intake.participant2.email ?? '',
+          phone: intake.participant2.phone ?? '',
+          homePhone: intake.participant2.homePhone ?? '',
+          address: {
+            street: intake.participant2.address?.street ?? '',
+            city: intake.participant2.address?.city ?? '',
+            state: intake.participant2.address?.state ?? '',
+            zipCode: intake.participant2.address?.zipCode ?? '',
+          },
+          canSendJointEmail: intake.participant2.canSendJointEmail ?? false,
+          attorney: intake.participant2.attorney ?? '',
+          bestCallTime: intake.participant2.bestCallTime ?? '',
+          bestMeetTime: intake.participant2.bestMeetTime ?? '',
+          demographics: {
+            gender: intake.participant2.demographics?.gender,
+            race: intake.participant2.demographics?.race,
+            ageRange: intake.participant2.demographics?.ageRange,
+            income: intake.participant2.demographics?.income,
+            education: intake.participant2.demographics?.education,
+            militaryStatus: intake.participant2.demographics?.militaryStatus,
+          },
+        }
+      : {
+          participantNumber: undefined,
+          name: '',
+          firstName: undefined,
+          lastName: undefined,
+          email: '',
+          phone: '',
+          homePhone: '',
+          address: {
+            street: '',
+            city: '',
+            state: 'MD', // Match create mode default
+            zipCode: '',
+          },
+          canSendJointEmail: false,
+          attorney: '',
+          bestCallTime: '',
+          bestMeetTime: '',
+          demographics: {},
+        },
+
+    phoneChecklist: {
+      explainedProcess: intake.phoneChecklist.explainedProcess,
+      explainedNeutrality: intake.phoneChecklist.explainedNeutrality,
+      explainedConfidentiality: intake.phoneChecklist.explainedConfidentiality,
+      policeInvolvement: intake.phoneChecklist.policeInvolvement,
+      peaceProtectiveOrder: intake.phoneChecklist.peaceProtectiveOrder,
+      safetyScreeningComplete: intake.phoneChecklist.safetyScreeningComplete,
+    },
+
+    staffAssessment: {
+      canRepresentSelf: intake.staffAssessment.canRepresentSelf,
+      noFearOfCoercion: intake.staffAssessment.noFearOfCoercion,
+      noDangerToSelf: intake.staffAssessment.noDangerToSelf,
+      noDangerToCenter: intake.staffAssessment.noDangerToCenter,
+    },
+
+    staffNotes: intake.staffNotes ?? '',
+  }
+}
