@@ -153,6 +153,13 @@ vi.mock('@/app/(frontend)/(cms)/dashboard/utils/timestamp-helpers', () => ({
   },
 }))
 
+// Mock paper-intake-updater for edit flow
+vi.mock('@/lib/insightly/paper-intake-updater', () => ({
+  updateLeadInInsightly: vi.fn(),
+  updateOpportunityInInsightly: vi.fn(),
+  linkParticipantToCase: vi.fn(),
+}))
+
 // Mock Insightly mapper - mock all exported functions to avoid config dependencies
 vi.mock('@/lib/insightly/paper-intake-mapper', () => ({
   buildLeadPayload: vi.fn().mockResolvedValue({
@@ -190,10 +197,16 @@ import {
 import {
   searchForDuplicates,
   createPaperIntake,
+  updatePaperIntake,
   fetchPaperIntakeHistory,
   retrySyncPaperIntake,
   getPaperIntakeStats,
 } from '@/lib/actions/paper-intake-actions'
+import {
+  updateLeadInInsightly,
+  updateOpportunityInInsightly,
+  linkParticipantToCase,
+} from '@/lib/insightly/paper-intake-updater'
 import type { PaperIntakeInput } from '@/types/paper-intake'
 
 // =============================================================================
@@ -562,6 +575,139 @@ describe('Paper Intake Integration Tests', () => {
       const result = await createPaperIntake(input)
 
       expect(result.success).toBe(true)
+    })
+  })
+
+  // ===========================================================================
+  // Edit with Insightly Sync (Bug 5: mock reset between create/edit phases)
+  // ===========================================================================
+
+  describe('Edit with Insightly Sync', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+      resetFirestoreStore()
+      vi.mocked(getCurrentUser).mockResolvedValue(mockCoordinatorUser)
+      vi.mocked(requireRoleAny).mockResolvedValue(mockCoordinatorUser)
+      vi.mocked(ensureLeadSourcesExist).mockResolvedValue({
+        success: true,
+        leadSources: {},
+        created: [],
+        errors: [],
+      })
+    })
+
+    it('should update existing Lead on edit', async () => {
+      vi.mocked(insightlyRequest)
+        .mockResolvedValueOnce({ LEAD_ID: 111 })
+        .mockResolvedValueOnce({ LEAD_ID: 222 })
+        .mockResolvedValueOnce({ OPPORTUNITY_ID: 333 })
+        .mockResolvedValue({})
+
+      const createResult = await createPaperIntake(createValidIntakeInput())
+      expect(createResult.success).toBe(true)
+      const intakeId = createResult.intakeId!
+
+      vi.mocked(insightlyRequest).mockClear()
+      vi.mocked(updateLeadInInsightly)
+        .mockResolvedValueOnce({
+          leadId: 111,
+          status: 'success',
+          leadUrl: 'https://crm.example.com/Lead/111',
+        })
+        .mockResolvedValueOnce({
+          leadId: 222,
+          status: 'success',
+          leadUrl: 'https://crm.example.com/Lead/222',
+        })
+      vi.mocked(updateOpportunityInInsightly).mockResolvedValue({
+        caseId: 333,
+        status: 'success',
+        caseUrl: 'https://crm.example.com/Opportunity/333',
+      })
+
+      const editResult = await updatePaperIntake(intakeId, {
+        disputeDescription: 'Updated dispute description',
+      })
+
+      expect(editResult.success).toBe(true)
+      expect(updateLeadInInsightly).toHaveBeenCalledWith(
+        expect.objectContaining({ leadId: 111, participantNumber: 1 }),
+      )
+      expect(editResult.intake?.editCount).toBe(1)
+    })
+
+    it('should create Lead on edit if previously failed', async () => {
+      vi.mocked(insightlyRequest)
+        .mockRejectedValueOnce(new Error('API Error'))
+        .mockResolvedValueOnce({ LEAD_ID: 222 })
+        .mockResolvedValueOnce({ OPPORTUNITY_ID: 333 })
+        .mockResolvedValue({})
+
+      const createResult = await createPaperIntake(createValidIntakeInput())
+      expect(createResult.success).toBe(true)
+      const intakeId = createResult.intakeId!
+
+      vi.mocked(insightlyRequest).mockClear()
+      vi.mocked(insightlyRequest)
+        .mockResolvedValueOnce({ LEAD_ID: 111 })
+        .mockResolvedValue({})
+      vi.mocked(updateLeadInInsightly).mockResolvedValue({
+        leadId: 222,
+        status: 'success',
+      })
+      vi.mocked(updateOpportunityInInsightly).mockResolvedValue({
+        caseId: 333,
+        status: 'success',
+      })
+
+      const editResult = await updatePaperIntake(intakeId, {
+        disputeDescription: 'Fixed data',
+      })
+
+      expect(editResult.success).toBe(true)
+      expect(insightlyRequest).toHaveBeenCalledWith(
+        '/Leads',
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
+
+    it('should create and link P2 Lead when added on edit', async () => {
+      const inputWithoutP2 = createValidIntakeInput({ participant2: undefined })
+
+      vi.mocked(insightlyRequest)
+        .mockResolvedValueOnce({ LEAD_ID: 111 })
+        .mockResolvedValueOnce({ OPPORTUNITY_ID: 333 })
+        .mockResolvedValue({})
+
+      const createResult = await createPaperIntake(inputWithoutP2)
+      expect(createResult.success).toBe(true)
+      const intakeId = createResult.intakeId!
+
+      vi.mocked(insightlyRequest).mockClear()
+      vi.mocked(updateLeadInInsightly).mockResolvedValue({
+        leadId: 111,
+        status: 'success',
+      })
+      vi.mocked(updateOpportunityInInsightly).mockResolvedValue({
+        caseId: 333,
+        status: 'success',
+      })
+      vi.mocked(insightlyRequest).mockResolvedValue({ LEAD_ID: 222 })
+      vi.mocked(linkParticipantToCase).mockResolvedValue({ success: true })
+
+      const editResult = await updatePaperIntake(intakeId, {
+        participant2: {
+          name: 'Jane Smith',
+          email: 'jane@example.com',
+        },
+      })
+
+      expect(editResult.success).toBe(true)
+      expect(linkParticipantToCase).toHaveBeenCalledWith({
+        opportunityId: 333,
+        leadId: 222,
+        participantNumber: 2,
+      })
     })
   })
 

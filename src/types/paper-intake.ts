@@ -310,6 +310,16 @@ export interface PaperIntake {
   syncErrors?: string[]
   syncedAt?: string
 
+  // === Edit Tracking ===
+  /** ISO timestamp of last edit (undefined if never edited) */
+  lastEditedAt?: string
+  /** User ID who last edited */
+  lastEditedBy?: string
+  /** User name for display */
+  lastEditedByName?: string
+  /** Number of times this intake has been edited */
+  editCount?: number
+
   // === Timestamps ===
   createdAt: string
   updatedAt: string
@@ -331,6 +341,10 @@ export type PaperIntakeInput = Omit<
   | 'syncedAt'
   | 'createdAt'
   | 'updatedAt'
+  | 'lastEditedAt'
+  | 'lastEditedBy'
+  | 'lastEditedByName'
+  | 'editCount'
 >
 
 /**
