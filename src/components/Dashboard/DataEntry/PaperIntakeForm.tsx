@@ -1,28 +1,33 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
-import { Check, ChevronLeft, ChevronRight, Loader2, Search, FileText, Users, ClipboardCheck, type LucideIcon } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Loader2, Pencil, Search, FileText, Users, ClipboardCheck, type LucideIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Form } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { formatRelativeTime } from '@/utilities/formatDateTime'
 
 import {
   paperIntakeFormSchema,
   FORM_STEPS,
   STEP_FIELDS,
   DEFAULT_FORM_VALUES,
+  convertIntakeToFormValues,
   type PaperIntakeFormValues,
 } from '@/lib/schemas/paper-intake-schema'
 import {
   createPaperIntake,
   searchForDuplicates,
+  updatePaperIntake,
 } from '@/lib/actions/paper-intake-actions'
-import type { DuplicateCheckResult, PaperIntakeInput } from '@/types/paper-intake'
+import type { DuplicateCheckResult, PaperIntake, PaperIntakeInput } from '@/types/paper-intake'
 
 // Step Components
 import { DuplicateCheckStep } from './steps/DuplicateCheckStep'
@@ -46,6 +51,10 @@ interface DuplicateState {
 interface PaperIntakeFormProps {
   userId: string
   userName?: string
+  /** Form mode: 'create' for new intakes, 'edit' for modifying existing */
+  mode?: 'create' | 'edit'
+  /** Initial data for edit mode (required when mode='edit') */
+  initialData?: PaperIntake
 }
 
 // Step icons for visual clarity
@@ -60,15 +69,35 @@ const STEP_ICONS: readonly [LucideIcon, LucideIcon, LucideIcon, LucideIcon] = [
 // Main Component
 // =============================================================================
 
-export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
+export function PaperIntakeForm({
+  userId,
+  userName,
+  mode = 'create',
+  initialData,
+}: PaperIntakeFormProps) {
+  const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const stepContentRef = useRef<HTMLDivElement>(null)
+
+  // Edit mode configuration
+  const isEditMode = mode === 'edit'
+  const EDIT_STEPS = FORM_STEPS.slice(1)
+  const EDIT_STEP_ICONS: readonly [LucideIcon, LucideIcon, LucideIcon] = [
+    FileText,
+    Users,
+    ClipboardCheck,
+  ]
+  const activeSteps = isEditMode ? EDIT_STEPS : FORM_STEPS
+  const activeStepIcons: readonly LucideIcon[] = isEditMode
+    ? EDIT_STEP_ICONS
+    : STEP_ICONS
+  const totalSteps = activeSteps.length
 
   // Step state
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Duplicate check state (separate from form)
+  // Duplicate check state (separate from form, not used in edit mode)
   const [p1Duplicate, setP1Duplicate] = useState<DuplicateState>({
     searched: false,
     searching: false,
@@ -83,16 +112,39 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
   })
 
   // Form setup
+  const defaultValues =
+    isEditMode && initialData
+      ? convertIntakeToFormValues(initialData)
+      : DEFAULT_FORM_VALUES
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && isEditMode && !initialData) {
+      console.warn('PaperIntakeForm: mode="edit" requires initialData prop')
+    }
+  }, [isEditMode, initialData])
+
   const form = useForm<PaperIntakeFormValues>({
     resolver: zodResolver(paperIntakeFormSchema),
-    defaultValues: DEFAULT_FORM_VALUES,
+    defaultValues,
     mode: 'onTouched',
   })
 
-  const totalSteps = FORM_STEPS.length
   const progress = ((currentStep + 1) / totalSteps) * 100
   const isFirstStep = currentStep === 0
   const isLastStep = currentStep === totalSteps - 1
+  const isDirty = form.formState.isDirty
+
+  // Unsaved changes warning (browser close/refresh, external navigation)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty && isEditMode) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty, isEditMode])
 
   // ==========================================================================
   // Duplicate Check Handlers
@@ -196,7 +248,23 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
   }
 
   const goNext = async () => {
-    // Step 0: Duplicate check validation
+    // Edit mode: No duplicate check step; map edit step index to STEP_FIELDS
+    if (isEditMode) {
+      const stepFieldIndex = currentStep + 1
+      const fields = STEP_FIELDS[stepFieldIndex] ?? []
+      if (fields.length > 0) {
+        const isValid = await form.trigger(fields, { shouldFocus: true })
+        if (!isValid) {
+          toast.error('Please fix the errors before continuing')
+          return
+        }
+      }
+      setCurrentStep((s) => Math.min(totalSteps - 1, s + 1))
+      scrollToTop()
+      return
+    }
+
+    // Create mode: Step 0 is duplicate check validation
     if (currentStep === 0) {
       if (!canProceedFromDuplicateCheck()) {
         toast.error('Please complete the duplicate check for all participants')
@@ -207,7 +275,7 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
       return
     }
 
-    // Other steps: Validate form fields
+    // Create mode: Other steps validate form fields
     const fields = STEP_FIELDS[currentStep] ?? []
     if (fields.length > 0) {
       const isValid = await form.trigger(fields, { shouldFocus: true })
@@ -242,45 +310,65 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
     setIsSubmitting(true)
 
     try {
-      // CRITICAL: Destructure hasParticipant2 out - it's UI-only, not part of PaperIntakeInput
       const { hasParticipant2, ...formData } = data
-
-      // Build the input payload matching PaperIntakeInput type exactly
-      const input: PaperIntakeInput = {
-        ...formData,
-        dataEntryBy: userId,
-        dataEntryByName: userName,
-        // Only include participant2 if enabled and has a name
-        participant2: hasParticipant2 && formData.participant2?.name?.trim()
+      const participant2 =
+        hasParticipant2 && formData.participant2?.name?.trim()
           ? formData.participant2
-          : undefined,
-      }
+          : undefined
 
-      const result = await createPaperIntake(input, {
-        participant1LinkedLeadId:
-          p1Duplicate.action === 'link' ? p1Duplicate.linkedLeadId : undefined,
-        participant2LinkedLeadId:
-          p2Duplicate.action === 'link' ? p2Duplicate.linkedLeadId : undefined,
-      })
+      if (isEditMode && initialData) {
+        const input: Partial<PaperIntakeInput> = {
+          ...formData,
+          participant2,
+        }
+        const result = await updatePaperIntake(initialData.id, input)
 
-      if (!result.success) {
-        throw new Error(result.error)
-      }
+        if (!result.success) {
+          throw new Error(result.error)
+        }
 
-      // Success feedback
-      if (result.intake?.overallSyncStatus === 'success') {
-        toast.success('Paper intake submitted and synced to Insightly!')
-      } else if (result.intake?.overallSyncStatus === 'partial') {
-        toast.warning('Submitted with partial sync — some items need retry')
+        if (result.intake?.overallSyncStatus === 'success') {
+          toast.success('Changes saved and synced to Insightly!')
+        } else if (result.intake?.overallSyncStatus === 'partial') {
+          toast.warning('Saved with partial sync — some items need retry')
+        } else {
+          toast.error('Saved but sync failed — you can retry from history')
+        }
+
+        // Brief delay so user sees the success state
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        router.push('/dashboard/mediation/data-entry/history')
       } else {
-        toast.error('Submitted but sync failed — you can retry from history')
-      }
+        const input: PaperIntakeInput = {
+          ...formData,
+          dataEntryBy: userId,
+          dataEntryByName: userName,
+          participant2,
+        }
+        const result = await createPaperIntake(input, {
+          participant1LinkedLeadId:
+            p1Duplicate.action === 'link' ? p1Duplicate.linkedLeadId : undefined,
+          participant2LinkedLeadId:
+            p2Duplicate.action === 'link' ? p2Duplicate.linkedLeadId : undefined,
+        })
 
-      // Reset form for next entry
-      form.reset(DEFAULT_FORM_VALUES)
-      setCurrentStep(0)
-      setP1Duplicate({ searched: false, searching: false, result: null, action: null })
-      setP2Duplicate({ searched: false, searching: false, result: null, action: null })
+        if (!result.success) {
+          throw new Error(result.error)
+        }
+
+        if (result.intake?.overallSyncStatus === 'success') {
+          toast.success('Paper intake submitted and synced to Insightly!')
+        } else if (result.intake?.overallSyncStatus === 'partial') {
+          toast.warning('Submitted with partial sync — some items need retry')
+        } else {
+          toast.error('Submitted but sync failed — you can retry from history')
+        }
+
+        form.reset(DEFAULT_FORM_VALUES)
+        setCurrentStep(0)
+        setP1Duplicate({ searched: false, searching: false, result: null, action: null })
+        setP2Duplicate({ searched: false, searching: false, result: null, action: null })
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Submission failed')
     } finally {
@@ -332,24 +420,48 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
         <div className="space-y-4">
           {/* Progress Bar */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-foreground">
-                Step {currentStep + 1} of {totalSteps}
-              </span>
-              <span className="text-muted-foreground">{Math.round(progress)}% complete</span>
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-foreground">
+                  Step {currentStep + 1} of {totalSteps}
+                </span>
+                {isEditMode && (
+                  <Badge variant="secondary">
+                    <Pencil className="h-3 w-3 mr-1" />
+                    Editing
+                  </Badge>
+                )}
+              </div>
+              <span className="text-muted-foreground shrink-0">{Math.round(progress)}% complete</span>
             </div>
             <Progress
               value={progress}
               className="h-2"
               aria-label={`Form progress: ${Math.round(progress)}%`}
             />
+            {isEditMode && initialData && (
+              <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-2 mt-2">
+                {initialData.editCount != null && initialData.editCount > 0 && (
+                  <span>
+                    Edited {initialData.editCount} time
+                    {initialData.editCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {initialData.lastEditedAt && (
+                  <span>Last edited {formatRelativeTime(initialData.lastEditedAt)}</span>
+                )}
+                {initialData.lastEditedByName && (
+                  <span>by {initialData.lastEditedByName}</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Step Indicators */}
           <nav aria-label="Form steps" className="hidden sm:block">
             <ol className="flex items-center justify-between" role="list">
-              {FORM_STEPS.map((step, index) => {
-                const Icon = STEP_ICONS[index]!
+              {activeSteps.map((step, index) => {
+                const Icon = activeStepIcons[index]!
                 const isCompleted = index < currentStep
                 const isCurrent = index === currentStep
                 const isClickable = index < currentStep
@@ -399,7 +511,7 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
                     </button>
 
                     {/* Connector Line */}
-                    {index < FORM_STEPS.length - 1 && (
+                    {index < activeSteps.length - 1 && (
                       <div
                         className={cn(
                           'flex-1 h-0.5 mx-3 mt-[-24px]',
@@ -417,16 +529,18 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
           {/* Mobile Step Indicator */}
           <div className="sm:hidden flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
             {(() => {
-              const Icon = STEP_ICONS[currentStep]!
+              const Icon = activeStepIcons[currentStep]!
               return (
                 <>
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{FORM_STEPS[currentStep]!.title}</p>
+                    <p className="font-medium text-sm">
+                      {activeSteps[currentStep]!.title}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {FORM_STEPS[currentStep]!.description}
+                      {activeSteps[currentStep]!.description}
                     </p>
                   </div>
                 </>
@@ -440,48 +554,84 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
           ref={stepContentRef}
           className="min-h-[450px]"
           role="region"
-          aria-label={`Step ${currentStep + 1}: ${FORM_STEPS[currentStep]!.title}`}
+          aria-label={`Step ${currentStep + 1}: ${activeSteps[currentStep]!.title}`}
           tabIndex={-1}
         >
-          {currentStep === 0 && (
-            <DuplicateCheckStep
-              form={form}
-              p1State={p1Duplicate}
-              p2State={p2Duplicate}
-              onSearch={handleDuplicateSearch}
-              onAction={handleDuplicateAction}
-            />
-          )}
-
-          {currentStep === 1 && <CaseDisputeStep form={form} />}
-
-          {currentStep === 2 && <ParticipantsStep form={form} />}
-
-          {currentStep === 3 && (
-            <ReviewStep
-              form={form}
-              p1Duplicate={p1Duplicate}
-              p2Duplicate={p2Duplicate}
-            />
+          {isEditMode ? (
+            <>
+              {currentStep === 0 && <CaseDisputeStep form={form} />}
+              {currentStep === 1 && <ParticipantsStep form={form} />}
+              {currentStep === 2 && (
+                <ReviewStep
+                  form={form}
+                  p1Duplicate={p1Duplicate}
+                  p2Duplicate={p2Duplicate}
+                  mode="edit"
+                  initialHadP2={Boolean(initialData?.participant2?.name?.trim())}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {currentStep === 0 && (
+                <DuplicateCheckStep
+                  form={form}
+                  p1State={p1Duplicate}
+                  p2State={p2Duplicate}
+                  onSearch={handleDuplicateSearch}
+                  onAction={handleDuplicateAction}
+                />
+              )}
+              {currentStep === 1 && <CaseDisputeStep form={form} />}
+              {currentStep === 2 && <ParticipantsStep form={form} />}
+              {currentStep === 3 && (
+                <ReviewStep
+                  form={form}
+                  p1Duplicate={p1Duplicate}
+                  p2Duplicate={p2Duplicate}
+                  mode="create"
+                />
+              )}
+            </>
           )}
         </div>
 
         {/* Navigation Buttons */}
         <div className="flex items-center justify-between pt-6 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={goBack}
-            disabled={isFirstStep || isSubmitting}
-            className="min-w-[100px]"
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-            Back
-          </Button>
+          <div className="flex items-center gap-2">
+            {isEditMode && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => router.push('/dashboard/mediation/data-entry/history')}
+                disabled={isSubmitting}
+                className="mr-2"
+              >
+                Cancel
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={goBack}
+              disabled={isFirstStep || isSubmitting}
+              className="min-w-[100px]"
+            >
+              <ChevronLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+              Back
+            </Button>
+          </div>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {currentStep === 0 && !canProceedFromDuplicateCheck() && (
-              <span className="text-amber-600">Complete duplicate check to continue</span>
+            {!isEditMode &&
+              currentStep === 0 &&
+              !canProceedFromDuplicateCheck() && (
+                <span className="text-amber-600">
+                  Complete duplicate check to continue
+                </span>
+              )}
+            {isEditMode && !isDirty && isLastStep && (
+              <span className="text-muted-foreground">No changes to save</span>
             )}
           </div>
 
@@ -498,18 +648,18 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
           ) : (
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (isEditMode && !isDirty)}
               className="min-w-[140px]"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                  Submitting...
+                  {isEditMode ? 'Saving...' : 'Submitting...'}
                 </>
               ) : (
                 <>
                   <Check className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Submit to Insightly
+                  {isEditMode ? 'Save Changes' : 'Submit to Insightly'}
                 </>
               )}
             </Button>
@@ -523,7 +673,7 @@ export function PaperIntakeForm({ userId, userName }: PaperIntakeFormProps) {
           aria-live="polite"
           className="sr-only"
         >
-          {isSubmitting && 'Submitting form, please wait...'}
+          {isSubmitting && (isEditMode ? 'Saving changes, please wait...' : 'Submitting form, please wait...')}
         </div>
       </form>
     </Form>

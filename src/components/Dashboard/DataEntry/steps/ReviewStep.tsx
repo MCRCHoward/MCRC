@@ -3,6 +3,7 @@
 import { UseFormReturn } from 'react-hook-form'
 import {
   Check,
+  Info,
   AlertTriangle,
   Link as LinkIcon,
   Plus,
@@ -45,6 +46,10 @@ interface ReviewStepProps {
   form: UseFormReturn<PaperIntakeFormValues>
   p1Duplicate: DuplicateState
   p2Duplicate: DuplicateState
+  /** Form mode: 'create' shows duplicate badges; 'edit' hides them and uses save-focused text */
+  mode?: 'create' | 'edit'
+  /** Whether the original intake had a Participant 2 (for P2 removal UI in edit mode) */
+  initialHadP2?: boolean
 }
 
 // =============================================================================
@@ -161,7 +166,13 @@ function SummaryItem({ label, value }: { label: string; value?: string | boolean
 // Main Step Component
 // =============================================================================
 
-export function ReviewStep({ form, p1Duplicate, p2Duplicate }: ReviewStepProps) {
+export function ReviewStep({
+  form,
+  p1Duplicate,
+  p2Duplicate,
+  mode = 'create',
+  initialHadP2,
+}: ReviewStepProps) {
   const values = form.getValues()
   const hasParticipant2 = values.hasParticipant2 && values.participant2?.name
 
@@ -322,7 +333,9 @@ export function ReviewStep({ form, p1Duplicate, p2Duplicate }: ReviewStepProps) 
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Summary</CardTitle>
           <CardDescription>
-            Review the information before submitting to Insightly
+            {mode === 'edit'
+              ? 'Review the information before saving'
+              : 'Review the information before submitting to Insightly'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -368,19 +381,21 @@ export function ReviewStep({ form, p1Duplicate, p2Duplicate }: ReviewStepProps) 
               <div className="p-3 bg-background rounded-lg border">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium">{values.participant1.name}</span>
-                  <Badge variant={p1Duplicate.action === 'link' ? 'secondary' : 'default'}>
-                    {p1Duplicate.action === 'link' ? (
-                      <>
-                        <LinkIcon className="h-3 w-3 mr-1" aria-hidden="true" />
-                        Linking
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-3 w-3 mr-1" aria-hidden="true" />
-                        New Lead
-                      </>
-                    )}
-                  </Badge>
+                  {mode !== 'edit' && (
+                    <Badge variant={p1Duplicate.action === 'link' ? 'secondary' : 'default'}>
+                      {p1Duplicate.action === 'link' ? (
+                        <>
+                          <LinkIcon className="h-3 w-3 mr-1" aria-hidden="true" />
+                          Linking
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-3 w-3 mr-1" aria-hidden="true" />
+                          New Lead
+                        </>
+                      )}
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground space-y-0.5">
                   {values.participant1.email && <div>{values.participant1.email}</div>}
@@ -393,19 +408,21 @@ export function ReviewStep({ form, p1Duplicate, p2Duplicate }: ReviewStepProps) 
                 <div className="p-3 bg-background rounded-lg border">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">{values.participant2!.name}</span>
-                    <Badge variant={p2Duplicate.action === 'link' ? 'secondary' : 'default'}>
-                      {p2Duplicate.action === 'link' ? (
-                        <>
-                          <LinkIcon className="h-3 w-3 mr-1" aria-hidden="true" />
-                          Linking
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-3 w-3 mr-1" aria-hidden="true" />
-                          New Lead
-                        </>
-                      )}
-                    </Badge>
+                    {mode !== 'edit' && (
+                      <Badge variant={p2Duplicate.action === 'link' ? 'secondary' : 'default'}>
+                        {p2Duplicate.action === 'link' ? (
+                          <>
+                            <LinkIcon className="h-3 w-3 mr-1" aria-hidden="true" />
+                            Linking
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-3 w-3 mr-1" aria-hidden="true" />
+                            New Lead
+                          </>
+                        )}
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground space-y-0.5">
                     {values.participant2!.email && <div>{values.participant2!.email}</div>}
@@ -418,19 +435,46 @@ export function ReviewStep({ form, p1Duplicate, p2Duplicate }: ReviewStepProps) 
         </CardContent>
       </Card>
 
+      {/* P2 removal clarification (edit mode only) */}
+      {mode === 'edit' && !hasParticipant2 && initialHadP2 && (
+        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/50">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Participant 2 removed from view</AlertTitle>
+          <AlertDescription>
+            Participant 2&apos;s Insightly records will be preserved but no longer visible in this
+            intake.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Final Confirmation */}
       <Alert>
         <Check className="h-4 w-4" />
-        <AlertTitle>Ready to Submit</AlertTitle>
-        <AlertDescription>
-          This will create {p1Duplicate.action === 'link' ? 'link to an existing Lead' : 'a new Lead'} for Participant 1
-          {hasParticipant2 && (
-            <>
-              , {p2Duplicate.action === 'link' ? 'link to an existing Lead' : 'create a new Lead'} for Participant 2
-            </>
-          )}
-          , and create a new Case (Opportunity) in Insightly with all participants linked.
-        </AlertDescription>
+        {mode === 'edit' ? (
+          <>
+            <AlertTitle>Ready to save changes</AlertTitle>
+            <AlertDescription>
+              Your edits will be synced to Insightly. Existing Leads and Case (Opportunity)
+              records will be updated with the new information.
+            </AlertDescription>
+          </>
+        ) : (
+          <>
+            <AlertTitle>Ready to Submit</AlertTitle>
+            <AlertDescription>
+              This will create{' '}
+              {p1Duplicate.action === 'link' ? 'link to an existing Lead' : 'a new Lead'}{' '}
+              for Participant 1
+              {hasParticipant2 && (
+                <>
+                  , {p2Duplicate.action === 'link' ? 'link to an existing Lead' : 'create a new Lead'}{' '}
+                  for Participant 2
+                </>
+              )}
+              , and create a new Case (Opportunity) in Insightly with all participants linked.
+            </AlertDescription>
+          </>
+        )}
       </Alert>
     </div>
   )
