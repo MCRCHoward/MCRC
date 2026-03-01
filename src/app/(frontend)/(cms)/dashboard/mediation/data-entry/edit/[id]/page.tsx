@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import { ArrowLeft, Pencil } from 'lucide-react'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,6 +25,11 @@ import { formatDateTime } from '@/utilities/formatDateTime'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+export const metadata: Metadata = {
+  title: 'Edit Paper Intake',
+  description: 'Edit an existing paper intake record',
+}
 
 // =============================================================================
 // TypeScript Types
@@ -123,7 +129,7 @@ export default async function EditPaperIntakePage({ params }: EditPageProps) {
               </Badge>
             )}
           </div>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 truncate max-w-md">
             {intake.caseNumber ? `Case #${intake.caseNumber} — ` : ''}
             {intake.participant1.name}
             {intake.participant2?.name && ` / ${intake.participant2.name}`}
