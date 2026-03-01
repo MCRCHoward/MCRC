@@ -33,6 +33,11 @@ import {
   buildLinkingNote,
 } from '@/lib/insightly/paper-intake-mapper'
 import {
+  updateLeadInInsightly,
+  updateOpportunityInInsightly,
+  linkParticipantToCase,
+} from '@/lib/insightly/paper-intake-updater'
+import {
   AGE_RANGES,
   DISPUTE_TYPES,
   EDUCATION_LEVELS,
@@ -147,6 +152,7 @@ function serializePaperIntake(
     syncedAt: toISOString(data.syncedAt),
     createdAt: toISOString(data.createdAt) ?? new Date().toISOString(),
     updatedAt: toISOString(data.updatedAt) ?? new Date().toISOString(),
+    lastEditedAt: toISOString(data.lastEditedAt),
   } as PaperIntake
 }
 
@@ -503,6 +509,335 @@ async function syncPaperIntakeToInsightly(
     caseSync,
     overallSyncStatus,
     syncErrors,
+  }
+}
+
+/**
+ * Sync an edited paper intake to Insightly
+ *
+ * Handles all scenarios:
+ * - Update existing Leads/Opportunities via PUT
+ * - Create missing records (from failed initial sync) via POST
+ * - Link newly added participants to existing Case
+ *
+ * @internal Not exported — used only by updatePaperIntake
+ */
+async function syncEditedIntakeToInsightly(
+  intake: PaperIntake,
+  previousIntake: PaperIntake,
+): Promise<{
+  participant1Sync: PaperIntake['participant1Sync']
+  participant2Sync: PaperIntake['participant2Sync']
+  caseSync: PaperIntake['caseSync']
+  syncErrors: string[]
+}> {
+  const syncErrors: string[] = []
+  let participant1Sync: PaperIntake['participant1Sync']
+  let participant2Sync: PaperIntake['participant2Sync']
+  let caseSync: PaperIntake['caseSync']
+
+  if (!isInsightlyConfigured()) {
+    return {
+      participant1Sync: { status: 'failed', error: 'Insightly not configured' },
+      participant2Sync: previousIntake.participant2
+        ? { status: 'failed', error: 'Insightly not configured' }
+        : { status: 'skipped' },
+      caseSync: { status: 'failed', error: 'Insightly not configured' },
+      syncErrors: ['Insightly API is not configured'],
+    }
+  }
+
+  // =========================================================================
+  // Participant 1 Lead
+  // =========================================================================
+
+  const p1ExistingLeadId = previousIntake.participant1Sync?.leadId
+
+  if (p1ExistingLeadId) {
+    participant1Sync = await updateLeadInInsightly({
+      leadId: p1ExistingLeadId,
+      intake,
+      participantNumber: 1,
+    })
+
+    if (participant1Sync.status === 'failed') {
+      syncErrors.push(`Participant 1 Lead update: ${participant1Sync.error}`)
+    }
+  } else {
+    try {
+      const leadPayload = await buildLeadPayload(intake.participant1, intake, 1)
+      const createdLead = await insightlyRequest<{ LEAD_ID: number }>('/Leads', {
+        method: 'POST',
+        body: leadPayload,
+      })
+
+      participant1Sync = {
+        leadId: createdLead.LEAD_ID,
+        leadUrl: buildLeadUrl(createdLead.LEAD_ID),
+        status: 'success',
+        linkedToExisting: false,
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      participant1Sync = { status: 'failed', error: message }
+      syncErrors.push(`Participant 1 Lead create: ${message}`)
+    }
+  }
+
+  // =========================================================================
+  // Participant 2 Lead
+  // =========================================================================
+
+  if (intake.participant2?.name) {
+    const p2ExistingLeadId = previousIntake.participant2Sync?.leadId
+    const p2PreviouslyFailed = previousIntake.participant2Sync?.status === 'failed'
+    const p2IsNewlyAdded = !previousIntake.participant2?.name
+
+    if (p2ExistingLeadId) {
+      participant2Sync = await updateLeadInInsightly({
+        leadId: p2ExistingLeadId,
+        intake,
+        participantNumber: 2,
+      })
+
+      if (participant2Sync.status === 'failed') {
+        syncErrors.push(`Participant 2 Lead update: ${participant2Sync.error}`)
+      }
+    } else if (p2IsNewlyAdded || p2PreviouslyFailed) {
+      try {
+        const leadPayload = await buildLeadPayload(intake.participant2, intake, 2)
+        const createdLead = await insightlyRequest<{ LEAD_ID: number }>(
+          '/Leads',
+          {
+            method: 'POST',
+            body: leadPayload,
+          },
+        )
+
+        participant2Sync = {
+          leadId: createdLead.LEAD_ID,
+          leadUrl: buildLeadUrl(createdLead.LEAD_ID),
+          status: 'success',
+          linkedToExisting: false,
+        }
+
+        const existingCaseId = previousIntake.caseSync?.caseId
+        if (existingCaseId) {
+          const linkResult = await linkParticipantToCase({
+            opportunityId: existingCaseId,
+            leadId: createdLead.LEAD_ID,
+            participantNumber: 2,
+          })
+
+          if (!linkResult.success) {
+            console.warn(
+              '[Paper Intake] Failed to link P2 to existing case:',
+              linkResult.error,
+            )
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        participant2Sync = { status: 'failed', error: message }
+        syncErrors.push(`Participant 2 Lead create: ${message}`)
+      }
+    } else {
+      participant2Sync = previousIntake.participant2Sync
+    }
+  } else {
+    participant2Sync = previousIntake.participant2Sync ?? { status: 'skipped' }
+  }
+
+  // =========================================================================
+  // Case (Opportunity)
+  // =========================================================================
+
+  const caseExistingId = previousIntake.caseSync?.caseId
+
+  if (caseExistingId) {
+    caseSync = await updateOpportunityInInsightly({
+      opportunityId: caseExistingId,
+      intake,
+    })
+
+    if (caseSync.status === 'failed') {
+      syncErrors.push(`Case update: ${caseSync.error}`)
+    }
+  } else {
+    try {
+      const casePayload = buildCasePayload(intake)
+      const createdCase = await insightlyRequest<{ OPPORTUNITY_ID: number }>(
+        '/Opportunities',
+        { method: 'POST', body: casePayload },
+      )
+
+      caseSync = {
+        caseId: createdCase.OPPORTUNITY_ID,
+        caseUrl: buildCaseUrl(createdCase.OPPORTUNITY_ID),
+        status: 'success',
+      }
+
+      if (participant1Sync?.leadId) {
+        try {
+          const link = buildLeadToCaseLink(participant1Sync.leadId, 1)
+          await insightlyRequest(
+            `/Opportunities/${createdCase.OPPORTUNITY_ID}/Links`,
+            { method: 'POST', body: link },
+          )
+        } catch (error) {
+          console.warn('[Paper Intake] Failed to link P1 to new case:', error)
+        }
+      }
+
+      if (participant2Sync?.leadId) {
+        try {
+          const link = buildLeadToCaseLink(participant2Sync.leadId, 2)
+          await insightlyRequest(
+            `/Opportunities/${createdCase.OPPORTUNITY_ID}/Links`,
+            { method: 'POST', body: link },
+          )
+        } catch (error) {
+          console.warn('[Paper Intake] Failed to link P2 to new case:', error)
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      caseSync = { status: 'failed', error: message }
+      syncErrors.push(`Case create: ${message}`)
+    }
+  }
+
+  return {
+    participant1Sync,
+    participant2Sync,
+    caseSync,
+    syncErrors,
+  }
+}
+
+/**
+ * Update an existing paper intake and sync changes to Insightly
+ *
+ * This action:
+ * 1. Validates merged input (merge before validate for partial nested updates)
+ * 2. Fetches existing intake from Firestore
+ * 3. Merges input with existing data
+ * 4. Syncs changes to Insightly (PUT for existing records, POST for failed/new)
+ * 5. Updates Firestore with merged data + sync results + edit tracking
+ */
+export async function updatePaperIntake(
+  intakeId: string,
+  input: Partial<PaperIntakeInput>,
+): Promise<{
+  success: boolean
+  intake?: PaperIntake
+  error?: string
+}> {
+  try {
+    const user = await requireRoleAny(['admin', 'coordinator'])
+
+    const docRef = adminDb.doc(`${COLLECTION_NAME}/${intakeId}`)
+    const docSnap = await docRef.get()
+
+    if (!docSnap.exists) {
+      return { success: false, error: 'Intake not found' }
+    }
+
+    const previousIntake = serializePaperIntake(docSnap)
+
+    // Merge before validation (Bug 1: allows partial participant updates)
+    const mergedParticipant1 = input.participant1
+      ? { ...previousIntake.participant1, ...input.participant1 }
+      : previousIntake.participant1
+
+    // Bug 2: preserve undefined when P2 not in input
+    const mergedParticipant2 = input.participant2
+      ? { ...previousIntake.participant2, ...input.participant2 }
+      : previousIntake.participant2
+
+    const mergedInput = {
+      ...previousIntake,
+      ...input,
+      participant1: mergedParticipant1,
+      participant2: mergedParticipant2,
+    }
+
+    const parsed = PaperIntakeInputSchema.safeParse(mergedInput)
+    if (!parsed.success) {
+      console.error('[Paper Intake] Merged data failed validation:', parsed.error)
+      return { success: false, error: 'Invalid data after merge' }
+    }
+
+    const mergedIntake: PaperIntake = {
+      ...previousIntake,
+      ...parsed.data,
+      participant1: mergedParticipant1,
+      participant2: mergedParticipant2,
+      participant1Sync: previousIntake.participant1Sync,
+      participant2Sync: previousIntake.participant2Sync,
+      caseSync: previousIntake.caseSync,
+    }
+
+    const syncResult = await syncEditedIntakeToInsightly(
+      mergedIntake,
+      previousIntake,
+    )
+
+    const hasFailure =
+      syncResult.participant1Sync?.status === 'failed' ||
+      syncResult.participant2Sync?.status === 'failed' ||
+      syncResult.caseSync?.status === 'failed'
+
+    const hasSuccess =
+      syncResult.participant1Sync?.status === 'success' ||
+      syncResult.participant1Sync?.status === 'linked' ||
+      syncResult.participant2Sync?.status === 'success' ||
+      syncResult.participant2Sync?.status === 'linked' ||
+      syncResult.caseSync?.status === 'success'
+
+    let overallSyncStatus: PaperIntake['overallSyncStatus']
+    if (hasFailure && hasSuccess) {
+      overallSyncStatus = 'partial'
+    } else if (hasFailure) {
+      overallSyncStatus = 'failed'
+    } else {
+      overallSyncStatus = 'success'
+    }
+
+    const updateData = removeUndefined({
+      ...parsed.data,
+      participant1: mergedParticipant1,
+      participant2: mergedParticipant2,
+      participant1Sync: syncResult.participant1Sync,
+      participant2Sync: syncResult.participant2Sync,
+      caseSync: syncResult.caseSync,
+      overallSyncStatus,
+      syncErrors:
+        syncResult.syncErrors.length > 0 ? syncResult.syncErrors : [],
+      syncedAt:
+        overallSyncStatus === 'success' ? FieldValue.serverTimestamp() : undefined,
+      lastEditedAt: FieldValue.serverTimestamp(),
+      lastEditedBy: user.id,
+      lastEditedByName: user.name || user.email,
+      editCount: (previousIntake.editCount ?? 0) + 1,
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+
+    await docRef.update(updateData)
+
+    const updatedDoc = await docRef.get()
+    const updatedIntake = serializePaperIntake(updatedDoc)
+
+    revalidatePath('/dashboard/mediation/data-entry')
+    revalidatePath('/dashboard/mediation/data-entry/history')
+
+    return { success: true, intake: updatedIntake }
+  } catch (error) {
+    console.error('[Paper Intake] Update error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
   }
 }
 
