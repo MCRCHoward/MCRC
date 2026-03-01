@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useDebouncedCallback } from 'use-debounce'
 import { toast } from 'sonner'
 import {
@@ -34,6 +35,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Pencil,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -309,13 +311,31 @@ function ExpandedRowContent({
         </div>
       )}
 
-      {/* Retry Button */}
-      {(intake.overallSyncStatus === 'failed' || intake.overallSyncStatus === 'partial') && (
-        <div className="pt-2">
-          <Button variant="outline" size="sm" onClick={onRetry} disabled={isRetrying}>
+      {/* Action Buttons */}
+      <div className="pt-4 border-t flex items-center gap-2">
+        {/* Edit Button — Always Available */}
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/dashboard/mediation/data-entry/edit/${intake.id}`}>
+            <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+            Edit
+          </Link>
+        </Button>
+
+        {/* Retry Button — Only for Failed/Partial Syncs */}
+        {(intake.overallSyncStatus === 'failed' ||
+          intake.overallSyncStatus === 'partial') && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            disabled={isRetrying}
+          >
             {isRetrying ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                <Loader2
+                  className="mr-2 h-4 w-4 animate-spin"
+                  aria-hidden="true"
+                />
                 Retrying...
               </>
             ) : (
@@ -325,8 +345,8 @@ function ExpandedRowContent({
               </>
             )}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
