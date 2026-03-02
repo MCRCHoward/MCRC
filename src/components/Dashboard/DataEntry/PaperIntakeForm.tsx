@@ -7,11 +7,22 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { Check, ChevronLeft, ChevronRight, Loader2, Pencil, Search, FileText, Users, ClipboardCheck, type LucideIcon } from 'lucide-react'
 
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 import { cn } from '@/lib/utils'
 import { Form } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { formatRelativeTime } from '@/utilities/formatDateTime'
 
 import {
@@ -134,17 +145,16 @@ export function PaperIntakeForm({
   const isLastStep = currentStep === totalSteps - 1
   const isDirty = form.formState.isDirty
 
-  // Unsaved changes warning (browser close/refresh, external navigation)
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty && isEditMode) {
-        e.preventDefault()
-        e.returnValue = ''
-      }
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [isDirty, isEditMode])
+  // Unsaved changes warning (browser close/refresh, back button, in-app navigation)
+  const {
+    showDialog: showCancelDialog,
+    confirmNavigation,
+    cancelNavigation,
+    navigateWithCheck,
+  } = useUnsavedChangesWarning({
+    isDirty,
+    enabled: isEditMode,
+  })
 
   // ==========================================================================
   // Duplicate Check Handlers
@@ -600,15 +610,46 @@ export function PaperIntakeForm({
         <div className="flex items-center justify-between pt-6 border-t">
           <div className="flex items-center gap-2">
             {isEditMode && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => router.push('/dashboard/mediation/data-entry/history')}
-                disabled={isSubmitting}
-                className="mr-2"
-              >
-                Cancel
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => navigateWithCheck('/dashboard/mediation/data-entry/history')}
+                  disabled={isSubmitting}
+                  className="mr-2"
+                >
+                  Cancel
+                </Button>
+
+                <AlertDialog
+                  open={showCancelDialog}
+                  onOpenChange={(open) => !open && cancelNavigation()}
+                >
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Discard unsaved changes?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        You have unsaved changes that will be lost. Are you
+                        sure you want to leave this page?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={cancelNavigation}>
+                        Keep Editing
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        type="button"
+                        onClick={confirmNavigation}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Discard Changes
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
             )}
             <Button
               type="button"
