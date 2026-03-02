@@ -18,13 +18,28 @@ export default defineConfig({
       exclude: ['**/__tests__/**', '**/*.test.ts'],
     },
     projects: [
-      // Unit / integration tests
+      // Unit tests (.ts only, node environment)
       {
         test: {
           name: 'unit',
-          include: ['src/**/__tests__/**/*.test.{ts,tsx}'],
-          exclude: ['src/__tests__/integration/**'],
+          include: ['src/**/__tests__/**/*.test.ts'],
+          exclude: ['src/__tests__/integration/**', 'src/**/*.test.tsx'],
           environment: 'node',
+        },
+        resolve: {
+          alias: {
+            '@': path.resolve(dirname, 'src'),
+          },
+        },
+      },
+      // Component tests (.tsx, jsdom for React)
+      {
+        test: {
+          name: 'component',
+          include: ['src/**/*.test.tsx'],
+          environment: 'jsdom',
+          globals: true,
+          setupFiles: ['./src/__tests__/utils/component-setup.ts'],
         },
         resolve: {
           alias: {
