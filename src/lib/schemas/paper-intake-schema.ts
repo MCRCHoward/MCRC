@@ -329,64 +329,50 @@ export function convertIntakeToFormValues(intake: PaperIntake): PaperIntakeFormV
       attorney: intake.participant1.attorney ?? '',
       bestCallTime: intake.participant1.bestCallTime ?? '',
       bestMeetTime: intake.participant1.bestMeetTime ?? '',
-      demographics: {
-        gender: intake.participant1.demographics?.gender,
-        race: intake.participant1.demographics?.race,
-        ageRange: intake.participant1.demographics?.ageRange,
-        income: intake.participant1.demographics?.income,
-        education: intake.participant1.demographics?.education,
-        militaryStatus: intake.participant1.demographics?.militaryStatus,
-      },
+      demographics: intake.participant1.demographics
+        ? {
+            gender: intake.participant1.demographics.gender,
+            race: intake.participant1.demographics.race,
+            ageRange: intake.participant1.demographics.ageRange,
+            income: intake.participant1.demographics.income,
+            education: intake.participant1.demographics.education,
+            militaryStatus: intake.participant1.demographics.militaryStatus,
+          }
+        : {},
     },
 
-    participant2: intake.participant2
-      ? {
-          participantNumber: intake.participant2.participantNumber ?? undefined,
-          name: intake.participant2.name,
-          firstName: intake.participant2.firstName ?? undefined,
-          lastName: intake.participant2.lastName ?? undefined,
-          email: intake.participant2.email ?? '',
-          phone: intake.participant2.phone ?? '',
-          homePhone: intake.participant2.homePhone ?? '',
-          address: {
-            street: intake.participant2.address?.street ?? '',
-            city: intake.participant2.address?.city ?? '',
-            state: intake.participant2.address?.state ?? '',
-            zipCode: intake.participant2.address?.zipCode ?? '',
-          },
-          canSendJointEmail: intake.participant2.canSendJointEmail ?? false,
-          attorney: intake.participant2.attorney ?? '',
-          bestCallTime: intake.participant2.bestCallTime ?? '',
-          bestMeetTime: intake.participant2.bestMeetTime ?? '',
-          demographics: {
-            gender: intake.participant2.demographics?.gender,
-            race: intake.participant2.demographics?.race,
-            ageRange: intake.participant2.demographics?.ageRange,
-            income: intake.participant2.demographics?.income,
-            education: intake.participant2.demographics?.education,
-            militaryStatus: intake.participant2.demographics?.militaryStatus,
-          },
-        }
-      : {
-          participantNumber: undefined,
-          name: '',
-          firstName: undefined,
-          lastName: undefined,
-          email: '',
-          phone: '',
-          homePhone: '',
-          address: {
-            street: '',
-            city: '',
-            state: 'MD', // Match create mode default
-            zipCode: '',
-          },
-          canSendJointEmail: false,
-          attorney: '',
-          bestCallTime: '',
-          bestMeetTime: '',
-          demographics: {},
-        },
+    participant2:
+      intake.participant2 && intake.participant2.name?.trim()
+        ? {
+            participantNumber: intake.participant2.participantNumber ?? undefined,
+            name: intake.participant2.name,
+            firstName: intake.participant2.firstName ?? undefined,
+            lastName: intake.participant2.lastName ?? undefined,
+            email: intake.participant2.email ?? '',
+            phone: intake.participant2.phone ?? '',
+            homePhone: intake.participant2.homePhone ?? '',
+            address: {
+              street: intake.participant2.address?.street ?? '',
+              city: intake.participant2.address?.city ?? '',
+              state: intake.participant2.address?.state ?? '',
+              zipCode: intake.participant2.address?.zipCode ?? '',
+            },
+            canSendJointEmail: intake.participant2.canSendJointEmail ?? false,
+            attorney: intake.participant2.attorney ?? '',
+            bestCallTime: intake.participant2.bestCallTime ?? '',
+            bestMeetTime: intake.participant2.bestMeetTime ?? '',
+            demographics: intake.participant2.demographics
+              ? {
+                  gender: intake.participant2.demographics.gender,
+                  race: intake.participant2.demographics.race,
+                  ageRange: intake.participant2.demographics.ageRange,
+                  income: intake.participant2.demographics.income,
+                  education: intake.participant2.demographics.education,
+                  militaryStatus: intake.participant2.demographics.militaryStatus,
+                }
+              : {},
+          }
+        : undefined,
 
     phoneChecklist: {
       explainedProcess: intake.phoneChecklist.explainedProcess,
