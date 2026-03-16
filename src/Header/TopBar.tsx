@@ -1,5 +1,5 @@
 'use client'
-import { Mail, MapPin, Facebook, Twitter, Instagram, Youtube } from 'lucide-react'
+import { Mail, MapPin, Facebook, Instagram, Youtube } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 
 export function TopBar() {
@@ -31,7 +31,7 @@ export function TopBar() {
         {/* Right content: Social Icons */}
         <div className="flex items-center gap-2">
           <a
-            href="https://www.facebook.com/"
+            href="https://www.facebook.com/MCRCHoCo"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Facebook"
@@ -40,16 +40,7 @@ export function TopBar() {
             <Facebook className="w-4 h-4" />
           </a>
           <a
-            href="https://twitter.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Twitter"
-            className="social-link bg-accent rounded-full p-1 hover:bg-primary hover:text-primary-foreground transition-colors"
-          >
-            <Twitter className="w-4 h-4" />
-          </a>
-          <a
-            href="https://www.instagram.com/"
+            href="https://www.instagram.com/talk.it.out.hoco/"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Instagram"
@@ -58,7 +49,7 @@ export function TopBar() {
             <Instagram className="w-4 h-4" />
           </a>
           <a
-            href="https://www.youtube.com/"
+            href="https://www.youtube.com/@mediationandconflictresolu9121/videos"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="YouTube"
