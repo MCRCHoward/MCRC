@@ -152,11 +152,10 @@ export default function CategoriesPageClient({
                   {categories.map((category, index) => (
                     <div
                       key={category.id}
-                      className={`px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3 ${
-                        index % 2 === 0
+                      className={`px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-3 ${index % 2 === 0
                           ? 'bg-gray-50 dark:bg-gray-800/25'
                           : 'bg-white dark:bg-gray-900'
-                      }`}
+                        }`}
                     >
                       <dt className="text-sm font-medium text-gray-900 dark:text-white">
                         <div className="flex items-center justify-between">
@@ -170,7 +169,7 @@ export default function CategoriesPageClient({
                           <div className="mt-1 text-xs text-muted-foreground">/{category.slug}</div>
                         )}
                       </dt>
-                      <dd className="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0 dark:text-gray-400">
+                      <dd className="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0  ">
                         {category.description || (
                           <span className="italic text-muted-foreground">No description</span>
                         )}

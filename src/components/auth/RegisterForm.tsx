@@ -586,16 +586,15 @@ export function RegisterForm() {
                     <div className="mt-2 space-y-1">
                       <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                         <div
-                          className={`h-full transition-all ${
-                            passwordStrength.strength === 'weak'
+                          className={`h-full transition-all ${passwordStrength.strength === 'weak'
                               ? 'w-1/3 bg-red-500'
                               : passwordStrength.strength === 'medium'
                                 ? 'w-2/3 bg-yellow-500'
                                 : 'w-full bg-green-500'
-                          }`}
+                            }`}
                         />
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                      <p className="text-xs text-gray-600  ">
                         Strength: {passwordStrength.strength}
                       </p>
                     </div>
@@ -654,7 +653,7 @@ export function RegisterForm() {
                 {...form.register('phoneNumber')}
                 className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-xs text-gray-500  ">
                 Used for SMS notifications if enabled
               </p>
               {form.formState.errors.phoneNumber && (
@@ -949,7 +948,7 @@ export function RegisterForm() {
       {/* STEP 5: Interests */}
       {currentStep === 4 && (
         <div className="space-y-6">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gray-600  ">
             Select all that apply. This helps us understand how you&apos;d like to engage with MCRC.
           </p>
           <div className="space-y-4">

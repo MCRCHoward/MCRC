@@ -28,7 +28,7 @@ export default function RegisterPage() {
             <RegisterForm />
           </div>
 
-          <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+          <div className="mt-6 text-center text-sm text-gray-600  ">
             <p>
               Already have an account?{' '}
               <Link
